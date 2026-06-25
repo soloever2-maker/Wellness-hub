@@ -72,7 +72,7 @@ export default function ProfilePage() {
             {[
               { icon: MessageCircle, label: 'Contact Enjy', subtitle: 'WhatsApp', href: 'https://wa.me/201063751653' },
               { icon: Phone, label: 'Call Enjy', subtitle: '+20 10 63751653', href: 'tel:+201063751653' },
-              { icon: MapPin, label: 'Location', subtitle: '6th of October', href: 'https://maps.google.com/?q=First+6th+of+October+Giza+Egypt' },
+              { icon: MapPin, label: 'Location', subtitle: '6th of October', href: 'https://www.google.com/maps?q=29.978662,30.988026' },
               { icon: Camera, label: 'Instagram', subtitle: '@yoga_together_forlife', href: 'https://www.instagram.com/yoga_together_forlife' },
               { icon: Info, label: 'About The Wellness Hub', subtitle: '', href: '#' },
             ].map((item, i) => (
