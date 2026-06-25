@@ -1,17 +1,25 @@
+'use client'
+
 interface BookingSectionProps {
   state: 'available' | 'full' | 'booked'
+  onBook?: () => void
+  onJoinWaitlist?: () => void
+  onCancel?: () => void
 }
 
-export function BookingSection({ state }: BookingSectionProps) {
+export function BookingSection({ state, onBook, onJoinWaitlist, onCancel }: BookingSectionProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border shadow-2xl shadow-primary/10">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-2xl shadow-primary/10">
       <div className="max-w-sm mx-auto px-4 py-4">
         {state === 'available' && (
           <>
-            <button className="w-full bg-gradient-to-r from-primary to-accent text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all">
+            <button
+              onClick={onBook}
+              className="w-full bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all active:scale-[0.98]"
+            >
               Book This Class
             </button>
-            <p className="text-xs text-secondary-foreground text-center mt-2">
+            <p className="text-xs text-muted-foreground text-center mt-2">
               1 session will be deducted from your package
             </p>
           </>
@@ -19,10 +27,13 @@ export function BookingSection({ state }: BookingSectionProps) {
 
         {state === 'full' && (
           <>
-            <button className="w-full border-2 border-primary text-primary font-bold py-4 rounded-[12px] hover:bg-primary/5 transition-all">
+            <button
+              onClick={onJoinWaitlist}
+              className="w-full border-2 border-[#D63384] text-[#D63384] font-bold py-4 rounded-[12px] hover:bg-[#D63384]/5 transition-all active:scale-[0.98]"
+            >
               Join Waitlist
             </button>
-            <p className="text-xs text-secondary-foreground text-center mt-2">
+            <p className="text-xs text-muted-foreground text-center mt-2">
               3 people waiting
             </p>
           </>
@@ -30,10 +41,13 @@ export function BookingSection({ state }: BookingSectionProps) {
 
         {state === 'booked' && (
           <>
-            <div className="w-full bg-green-50 border border-green-200 rounded-[12px] py-4 text-center">
-              <p className="text-sm font-bold text-green-700">You&apos;re Booked! ✓</p>
+            <div className="w-full bg-[#4CAF50]/10 border border-[#4CAF50]/30 rounded-[12px] py-4 text-center">
+              <p className="text-sm font-bold text-[#4CAF50]">You&apos;re Booked! ✓</p>
             </div>
-            <button className="w-full mt-3 text-secondary-foreground font-medium py-2 text-sm hover:text-foreground transition-all">
+            <button
+              onClick={onCancel}
+              className="w-full mt-3 text-muted-foreground font-medium py-2 text-sm hover:text-[#E53935] transition-all"
+            >
               Cancel Booking
             </button>
           </>
