@@ -18,44 +18,14 @@ export default function ClassDetailsPage() {
         <ClassInfoCard />
         <SpotsIndicator />
         <AboutSection />
-        
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setBookingState('available')}
-              className={`text-xs px-3 py-1 rounded-full transition-all ${
-                bookingState === 'available'
-                  ? 'bg-primary text-white'
-                  : 'bg-muted text-foreground'
-              }`}
-            >
-              Available
-            </button>
-            <button
-              onClick={() => setBookingState('full')}
-              className={`text-xs px-3 py-1 rounded-full transition-all ${
-                bookingState === 'full'
-                  ? 'bg-primary text-white'
-                  : 'bg-muted text-foreground'
-              }`}
-            >
-              Full
-            </button>
-            <button
-              onClick={() => setBookingState('booked')}
-              className={`text-xs px-3 py-1 rounded-full transition-all ${
-                bookingState === 'booked'
-                  ? 'bg-primary text-white'
-                  : 'bg-muted text-foreground'
-              }`}
-            >
-              Already Booked
-            </button>
-          </div>
-        </div>
       </div>
 
-      <BookingSection state={bookingState} />
+      <BookingSection
+        state={bookingState}
+        onBook={() => setBookingState('booked')}
+        onJoinWaitlist={() => setBookingState('booked')}
+        onCancel={() => setBookingState('available')}
+      />
     </div>
   )
 }
