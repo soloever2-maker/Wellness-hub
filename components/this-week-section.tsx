@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -37,7 +38,6 @@ export function ThisWeekSection() {
     <div>
       <h3 className="text-lg font-semibold text-foreground mb-3">This Week</h3>
       
-      {/* Day pills */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-2 -mx-4 px-4">
         {daysOfWeek.map((day) => (
           <button
@@ -54,10 +54,9 @@ export function ThisWeekSection() {
         ))}
       </div>
 
-      {/* Classes for selected day */}
       <div className="space-y-2">
         {classesByDay[selectedDay as keyof typeof classesByDay]?.map((cls, idx) => (
-          <div key={idx} className="bg-white border border-border rounded-xl p-3 flex items-center gap-3 hover:shadow-sm transition-shadow cursor-pointer">
+          <Link key={idx} href="/class" className="bg-white border border-border rounded-xl p-3 flex items-center gap-3 hover:shadow-sm transition-shadow block">
             <span className="text-2xl">{cls.emoji}</span>
             <div className="flex-1">
               <p className="font-medium text-foreground text-sm">{cls.name}</p>
@@ -66,7 +65,7 @@ export function ThisWeekSection() {
             <span className="text-xs font-medium px-2 py-1 bg-secondary/30 text-muted-foreground rounded-full">
               Spots avail.
             </span>
-          </div>
+          </Link>
         ))}
       </div>
     </div>
