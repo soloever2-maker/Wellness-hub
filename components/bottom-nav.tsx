@@ -1,18 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { Home, Calendar, Plus, BookOpen, User } from 'lucide-react'
+import { Home, Calendar, BookOpen, User, Package } from 'lucide-react'
 
 const navItems = [
   { icon: Home, label: 'Home', id: 'home', href: '/' },
   { icon: Calendar, label: 'Schedule', id: 'schedule', href: '/schedule' },
-  { icon: Plus, label: 'Book', id: 'book', href: '/schedule' },
+  { icon: Package, label: 'Packages', id: 'packages', href: '/packages' },
   { icon: BookOpen, label: 'Bookings', id: 'bookings', href: '/bookings' },
   { icon: User, label: 'Profile', id: 'profile', href: '/profile' },
 ]
 
 interface BottomNavProps {
-  activePage?: 'home' | 'schedule' | 'book' | 'bookings' | 'profile'
+  activePage?: 'home' | 'schedule' | 'packages' | 'bookings' | 'profile'
 }
 
 export function BottomNav({ activePage = 'home' }: BottomNavProps) {
