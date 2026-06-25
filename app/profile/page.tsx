@@ -65,26 +65,27 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Support */}
+{/* Support */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Support</p>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {[
-              { icon: MessageCircle, label: 'Contact Enjy', subtitle: 'WhatsApp' },
-              { icon: MapPin, label: 'Location', subtitle: '6th of October' },
-              { icon: Instagram, label: 'Instagram', subtitle: '@thewellnesshub' },
-              { icon: Info, label: 'About The Wellness Hub', subtitle: '' },
+              { icon: MessageCircle, label: 'Contact Enjy', subtitle: 'WhatsApp', href: 'https://wa.me/201063751653' },
+              { icon: Phone, label: 'Call Enjy', subtitle: '+20 10 63751653', href: 'tel:+201063751653' },
+              { icon: MapPin, label: 'Location', subtitle: '6th of October', href: 'https://maps.google.com/?q=First+6th+of+October+Giza+Egypt' },
+              { icon: Camera, label: 'Instagram', subtitle: '@yoga_together_forlife', href: 'https://www.instagram.com/yoga_together_forlife' },
+              { icon: Info, label: 'About The Wellness Hub', subtitle: '', href: '#' },
             ].map((item, i) => (
-              <button key={i} className={`flex items-center w-full px-4 py-3.5 ${i < 3 ? 'border-b border-border' : ''} hover:bg-muted/30 transition-colors`}>
+              <a key={i} href={item.href} target={item.href.startsWith('http') ? '_blank' : undefined} rel={item.href.startsWith('http') ? 'noopener noreferrer' : undefined} className={`flex items-center w-full px-4 py-3.5 ${i < 4 ? 'border-b border-border' : ''} hover:bg-muted/30 transition-colors`}>
                 <item.icon className="w-5 h-5 text-[#D63384] mr-3" />
                 <span className="text-sm text-foreground flex-1 text-left">{item.label}</span>
                 {item.subtitle && <span className="text-xs text-muted-foreground mr-2">{item.subtitle}</span>}
                 <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-              </button>
+              </a>
             ))}
           </div>
         </div>
-
+        
         {/* Log Out */}
         <div>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
