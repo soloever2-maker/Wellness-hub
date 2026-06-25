@@ -84,6 +84,10 @@
   --sidebar-ring: #D63384;
 }
 
+/* Dark mode disabled — app is light-only */
+
+/* prefers-color-scheme dark disabled */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
