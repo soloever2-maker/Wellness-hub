@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, Phone, MapPin, Instagram, Info, LogOut, MessageCircle } from 'lucide-react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 
 export default function ProfilePage() {
