@@ -1,24 +1,21 @@
 const CREDENTIAL_KEY = 'biometric_credential_id'
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled'
 const USER_EMAIL_KEY = 'saved_email'
+const USER_ROLE_KEY = 'saved_role'
 
 function base64urlToUint8Array(base64url: string): Uint8Array {
   const base64 = base64url
     .replace(/-/g, '+')
     .replace(/_/g, '/')
     .padEnd(base64url.length + (4 - (base64url.length % 4)) % 4, '=')
-  const binary = atob(base64)
-  return Uint8Array.from(binary, c => c.charCodeAt(0))
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0))
 }
 
 function arrayBufferToBase64url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
   let binary = ''
   bytes.forEach(b => binary += String.fromCharCode(b))
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '')
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
 export function isBiometricSupported(): boolean {
@@ -35,6 +32,16 @@ export function getSavedEmail(): string {
   return localStorage.getItem(USER_EMAIL_KEY) || ''
 }
 
+export function getSavedRole(): string {
+  return localStorage.getItem(USER_ROLE_KEY) || 'client'
+}
+
+export function saveUserInfo(email: string, role: string) {
+  localStorage.setItem(USER_EMAIL_KEY, email)
+  localStorage.setItem(USER_ROLE_KEY, role)
+}
+
+// Keep for backwards compatibility
 export function saveEmail(email: string) {
   localStorage.setItem(USER_EMAIL_KEY, email)
 }
@@ -64,8 +71,7 @@ export async function registerBiometric(email: string): Promise<boolean> {
 
     if (!credential) return false
 
-    const rawId = arrayBufferToBase64url(credential.rawId)
-    localStorage.setItem(CREDENTIAL_KEY, rawId)
+    localStorage.setItem(CREDENTIAL_KEY, arrayBufferToBase64url(credential.rawId))
     localStorage.setItem(BIOMETRIC_ENABLED_KEY, 'true')
     localStorage.setItem(USER_EMAIL_KEY, email)
     return true
@@ -80,20 +86,15 @@ export async function authenticateWithBiometric(): Promise<boolean> {
     const credentialId = localStorage.getItem(CREDENTIAL_KEY)
     if (!credentialId) return false
 
-    const challenge = crypto.getRandomValues(new Uint8Array(32))
-    const credentialIdBytes = base64urlToUint8Array(credentialId)
-
     const credential = await navigator.credentials.get({
       publicKey: {
-        challenge,
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
         rpId: window.location.hostname,
-        allowCredentials: [
-          {
-            id: credentialIdBytes,
-            type: 'public-key',
-            transports: ['internal'],
-          },
-        ],
+        allowCredentials: [{
+          id: base64urlToUint8Array(credentialId),
+          type: 'public-key',
+          transports: ['internal'],
+        }],
         userVerification: 'required',
         timeout: 60000,
       },
