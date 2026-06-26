@@ -23,4 +23,9 @@ export interface AppUser {
   role: UserRole
   status: UserStatus
   created_at: string
+  preferences?: {
+    reminders_whatsapp?: boolean
+    reminders_24h?: boolean
+    reminders_2h?: boolean
+  }
 }
