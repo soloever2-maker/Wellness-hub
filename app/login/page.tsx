@@ -13,7 +13,6 @@ import {
   saveEmail,
   authenticateWithBiometric,
 } from '@/lib/biometric'
-import { supabase } from '@/lib/supabase'
 
 type Mode = 'login' | 'register' | 'pending'
 
@@ -181,21 +180,14 @@ export default function LoginPage() {
     setBiometricLoading(true)
     setError('')
     try {
-      const verified = await authenticateWithBiometric()
-      if (!verified) {
-        setError('Biometric authentication failed. Use your password instead.')
+      const success = await authenticateWithBiometric()
+      if (!success) {
+        setError('Session expired. Please sign in with your password once to refresh biometrics.')
         setBiometricLoading(false)
         return
       }
-
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (session) {
-        const role = getSavedRole()
-        router.replace(role === 'admin' ? '/select-role' : '/')
-      } else {
-        setError('Your session expired. Please sign in with your password once.')
-      }
+      const role = getSavedRole()
+      router.replace(role === 'admin' ? '/select-role' : '/')
     } catch {
       setError('Biometric failed. Try your password.')
     } finally {
