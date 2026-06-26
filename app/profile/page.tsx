@@ -5,6 +5,7 @@ import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Ch
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter } from 'next/navigation'
+import { logoutUser } from '@/lib/auth'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -19,8 +20,9 @@ export default function ProfilePage() {
     setIsEditing(false)
   }
 
-  const handleLogout = () => {
-    router.push('/login')
+  const handleLogout = async () => {
+    await logoutUser()
+    router.replace('/login')
   }
 
   return (
