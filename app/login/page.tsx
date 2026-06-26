@@ -9,9 +9,8 @@ import {
   isBiometricSupported,
   isBiometricEnabled,
   getSavedEmail,
-  getSavedRole,
-  saveEmail,
-  authenticateWithBiometric,
+
+  getCredentialsViaBiometric,
 } from '@/lib/biometric'
 
 type Mode = 'login' | 'register' | 'pending'
@@ -164,7 +163,6 @@ export default function LoginPage() {
     setError('')
     try {
       const { user } = await loginUser(form.email, form.password)
-      saveEmail(form.email)
       router.replace(user.role === 'admin' ? '/select-role' : '/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
@@ -180,16 +178,22 @@ export default function LoginPage() {
     setBiometricLoading(true)
     setError('')
     try {
-      const success = await authenticateWithBiometric()
-      if (!success) {
-        setError('Session expired. Please sign in with your password once to refresh biometrics.')
+      // Step 1: Verify biometric and retrieve stored credentials
+      const result = await getCredentialsViaBiometric()
+      if (!result.ok) {
+        setError(result.error)
         setBiometricLoading(false)
         return
       }
-      const role = getSavedRole()
-      router.replace(role === 'admin' ? '/select-role' : '/')
-    } catch {
-      setError('Biometric failed. Try your password.')
+
+      // Step 2: Login with the retrieved credentials (creates a fresh session)
+      const { user } = await loginUser(result.email, result.password)
+      router.replace(user.role === 'admin' ? '/select-role' : '/')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg === 'PENDING') setMode('pending')
+      else if (msg === 'REJECTED') setError('Your request was not approved.')
+      else setError('Login failed. Try with your password.')
     } finally {
       setBiometricLoading(false)
     }
