@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { Logo } from '@/components/logo'
+import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
 import {
   isBiometricSupported,
@@ -15,6 +15,135 @@ import {
 
 type Mode = 'login' | 'register' | 'pending'
 
+// Floating lotus particles
+function FloatingParticles() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    const particles: {
+      x: number; y: number; size: number; speedX: number; speedY: number;
+      opacity: number; rotation: number; rotSpeed: number; type: number
+    }[] = []
+
+    // Create 18 particles
+    for (let i = 0; i < 18; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 18 + 8,
+        speedX: (Math.random() - 0.5) * 0.4,
+        speedY: (Math.random() - 0.5) * 0.4,
+        opacity: Math.random() * 0.25 + 0.05,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.01,
+        type: Math.floor(Math.random() * 2), // 0 = lotus petal, 1 = swirl dot
+      })
+    }
+
+    const drawLotus = (
+      ctx: CanvasRenderingContext2D,
+      x: number, y: number, size: number,
+      opacity: number, rotation: number
+    ) => {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(rotation)
+      ctx.globalAlpha = opacity
+
+      const petalCount = 5
+      for (let i = 0; i < petalCount; i++) {
+        ctx.save()
+        ctx.rotate((i / petalCount) * Math.PI * 2)
+        ctx.beginPath()
+        ctx.ellipse(0, -size * 0.6, size * 0.25, size * 0.6, 0, 0, Math.PI * 2)
+        ctx.strokeStyle = '#E86500'
+        ctx.lineWidth = 1.2
+        ctx.stroke()
+        ctx.restore()
+      }
+
+      // Center circle
+      ctx.beginPath()
+      ctx.arc(0, 0, size * 0.15, 0, Math.PI * 2)
+      ctx.strokeStyle = '#006D77'
+      ctx.lineWidth = 1.2
+      ctx.stroke()
+
+      ctx.restore()
+    }
+
+    const drawSwirl = (
+      ctx: CanvasRenderingContext2D,
+      x: number, y: number, size: number,
+      opacity: number, rotation: number
+    ) => {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(rotation)
+      ctx.globalAlpha = opacity
+      ctx.beginPath()
+      ctx.arc(0, 0, size * 0.4, 0, Math.PI * 1.5)
+      ctx.strokeStyle = '#006D77'
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    let animId: number
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      particles.forEach(p => {
+        if (p.type === 0) {
+          drawLotus(ctx, p.x, p.y, p.size, p.opacity, p.rotation)
+        } else {
+          drawSwirl(ctx, p.x, p.y, p.size, p.opacity, p.rotation)
+        }
+
+        p.x += p.speedX
+        p.y += p.speedY
+        p.rotation += p.rotSpeed
+
+        if (p.x < -50) p.x = canvas.width + 50
+        if (p.x > canvas.width + 50) p.x = -50
+        if (p.y < -50) p.y = canvas.height + 50
+        if (p.y > canvas.height + 50) p.y = -50
+      })
+
+      animId = requestAnimationFrame(animate)
+    }
+
+    animate()
+
+    const handleResize = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      cancelAnimationFrame(animId)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none z-0"
+    />
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
@@ -23,15 +152,9 @@ export default function LoginPage() {
   const [biometricLoading, setBiometricLoading] = useState(false)
   const [error, setError] = useState('')
   const [showBiometric, setShowBiometric] = useState(false)
-  const [form, setForm] = useState({
-    fullName: '',
-    phone: '',
-    email: '',
-    password: '',
-  })
+  const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '' })
 
   useEffect(() => {
-    // Pre-fill saved email + show biometric button if enabled
     const saved = getSavedEmail()
     if (saved) setForm(f => ({ ...f, email: saved }))
     setShowBiometric(isBiometricSupported() && isBiometricEnabled())
@@ -44,20 +167,12 @@ export default function LoginPage() {
     try {
       const { user } = await loginUser(form.email, form.password)
       saveEmail(form.email)
-      if (user.role === 'admin') {
-        router.replace('/select-role')
-      } else {
-        router.replace('/')
-      }
+      router.replace(user.role === 'admin' ? '/select-role' : '/')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Login failed'
-      if (msg === 'PENDING') {
-        setMode('pending')
-      } else if (msg === 'REJECTED') {
-        setError('Your request was not approved. Contact Enjy for more info.')
-      } else {
-        setError('Wrong email or password. Please try again.')
-      }
+      const msg = err instanceof Error ? err.message : ''
+      if (msg === 'PENDING') setMode('pending')
+      else if (msg === 'REJECTED') setError('Your request was not approved. Contact Enjy.')
+      else setError('Wrong email or password.')
     } finally {
       setLoading(false)
     }
@@ -68,24 +183,10 @@ export default function LoginPage() {
     setError('')
     try {
       const verified = await authenticateWithBiometric()
-      if (!verified) {
-        setError('Biometric authentication failed. Use your password instead.')
-        setBiometricLoading(false)
-        return
-      }
-      const email = getSavedEmail()
-      if (!email) {
-        setError('No saved account found. Please login with your password.')
-        setBiometricLoading(false)
-        return
-      }
-      // Re-use existing Supabase session (biometric just unlocks the app)
+      if (!verified) { setError('Biometric failed. Use your password.'); return }
       router.replace('/')
-    } catch {
-      setError('Biometric failed. Try your password.')
-    } finally {
-      setBiometricLoading(false)
-    }
+    } catch { setError('Biometric failed. Try your password.') }
+    finally { setBiometricLoading(false) }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -96,224 +197,191 @@ export default function LoginPage() {
       await registerUser(form.fullName, form.phone, form.email, form.password)
       setMode('pending')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Registration failed'
-      if (msg.includes('already registered')) {
-        setError('This email is already registered. Try signing in.')
-      } else {
-        setError(msg)
-      }
-    } finally {
-      setLoading(false)
-    }
+      const msg = err instanceof Error ? err.message : ''
+      setError(msg.includes('already registered') ? 'Email already registered. Try signing in.' : msg)
+    } finally { setLoading(false) }
   }
 
   return (
-    <main className="bg-background min-h-screen flex flex-col relative overflow-hidden">
-      <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-[#006D77]/5 -translate-y-1/3 translate-x-1/3" />
-      <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-[#E86500]/5 translate-y-1/3 -translate-x-1/3" />
+    <main className="min-h-screen flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #FAFAF7 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
+      <FloatingParticles />
 
-      <div className="relative flex-1 flex flex-col px-6 py-8">
-        {/* Logo */}
-        <div className="pt-8 pb-6 flex flex-col items-center">
-          <div className="w-32 h-32 rounded-full bg-white shadow-xl shadow-[#006D77]/10 border border-[#E0EEF0] flex items-center justify-center mb-4 ring-4 ring-[#E0EEF0]/40">
-            <Logo variant="icon" size="md" className="w-20 h-20 object-contain" />
+      <div className="relative z-10 flex-1 flex flex-col px-6 py-8 max-w-sm mx-auto w-full">
+
+        {/* ── LOGO SECTION ── */}
+        <div className="pt-10 pb-8 flex flex-col items-center">
+          <div className="relative mb-2">
+            <Image
+              src="/logo.png"
+              alt="Align with Enjy"
+              width={220}
+              height={220}
+              className="object-contain drop-shadow-lg"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold text-[#006D77] tracking-tight">Align with Enjy</h1>
-          <p className="text-xs text-[#E86500] font-medium tracking-wider uppercase mt-1">Wellness & Yoga Center</p>
+          <p className="text-xs text-[#E86500] font-semibold tracking-[0.2em] uppercase mt-1">
+            Wellness & Yoga Center
+          </p>
         </div>
 
-        {/* Error */}
+        {/* ── ERROR ── */}
         {error && (
-          <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+          <div className="mb-4 px-4 py-3 bg-red-50/80 backdrop-blur border border-red-200 rounded-xl">
             <p className="text-sm text-red-600 text-center">{error}</p>
           </div>
         )}
 
-        {mode === 'login' && (
-          <>
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-foreground mb-1">Welcome Back</h2>
-              <p className="text-sm text-muted-foreground">Sign in to continue your wellness journey</p>
-            </div>
+        {/* ── CARD ── */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl shadow-[#006D77]/10 border border-white p-6">
 
-            {/* Biometric Button */}
-            {showBiometric && (
-              <button
-                onClick={handleBiometricLogin}
-                disabled={biometricLoading}
-                className="w-full mb-4 py-4 bg-[#006D77] text-white font-semibold rounded-xl flex items-center justify-center gap-3 hover:bg-[#004E5C] transition-colors shadow-lg shadow-[#006D77]/20 disabled:opacity-60"
-              >
-                {biometricLoading
-                  ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <Fingerprint className="w-6 h-6" />
-                }
-                Sign in with Biometrics
-              </button>
-            )}
+          {mode === 'login' && (
+            <>
+              <h2 className="text-xl font-bold text-foreground text-center mb-1">Welcome Back</h2>
+              <p className="text-xs text-muted-foreground text-center mb-5">Sign in to continue your journey</p>
 
-            {showBiometric && (
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground">or use password</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type="email" required
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="you@email.com"
-                    className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    type={showPassword ? 'text' : 'password'} required
-                    autoComplete="current-password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full bg-white border border-border rounded-xl pl-10 pr-10 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-                  />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showBiometric && (
+                <>
+                  <button onClick={handleBiometricLogin} disabled={biometricLoading}
+                    className="w-full mb-4 py-3.5 bg-[#006D77] text-white font-semibold rounded-xl flex items-center justify-center gap-3 hover:bg-[#004E5C] transition-colors shadow-md disabled:opacity-60">
+                    {biometricLoading
+                      ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <Fingerprint className="w-5 h-5" />}
+                    Sign in with Biometrics
                   </button>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-xs text-muted-foreground">or</span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                </>
+              )}
+
+              <form onSubmit={handleLogin} className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="email" required autoComplete="email" value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      placeholder="you@email.com"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  </div>
                 </div>
-              </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type={showPassword ? 'text' : 'password'} required autoComplete="current-password" value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      placeholder="••••••••"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <button type="submit" disabled={loading}
+                  className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-md disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
+                  {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Sign In'}
+                </button>
+              </form>
 
-              <button type="submit" disabled={loading}
-                className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-lg shadow-[#006D77]/20 disabled:opacity-60 flex items-center justify-center gap-2">
-                {loading
-                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : 'Sign In'
-                }
-              </button>
-            </form>
-
-            <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-center mt-4">
                 Don&apos;t have an account?{' '}
-                <button onClick={() => { setMode('register'); setError('') }}
-                  className="text-[#E86500] font-semibold">Request Access</button>
+                <button onClick={() => { setMode('register'); setError('') }} className="text-[#E86500] font-semibold">Request Access</button>
               </p>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {mode === 'register' && (
-          <>
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-foreground mb-1">Request Access</h2>
-              <p className="text-sm text-muted-foreground">Enjy will approve your request shortly</p>
-            </div>
+          {mode === 'register' && (
+            <>
+              <h2 className="text-xl font-bold text-foreground text-center mb-1">Request Access</h2>
+              <p className="text-xs text-muted-foreground text-center mb-5">Enjy will approve your request shortly</p>
 
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Full Name</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="text" required value={form.fullName}
-                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                    placeholder="Sarah Ahmed" autoComplete="name"
-                    className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+              <form onSubmit={handleRegister} className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Full Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="text" required autoComplete="name" value={form.fullName}
+                      onChange={e => setForm({ ...form, fullName: e.target.value })}
+                      placeholder="Sarah Ahmed"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone</label>
-                <div className="relative flex">
-                  <span className="flex items-center px-3 bg-muted border border-r-0 border-border rounded-l-xl text-sm font-medium text-foreground">+20</span>
-                  <input type="tel" required value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    placeholder="10X XXXX XXXX" autoComplete="tel"
-                    className="flex-1 bg-white border border-border rounded-r-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone</label>
+                  <div className="flex">
+                    <span className="flex items-center px-3 bg-muted border border-r-0 border-border rounded-l-xl text-sm font-medium">+20</span>
+                    <input type="tel" required autoComplete="tel" value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      placeholder="10X XXXX XXXX"
+                      className="flex-1 bg-background border border-border rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type="email" required value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="you@email.com" autoComplete="email"
-                    className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="email" required autoComplete="email" value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      placeholder="you@email.com"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input type={showPassword ? 'text' : 'password'} required minLength={6}
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="At least 6 characters" autoComplete="new-password"
-                    className="w-full bg-white border border-border rounded-xl pl-10 pr-10 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete="new-password" value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      placeholder="At least 6 characters"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+                <button type="submit" disabled={loading}
+                  className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-md disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
+                  {loading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Submit Request'}
+                </button>
+                <p className="text-xs text-center text-muted-foreground">By continuing, you agree to our Terms & Privacy Policy</p>
+              </form>
 
-              <button type="submit" disabled={loading}
-                className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-lg shadow-[#006D77]/20 disabled:opacity-60 flex items-center justify-center gap-2">
-                {loading
-                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : 'Submit Request'
-                }
-              </button>
-              <p className="text-xs text-center text-muted-foreground">By continuing, you agree to our Terms & Privacy Policy</p>
-            </form>
-
-            <div className="text-center mt-6">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground text-center mt-4">
                 Already have an account?{' '}
-                <button onClick={() => { setMode('login'); setError('') }}
-                  className="text-[#E86500] font-semibold">Sign In</button>
+                <button onClick={() => { setMode('login'); setError('') }} className="text-[#E86500] font-semibold">Sign In</button>
               </p>
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {mode === 'pending' && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
-            <div className="w-20 h-20 rounded-full bg-[#FFD9B8]/40 flex items-center justify-center mb-6">
-              <Clock className="w-10 h-10 text-[#E86500]" />
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-3">Request Submitted ✓</h2>
-            <p className="text-sm text-muted-foreground mb-8 max-w-xs leading-relaxed">
-              Your account is pending approval. Enjy will review your request and activate your account shortly.
-            </p>
-            <div className="bg-white border border-border rounded-2xl p-4 mb-6 w-full max-w-xs">
-              <div className="flex items-center gap-3 mb-3">
-                <CheckCircle2 className="w-5 h-5 text-[#006D77]" />
-                <p className="text-sm font-medium text-foreground text-left">Request received</p>
+          {mode === 'pending' && (
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-[#FFD9B8]/40 flex items-center justify-center mb-4">
+                <Clock className="w-8 h-8 text-[#E86500]" />
               </div>
-              <div className="flex items-center gap-3 opacity-40">
-                <div className="w-5 h-5 rounded-full border-2 border-muted-foreground" />
-                <p className="text-sm font-medium text-foreground text-left">Pending Enjy&apos;s approval</p>
+              <h2 className="text-xl font-bold text-foreground mb-2">Request Submitted ✓</h2>
+              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                Enjy will review your request and activate your account shortly.
+              </p>
+              <div className="bg-background rounded-2xl p-4 mb-4 w-full">
+                <div className="flex items-center gap-3 mb-3">
+                  <CheckCircle2 className="w-5 h-5 text-[#006D77]" />
+                  <p className="text-sm font-medium text-foreground text-left">Request received</p>
+                </div>
+                <div className="flex items-center gap-3 opacity-40">
+                  <div className="w-5 h-5 rounded-full border-2 border-muted-foreground" />
+                  <p className="text-sm text-foreground text-left">Pending Enjy&apos;s approval</p>
+                </div>
               </div>
+              <button onClick={() => setMode('login')} className="text-sm font-medium text-[#006D77]">
+                Back to Sign In
+              </button>
             </div>
-            <button onClick={() => setMode('login')} className="text-sm font-medium text-[#006D77]">
-              Back to Sign In
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </main>
   )
