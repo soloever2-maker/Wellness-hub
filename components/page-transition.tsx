@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { usePathname } from 'next/navigation'
-import { MonsteraLeaf } from './monstera-leaf'
+import Image from 'next/image'
 
 export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -16,7 +16,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     setShow(true)
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => setShow(false), 650)
+    timerRef.current = setTimeout(() => setShow(false), 600)
 
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [pathname])
@@ -30,15 +30,14 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
         className={`fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-300 ${
           show ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ background: 'linear-gradient(180deg, rgba(250,250,247,0.95) 0%, rgba(224,238,240,0.95) 100%)' }}
+        style={{ background: 'linear-gradient(160deg, rgba(250,250,247,0.96) 0%, rgba(224,238,240,0.96) 50%, rgba(255,217,184,0.96) 100%)' }}
       >
-        <div className={`flex flex-col items-center gap-3 transition-transform duration-500 ${
-          show ? 'scale-100' : 'scale-90'
+        <div className={`flex flex-col items-center gap-2 transition-all duration-500 ${
+          show ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
         }`}>
-          <div className={show ? 'animate-leaf-sway' : ''}>
-            <MonsteraLeaf size={64} />
+          <div className={show ? 'animate-leaf-sway' : ''} style={{ mixBlendMode: 'multiply' }}>
+            <Image src="/icon.png" alt="" width={64} height={64} className="object-contain" />
           </div>
-          <p className="text-xs font-semibold text-[#006D77] tracking-wider">Align with Enjy</p>
         </div>
       </div>
     </>
