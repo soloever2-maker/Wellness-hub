@@ -227,19 +227,20 @@ export default function LoginPage() {
 
       <div className="relative z-10 flex-1 flex flex-col px-6 py-8 max-w-sm mx-auto w-full">
 
-        {/* ── LOGO SECTION ── */}
-        <div className="pt-10 pb-8 flex flex-col items-center">
-          <div className="relative mb-2">
+        {/* Icon + name above card — directly on background */}
+        <div className="pt-12 pb-8 flex flex-col items-center">
+          <div style={{ mixBlendMode: 'multiply' }}>
             <Image
-              src="/logo.png"
+              src="/icon.png"
               alt="Align with Enjy"
-              width={220}
-              height={220}
-              className="object-contain drop-shadow-lg"
+              width={110}
+              height={110}
+              className="object-contain mb-5"
               priority
             />
           </div>
-          <p className="text-xs text-[#E86500] font-semibold tracking-[0.2em] uppercase mt-1">
+          <h1 className="text-2xl font-bold text-[#006D77] tracking-wide">Align with Enjy</h1>
+          <p className="text-xs text-[#E86500] font-semibold tracking-[0.25em] uppercase mt-2">
             Wellness & Yoga Center
           </p>
         </div>
