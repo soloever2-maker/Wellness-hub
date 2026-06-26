@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
+import { PWAInit } from '@/components/pwa-init'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({
@@ -10,25 +11,24 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Align with Enjy - Yoga & Fitness for Women in Cairo',
-  description: 'Join Align with Enjy, an exclusive wellness sanctuary for women featuring yoga, fitness, and holistic wellness classes run by trainer Enjy Gebril in Cairo, Egypt.',
-  generator: 'v0.app',
+  title: 'Align with Enjy',
+  description: 'Wellness & Yoga Center — Ladies Only. Book your class with trainer Enjy Gebril in 6th of October, Giza.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Align with Enjy',
+  },
+  formatDetection: { telephone: false },
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/icon.png',
+    apple: '/icon.png',
+  },
+  openGraph: {
+    type: 'website',
+    title: 'Align with Enjy',
+    description: 'Wellness & Yoga Center — Ladies Only',
+    siteName: 'Align with Enjy',
   },
 }
 
@@ -48,7 +48,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`light ${geistSans.variable} ${geistMono.variable} bg-background`}>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Align with Enjy" />
+        <meta name="application-name" content="Align with Enjy" />
+      </head>
       <body className="font-sans antialiased">
+        <PWAInit />
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
