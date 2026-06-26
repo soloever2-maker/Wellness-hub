@@ -38,9 +38,13 @@ export default function LoginPage() {
       <div className="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-[#E86500]/5 translate-y-1/3 -translate-x-1/3" />
 
       <div className="relative flex-1 flex flex-col px-6 py-8">
-        {/* Logo */}
+        {/* Logo in elegant circle frame */}
         <div className="pt-8 pb-6 flex flex-col items-center">
-          <Logo size="lg" />
+          <div className="w-32 h-32 rounded-full bg-white shadow-xl shadow-[#006D77]/10 border border-[#E0EEF0] flex items-center justify-center mb-4 ring-4 ring-[#E0EEF0]/40">
+            <Logo variant="icon" size="md" className="w-20 h-20 object-contain" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#006D77] tracking-tight">Align with Enjy</h1>
+          <p className="text-xs text-[#E86500] font-medium tracking-wider uppercase mt-1">Wellness & Yoga Center</p>
         </div>
 
         {mode === 'login' && (
