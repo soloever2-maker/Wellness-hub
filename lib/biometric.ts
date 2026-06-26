@@ -1,52 +1,54 @@
-// WebAuthn Biometric Authentication
-// Works on: Android Chrome (fingerprint), iOS Safari (Face ID / Touch ID)
-
 const CREDENTIAL_KEY = 'biometric_credential_id'
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled'
 const USER_EMAIL_KEY = 'saved_email'
 
-// Check if biometrics is supported on this device
+function base64urlToUint8Array(base64url: string): Uint8Array {
+  const base64 = base64url
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(base64url.length + (4 - (base64url.length % 4)) % 4, '=')
+  const binary = atob(base64)
+  return Uint8Array.from(binary, c => c.charCodeAt(0))
+}
+
+function arrayBufferToBase64url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  bytes.forEach(b => binary += String.fromCharCode(b))
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '')
+}
+
 export function isBiometricSupported(): boolean {
   return typeof window !== 'undefined' &&
     window.PublicKeyCredential !== undefined &&
     typeof window.PublicKeyCredential === 'function'
 }
 
-// Check if biometric is already enabled
 export function isBiometricEnabled(): boolean {
   return localStorage.getItem(BIOMETRIC_ENABLED_KEY) === 'true'
 }
 
-// Get saved email
 export function getSavedEmail(): string {
   return localStorage.getItem(USER_EMAIL_KEY) || ''
 }
 
-// Save email for biometric login
 export function saveEmail(email: string) {
   localStorage.setItem(USER_EMAIL_KEY, email)
 }
 
-// Register biometric (called after password verification)
 export async function registerBiometric(email: string): Promise<boolean> {
   try {
-    const challenge = new Uint8Array(32)
-    crypto.getRandomValues(challenge)
-
+    const challenge = crypto.getRandomValues(new Uint8Array(32))
     const userId = new TextEncoder().encode(email)
 
     const credential = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: {
-          name: 'Align with Enjy',
-          id: window.location.hostname,
-        },
-        user: {
-          id: userId,
-          name: email,
-          displayName: email,
-        },
+        rp: { name: 'Align with Enjy', id: window.location.hostname },
+        user: { id: userId, name: email, displayName: email },
         pubKeyCredParams: [
           { alg: -7, type: 'public-key' },
           { alg: -257, type: 'public-key' },
@@ -54,6 +56,7 @@ export async function registerBiometric(email: string): Promise<boolean> {
         authenticatorSelection: {
           authenticatorAttachment: 'platform',
           userVerification: 'required',
+          residentKey: 'preferred',
         },
         timeout: 60000,
       },
@@ -61,23 +64,24 @@ export async function registerBiometric(email: string): Promise<boolean> {
 
     if (!credential) return false
 
-    localStorage.setItem(CREDENTIAL_KEY, credential.id)
+    const rawId = arrayBufferToBase64url(credential.rawId)
+    localStorage.setItem(CREDENTIAL_KEY, rawId)
     localStorage.setItem(BIOMETRIC_ENABLED_KEY, 'true')
     localStorage.setItem(USER_EMAIL_KEY, email)
     return true
-  } catch {
+  } catch (err) {
+    console.error('Biometric register error:', err)
     return false
   }
 }
 
-// Authenticate with biometric
 export async function authenticateWithBiometric(): Promise<boolean> {
   try {
     const credentialId = localStorage.getItem(CREDENTIAL_KEY)
     if (!credentialId) return false
 
-    const challenge = new Uint8Array(32)
-    crypto.getRandomValues(challenge)
+    const challenge = crypto.getRandomValues(new Uint8Array(32))
+    const credentialIdBytes = base64urlToUint8Array(credentialId)
 
     const credential = await navigator.credentials.get({
       publicKey: {
@@ -85,8 +89,9 @@ export async function authenticateWithBiometric(): Promise<boolean> {
         rpId: window.location.hostname,
         allowCredentials: [
           {
-            id: Uint8Array.from(atob(credentialId), c => c.charCodeAt(0)),
+            id: credentialIdBytes,
             type: 'public-key',
+            transports: ['internal'],
           },
         ],
         userVerification: 'required',
@@ -95,12 +100,12 @@ export async function authenticateWithBiometric(): Promise<boolean> {
     })
 
     return !!credential
-  } catch {
+  } catch (err) {
+    console.error('Biometric auth error:', err)
     return false
   }
 }
 
-// Disable biometric
 export function disableBiometric() {
   localStorage.removeItem(CREDENTIAL_KEY)
   localStorage.removeItem(BIOMETRIC_ENABLED_KEY)
