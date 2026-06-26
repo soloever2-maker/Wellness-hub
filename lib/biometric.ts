@@ -1,166 +1,187 @@
-import { supabase } from './supabase'
+// Align with Enjy — Biometric Login
+// Strategy: Biometric acts as a GATE to stored credentials
+// The fingerprint/Face ID protects the credentials, not replaces them
+// This approach is reliable regardless of session expiry or logout
 
-const CREDENTIAL_KEY = 'biometric_credential_id'
-const BIOMETRIC_ENABLED_KEY = 'biometric_enabled'
-const USER_EMAIL_KEY = 'saved_email'
-const USER_ROLE_KEY = 'saved_role'
-const REFRESH_TOKEN_KEY = 'biometric_refresh_token'
+const BIOMETRIC_KEY = 'align_bio'
+const ROLE_KEY = 'saved_role'
 
-function base64urlToUint8Array(base64url: string): Uint8Array {
-  const base64 = base64url
-    .replace(/-/g, '+')
-    .replace(/_/g, '/')
-    .padEnd(base64url.length + (4 - (base64url.length % 4)) % 4, '=')
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+type StoredCreds = {
+  email: string
+  pwd: string // base64 encoded
+  credential_id: string
 }
 
-function arrayBufferToBase64url(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer)
-  let binary = ''
-  bytes.forEach(b => binary += String.fromCharCode(b))
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
+// ── Feature detection ───────────────────────────────────────────
 export function isBiometricSupported(): boolean {
-  return typeof window !== 'undefined' &&
-    window.PublicKeyCredential !== undefined &&
-    typeof window.PublicKeyCredential === 'function'
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.PublicKeyCredential !== 'undefined' &&
+    typeof navigator.credentials !== 'undefined'
+  )
+}
+
+export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
+  if (!isBiometricSupported()) return false
+  try {
+    return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+  } catch {
+    return false
+  }
 }
 
 export function isBiometricEnabled(): boolean {
-  return localStorage.getItem(BIOMETRIC_ENABLED_KEY) === 'true'
+  if (typeof window === 'undefined') return false
+  return !!localStorage.getItem(BIOMETRIC_KEY)
+}
+
+// Backwards-compat alias
+export function hasBiometricSession(): boolean {
+  return isBiometricEnabled()
 }
 
 export function getSavedEmail(): string {
-  return localStorage.getItem(USER_EMAIL_KEY) || ''
+  try {
+    const raw = localStorage.getItem(BIOMETRIC_KEY)
+    if (!raw) return ''
+    const creds: StoredCreds = JSON.parse(raw)
+    return creds.email || ''
+  } catch {
+    return ''
+  }
 }
 
 export function getSavedRole(): string {
-  return localStorage.getItem(USER_ROLE_KEY) || 'client'
+  return localStorage.getItem(ROLE_KEY) || 'client'
 }
 
-export function saveEmail(email: string) {
-  localStorage.setItem(USER_EMAIL_KEY, email)
-}
-
-// Save refresh token (called after successful password login when biometric is enabled)
-export function saveRefreshToken(token: string) {
-  localStorage.setItem(REFRESH_TOKEN_KEY, token)
-}
-
-export async function registerBiometric(email: string): Promise<boolean> {
-  try {
-    const challenge = crypto.getRandomValues(new Uint8Array(32))
-    const userId = new TextEncoder().encode(email)
-
-    const credential = await navigator.credentials.create({
-      publicKey: {
-        challenge,
-        rp: { name: 'Align with Enjy', id: window.location.hostname },
-        user: { id: userId, name: email, displayName: email },
-        pubKeyCredParams: [
-          { alg: -7, type: 'public-key' },
-          { alg: -257, type: 'public-key' },
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: 'platform',
-          userVerification: 'required',
-          residentKey: 'preferred',
-        },
-        timeout: 60000,
-      },
-    }) as PublicKeyCredential | null
-
-    if (!credential) return false
-
-    localStorage.setItem(CREDENTIAL_KEY, arrayBufferToBase64url(credential.rawId))
-    localStorage.setItem(BIOMETRIC_ENABLED_KEY, 'true')
-    localStorage.setItem(USER_EMAIL_KEY, email)
-
-    // Save the current refresh token for later use
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.refresh_token) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, session.refresh_token)
-    }
-
-    return true
-  } catch (err) {
-    console.error('Biometric register error:', err)
-    return false
+export function saveRole(role: string) {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(ROLE_KEY, role)
   }
 }
 
-// Verify biometric (just the fingerprint/face scan)
-export async function verifyBiometric(): Promise<boolean> {
-  try {
-    const credentialId = localStorage.getItem(CREDENTIAL_KEY)
-    if (!credentialId) return false
+// Backwards-compat — used by login page
+export function saveEmail(_email: string) {
+  // No-op now — email is stored inside the biometric blob
+}
 
-    const credential = await navigator.credentials.get({
-      publicKey: {
-        challenge: crypto.getRandomValues(new Uint8Array(32)),
-        rpId: window.location.hostname,
-        allowCredentials: [{
-          id: base64urlToUint8Array(credentialId),
-          type: 'public-key',
-          transports: ['internal'],
-        }],
+// ── Encoding helpers ────────────────────────────────────────────
+function bufferToBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let str = ''
+  for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i])
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlToBuffer(base64url: string): ArrayBuffer {
+  const padded = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4))
+  const binary = atob(padded + pad)
+  const buffer = new ArrayBuffer(binary.length)
+  const bytes = new Uint8Array(buffer)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return buffer
+}
+
+// ── ENABLE — store credentials behind biometric gate ───────────
+export async function enableBiometricLogin(
+  email: string,
+  password: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    if (!isBiometricSupported()) {
+      return { ok: false, error: 'Biometric not supported on this device' }
+    }
+
+    const challenge = new Uint8Array(32)
+    crypto.getRandomValues(challenge)
+    const userIdBytes = new TextEncoder().encode(email)
+
+    const publicKey: PublicKeyCredentialCreationOptions = {
+      challenge: challenge.buffer,
+      rp: { name: 'Align with Enjy', id: window.location.hostname },
+      user: { id: userIdBytes, name: email, displayName: email },
+      pubKeyCredParams: [
+        { type: 'public-key', alg: -7 },
+        { type: 'public-key', alg: -257 },
+      ],
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
         userVerification: 'required',
-        timeout: 60000,
+        residentKey: 'preferred',
       },
-    })
+      timeout: 60000,
+      attestation: 'none',
+    }
 
-    return !!credential
-  } catch (err) {
-    console.error('Biometric verify error:', err)
-    return false
+    const credential = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential | null
+    if (!credential) return { ok: false, error: 'Biometric setup was cancelled' }
+
+    const creds: StoredCreds = {
+      email,
+      pwd: btoa(password),
+      credential_id: bufferToBase64Url(credential.rawId),
+    }
+    localStorage.setItem(BIOMETRIC_KEY, JSON.stringify(creds))
+    return { ok: true }
+  } catch (err: unknown) {
+    const e = err as { name?: string; message?: string }
+    if (e?.name === 'NotAllowedError') return { ok: false, error: 'Biometric setup was cancelled' }
+    if (e?.name === 'InvalidStateError') return { ok: false, error: 'Biometric already registered on this device' }
+    return { ok: false, error: e?.message ?? 'Setup failed' }
   }
 }
 
-// Authenticate: verify biometric + restore Supabase session via refresh token
-export async function authenticateWithBiometric(): Promise<boolean> {
-  // Step 1: verify biometric
-  const verified = await verifyBiometric()
-  if (!verified) return false
+// Alias for older API
+export async function registerBiometric(email: string, password: string): Promise<boolean> {
+  const result = await enableBiometricLogin(email, password)
+  return result.ok
+}
 
-  // Step 2: try existing session first
-  const { data: { session } } = await supabase.auth.getSession()
-  if (session) {
-    // Session still valid — refresh token rotation if needed
-    if (session.refresh_token) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, session.refresh_token)
-    }
-    return true
-  }
-
-  // Step 3: session expired → use refresh token to get a new one
-  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-  if (!refreshToken) return false
-
+// ── AUTHENTICATE — verify biometric then return credentials ────
+export async function getCredentialsViaBiometric(): Promise<
+  | { ok: true; email: string; password: string }
+  | { ok: false; error: string }
+> {
   try {
-    const { data, error } = await supabase.auth.refreshSession({
-      refresh_token: refreshToken,
-    })
+    if (!isBiometricSupported()) return { ok: false, error: 'Biometric not supported' }
 
-    if (error || !data.session) {
-      // Refresh token expired too — user must login with password
-      return false
+    const raw = localStorage.getItem(BIOMETRIC_KEY)
+    if (!raw) return { ok: false, error: 'No biometric setup found. Sign in with email/password first.' }
+
+    const creds: StoredCreds = JSON.parse(raw)
+    const challenge = new Uint8Array(32)
+    crypto.getRandomValues(challenge)
+
+    const publicKey: PublicKeyCredentialRequestOptions = {
+      challenge: challenge.buffer,
+      rpId: window.location.hostname,
+      allowCredentials: [{ type: 'public-key', id: base64UrlToBuffer(creds.credential_id) }],
+      userVerification: 'required',
+      timeout: 60000,
     }
 
-    // Save the new refresh token (Supabase rotates them)
-    if (data.session.refresh_token) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, data.session.refresh_token)
-    }
+    const result = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential | null
+    if (!result) return { ok: false, error: 'Biometric verification cancelled' }
 
-    return true
-  } catch (err) {
-    console.error('Session refresh failed:', err)
-    return false
+    return { ok: true, email: creds.email, password: atob(creds.pwd) }
+  } catch (err: unknown) {
+    const e = err as { name?: string; message?: string }
+    if (e?.name === 'NotAllowedError') return { ok: false, error: 'Biometric cancelled' }
+    return { ok: false, error: e?.message ?? 'Biometric verification failed' }
   }
 }
 
-export function disableBiometric() {
-  localStorage.removeItem(CREDENTIAL_KEY)
-  localStorage.removeItem(BIOMETRIC_ENABLED_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
+// Backwards-compat — used elsewhere
+export async function authenticateWithBiometric(): Promise<boolean> {
+  const result = await getCredentialsViaBiometric()
+  return result.ok
+}
+
+// ── DISABLE ────────────────────────────────────────────────────
+export function disableBiometric(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(BIOMETRIC_KEY)
+  }
 }
