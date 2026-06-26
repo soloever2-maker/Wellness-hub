@@ -17,7 +17,7 @@ import {
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [reminders, setReminders] = useState({ whatsapp: true, hour24: true, hour2: false })
+  const [reminders, setReminders] = useState({ whatsapp: true, hour24: true, hour2: true })
   const [isEditing, setIsEditing] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
   const [showBiometricSetup, setShowBiometricSetup] = useState(false)
@@ -51,6 +51,15 @@ export default function ProfilePage() {
         }
         setProfile(userData)
         setEditForm(userData)
+
+        // Load saved reminder preferences
+        if (user.preferences) {
+          setReminders({
+            whatsapp: user.preferences.reminders_whatsapp ?? true,
+            hour24: user.preferences.reminders_24h ?? true,
+            hour2: user.preferences.reminders_2h ?? true,
+          })
+        }
       } catch (err) {
         console.error('Failed to load profile:', err)
       } finally {
@@ -256,14 +265,34 @@ export default function ProfilePage() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Notifications</p>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {[
-              { label: 'WhatsApp Reminders', key: 'whatsapp' as const },
-              { label: '24-hour reminder', key: 'hour24' as const },
-              { label: '2-hour reminder', key: 'hour2' as const },
+              { label: 'WhatsApp Reminders', desc: 'Booking confirmations', key: 'whatsapp' as const, prefKey: 'reminders_whatsapp' },
+              { label: '24-hour reminder', desc: 'Day before class', key: 'hour24' as const, prefKey: 'reminders_24h' },
+              { label: '2-hour reminder', desc: 'Before class starts', key: 'hour2' as const, prefKey: 'reminders_2h' },
             ].map((item, i) => (
               <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < 2 ? 'border-b border-border' : ''}`}>
-                <span className="text-sm text-foreground">{item.label}</span>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
                 <button
-                  onClick={() => setReminders(prev => ({ ...prev, [item.key]: !prev[item.key] }))}
+                  onClick={async () => {
+                    const newVal = !reminders[item.key]
+                    setReminders(prev => ({ ...prev, [item.key]: newVal }))
+                    // Save to Supabase immediately
+                    if (profile.userId) {
+                      const { data: current } = await supabase
+                        .from('users')
+                        .select('preferences')
+                        .eq('id', profile.userId)
+                        .single()
+                      const prefs = (current?.preferences as Record<string, boolean>) || {}
+                      prefs[item.prefKey] = newVal
+                      await supabase
+                        .from('users')
+                        .update({ preferences: prefs })
+                        .eq('id', profile.userId)
+                    }
+                  }}
                   className={`w-11 h-6 rounded-full transition-colors relative ${reminders[item.key] ? 'bg-[#006D77]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${reminders[item.key] ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
