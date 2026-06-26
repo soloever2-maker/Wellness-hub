@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { getSession, getCurrentUser } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/auth'
 
 const PUBLIC_ROUTES = ['/login']
 const ADMIN_ONLY_ROUTES = ['/admin', '/select-role']
@@ -13,11 +14,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    const check = async () => {
-      const session = await getSession()
-
-      // No session → go to login
+    const handleSession = async (session: { user: unknown } | null) => {
       if (!session) {
+        // No session → go to login (unless already there)
         if (!PUBLIC_ROUTES.includes(pathname)) {
           router.replace('/login')
         }
@@ -25,14 +24,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // Has session + on login → go to home
+      // Has session + on login page → go home
       if (PUBLIC_ROUTES.includes(pathname)) {
         router.replace('/')
         setChecking(false)
         return
       }
 
-      // Admin-only routes → check role
+      // Admin-only routes → verify role
       if (ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
         const user = await getCurrentUser()
         if (!user || user.role !== 'admin') {
@@ -45,7 +44,31 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setChecking(false)
     }
 
-    check()
+    // 1. Initial check on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session)
+    })
+
+    // 2. Listen for auth state changes (handles login/logout properly)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          if (!PUBLIC_ROUTES.includes(pathname)) {
+            router.replace('/login')
+          }
+        } else if (event === 'SIGNED_IN' && session) {
+          if (PUBLIC_ROUTES.includes(pathname)) {
+            // Don't redirect here — let the login page handle it
+            // to preserve admin → select-role flow
+          }
+          setChecking(false)
+        } else if (event === 'TOKEN_REFRESHED') {
+          setChecking(false)
+        }
+      }
+    )
+
+    return () => subscription.unsubscribe()
   }, [pathname, router])
 
   if (checking) {
