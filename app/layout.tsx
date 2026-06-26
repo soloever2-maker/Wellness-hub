@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { PWAInit } from '@/components/pwa-init'
+import { AuthGuard } from '@/components/auth-guard'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({
@@ -58,8 +59,10 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <PWAInit />
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <AuthGuard>
+          {children}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </AuthGuard>
       </body>
     </html>
   )
