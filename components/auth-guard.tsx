@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSession, getCurrentUser } from '@/lib/auth'
 
-const PUBLIC_ROUTES = ['/login', '/select-role']
-const ADMIN_ROUTES = ['/admin']
+const PUBLIC_ROUTES = ['/login']
+const ADMIN_ONLY_ROUTES = ['/admin', '/select-role']
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -16,7 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const check = async () => {
       const session = await getSession()
 
-      // No session → redirect to login (except on public routes)
+      // No session → go to login
       if (!session) {
         if (!PUBLIC_ROUTES.includes(pathname)) {
           router.replace('/login')
@@ -25,15 +25,15 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // Has session but on login page → redirect home
+      // Has session + on login → go to home
       if (PUBLIC_ROUTES.includes(pathname)) {
         router.replace('/')
         setChecking(false)
         return
       }
 
-      // Check admin routes
-      if (ADMIN_ROUTES.some(r => pathname.startsWith(r))) {
+      // Admin-only routes → check role
+      if (ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
         const user = await getCurrentUser()
         if (!user || user.role !== 'admin') {
           router.replace('/')
