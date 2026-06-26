@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { PWAInit } from '@/components/pwa-init'
 import { AuthGuard } from '@/components/auth-guard'
+import { PageTransition } from '@/components/page-transition'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({
@@ -56,11 +57,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Align with Enjy" />
         <meta name="application-name" content="Align with Enjy" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/icon-152x152.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icon-192x192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
       </head>
       <body className="font-sans antialiased">
         <PWAInit />
         <AuthGuard>
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </AuthGuard>
       </body>
