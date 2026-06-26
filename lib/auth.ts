@@ -61,15 +61,9 @@ export async function loginUser(email: string, password: string) {
     throw new Error('REJECTED')
   }
 
-  // Save role for biometric login
+  // Save role for biometric login redirect
   if (typeof window !== 'undefined') {
-    localStorage.setItem('saved_email', email)
     localStorage.setItem('saved_role', profile.role)
-
-    // If biometric is enabled, save the new refresh token
-    if (localStorage.getItem('biometric_enabled') === 'true' && data.session?.refresh_token) {
-      localStorage.setItem('biometric_refresh_token', data.session.refresh_token)
-    }
   }
 
   return { user: profile, session: data.session }
