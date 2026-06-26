@@ -9,9 +9,11 @@ import {
   isBiometricSupported,
   isBiometricEnabled,
   getSavedEmail,
+  getSavedRole,
   saveEmail,
   authenticateWithBiometric,
 } from '@/lib/biometric'
+import { supabase } from '@/lib/supabase'
 
 type Mode = 'login' | 'register' | 'pending'
 
@@ -189,18 +191,15 @@ export default function LoginPage() {
         return
       }
 
-      // Check if Supabase session is still valid
-      const { getSession } = await import('@/lib/auth')
-      const session = await getSession()
+      // Check Supabase session
+      const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        // Session valid → go home
-        const { getCurrentUser } = await import('@/lib/auth')
-        const user = await getCurrentUser()
-        router.replace(user?.role === 'admin' ? '/select-role' : '/')
+        // Use saved role — no need to query DB again
+        const role = getSavedRole()
+        router.replace(role === 'admin' ? '/select-role' : '/')
       } else {
-        // Session expired → ask user to login with password once
-        setError('Your session expired. Please sign in with your password once to refresh it.')
+        setError('Your session expired. Please sign in with your password once.')
       }
     } catch {
       setError('Biometric failed. Try your password.')
