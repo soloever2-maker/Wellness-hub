@@ -5,7 +5,8 @@ import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Ch
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter } from 'next/navigation'
-import { logoutUser } from '@/lib/auth'
+import { logoutUser, getCurrentUser } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import {
   isBiometricSupported,
   isBiometricEnabled,
@@ -25,19 +26,70 @@ export default function ProfilePage() {
   const [biometricPassword, setBiometricPassword] = useState('')
   const [biometricLoading, setBiometricLoading] = useState(false)
   const [biometricError, setBiometricError] = useState('')
-  const [profile, setProfile] = useState({ name: 'Sarah Ahmed', phone: '+20 101 234 5678', email: 'sarah@email.com' })
+  const [loading, setLoading] = useState(true)
+  const [saveLoading, setSaveLoading] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [profile, setProfile] = useState({ name: '', phone: '', email: '', userId: '' })
   const [editForm, setEditForm] = useState(profile)
 
   useEffect(() => {
     setBiometricSupported(isBiometricSupported())
     setBiometricEnabled(isBiometricEnabled())
-    const email = getSavedEmail()
-    if (email) setProfile(p => ({ ...p, email }))
-  }, [])
 
-  const handleSave = () => {
-    setProfile(editForm)
-    setIsEditing(false)
+    const fetchUser = async () => {
+      try {
+        const user = await getCurrentUser()
+        if (!user) {
+          router.replace('/login')
+          return
+        }
+        const userData = {
+          name: user.full_name || '',
+          phone: user.phone || '',
+          email: user.email || '',
+          userId: user.id || '',
+        }
+        setProfile(userData)
+        setEditForm(userData)
+      } catch (err) {
+        console.error('Failed to load profile:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUser()
+  }, [router])
+
+  const handleSave = async () => {
+    setSaveLoading(true)
+    setSaveError('')
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: editForm.name,
+          email: editForm.email,
+        })
+        .eq('id', profile.userId)
+
+      if (error) throw new Error(error.message)
+
+      // If email changed, update Supabase Auth email too
+      if (editForm.email !== profile.email) {
+        const { error: authEmailError } = await supabase.auth.updateUser({
+          email: editForm.email,
+        })
+        if (authEmailError) throw new Error(authEmailError.message)
+      }
+
+      setProfile({ ...editForm })
+      setIsEditing(false)
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save changes')
+    } finally {
+      setSaveLoading(false)
+    }
   }
 
   const handleLogout = async () => {
@@ -45,17 +97,38 @@ export default function ProfilePage() {
     router.replace('/login')
   }
 
+  const initials = profile.name
+    ? profile.name.split(' ').map((n: string) => n[0]).join('')
+    : '?'
+
+  if (loading) {
+    return (
+      <main className="bg-background min-h-screen pb-24">
+        <div className="px-4 pt-8 pb-6 flex flex-col items-center">
+          <div className="w-20 h-20 rounded-full bg-secondary animate-pulse mb-4" />
+          <div className="h-5 w-36 bg-secondary rounded-lg animate-pulse mb-2" />
+          <div className="h-4 w-28 bg-secondary rounded-lg animate-pulse" />
+        </div>
+        <div className="px-4 space-y-4">
+          <div className="h-32 bg-secondary rounded-2xl animate-pulse" />
+          <div className="h-32 bg-secondary rounded-2xl animate-pulse" />
+        </div>
+        <BottomNav activePage="profile" />
+      </main>
+    )
+  }
+
   return (
     <main className="bg-background min-h-screen pb-24">
       {/* Profile Header */}
       <div className="px-4 pt-8 pb-6 flex flex-col items-center">
         <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-4">
-          <span className="text-2xl font-bold text-[#006D77]">{profile.name.split(' ').map(n => n[0]).join('')}</span>
+          <span className="text-2xl font-bold text-[#006D77]">{initials}</span>
         </div>
         <h2 className="text-xl font-bold text-foreground">{profile.name}</h2>
         <p className="text-sm text-muted-foreground mt-1">{profile.phone}</p>
         <button
-          onClick={() => { setEditForm(profile); setIsEditing(true) }}
+          onClick={() => { setEditForm(profile); setIsEditing(true); setSaveError('') }}
           className="mt-3 text-sm font-medium text-[#006D77]"
         >
           Edit Profile
@@ -101,12 +174,18 @@ export default function ProfilePage() {
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                 />
               </div>
+              {saveError && (
+                <p className="text-xs text-red-500 text-center">{saveError}</p>
+              )}
               <button
                 onClick={handleSave}
-                className="w-full py-3 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors flex items-center justify-center gap-2"
+                disabled={saveLoading}
+                className="w-full py-3 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
               >
-                <Check className="w-5 h-5" />
-                Save Changes
+                {saveLoading
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <><Check className="w-5 h-5" /> Save Changes</>
+                }
               </button>
             </div>
           </div>
@@ -263,10 +342,8 @@ export default function ProfilePage() {
                   setBiometricLoading(true)
                   setBiometricError('')
                   try {
-                    // Verify password first
                     const { loginUser } = await import('@/lib/auth')
                     await loginUser(profile.email, biometricPassword)
-                    // Then register biometric — store password behind biometric gate
                     const success = await registerBiometric(profile.email, biometricPassword)
                     if (success) {
                       setBiometricEnabled(true)
