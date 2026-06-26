@@ -93,8 +93,13 @@ export default function ProfilePage() {
   }
 
   const handleLogout = async () => {
-    await logoutUser()
-    router.replace('/login')
+    try {
+      await logoutUser()
+    } catch (err) {
+      console.error('Logout error:', err)
+    } finally {
+      router.replace('/login')
+    }
   }
 
   const initials = profile.name
@@ -342,8 +347,10 @@ export default function ProfilePage() {
                   setBiometricLoading(true)
                   setBiometricError('')
                   try {
+                    // Verify password first
                     const { loginUser } = await import('@/lib/auth')
                     await loginUser(profile.email, biometricPassword)
+                    // Then register biometric — store password behind biometric gate
                     const success = await registerBiometric(profile.email, biometricPassword)
                     if (success) {
                       setBiometricEnabled(true)
