@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { getSession, getCurrentUser } from '@/lib/auth'
 
-const PUBLIC_ROUTES = ['/login']
+const PUBLIC_ROUTES = ['/login', '/select-role']
 const ADMIN_ROUTES = ['/admin']
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
