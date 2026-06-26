@@ -266,11 +266,12 @@ export default function ProfilePage() {
                     // Verify password first
                     const { loginUser } = await import('@/lib/auth')
                     await loginUser(profile.email, biometricPassword)
-                    // Then register biometric
-                    const success = await registerBiometric(profile.email)
+                    // Then register biometric — store password behind biometric gate
+                    const success = await registerBiometric(profile.email, biometricPassword)
                     if (success) {
                       setBiometricEnabled(true)
                       setShowBiometricSetup(false)
+                      setBiometricPassword('')
                     } else {
                       setBiometricError('Biometric setup failed. Make sure your device supports it.')
                     }
