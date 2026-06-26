@@ -1,78 +1,167 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowLeft, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ArrowLeft, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
+import { supabase } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/auth'
 
-const sessionHistory = [
-  { date: 'June 22', className: 'Power Yoga', status: 'attended' as const },
-  { date: 'June 20', className: 'Mat Pilates', status: 'attended' as const },
-  { date: 'June 18', className: 'Gentle Yoga', status: 'no_show' as const },
-  { date: 'June 15', className: 'Power Yoga', status: 'attended' as const },
-  { date: 'June 13', className: 'Belly Dancing', status: 'attended' as const },
-]
+type ClientPackage = {
+  id: string
+  sessions_remaining: number
+  sessions_total: number
+  expiry_date: string
+  status: string
+  freeze_start: string | null
+  package: { name: string }
+}
+
+type BookingHistory = {
+  id: string
+  status: string
+  created_at: string
+  session: {
+    start_time: string
+    class_type: { name: string }
+  }
+}
 
 export default function MyPackagePage() {
-  const [hasPackage, setHasPackage] = useState(true)
-  const sessionsUsed = 3
-  const sessionsTotal = 8
-  const sessionsRemaining = sessionsTotal - sessionsUsed
-  const progress = (sessionsRemaining / sessionsTotal) * 100
+  const [loading, setLoading] = useState(true)
+  const [pkg, setPkg] = useState<ClientPackage | null>(null)
+  const [history, setHistory] = useState<BookingHistory[]>([])
+  const [freezing, setFreezing] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const user = await getCurrentUser()
+      if (!user) { setLoading(false); return }
+
+      // Get active package
+      const { data: pkgData } = await supabase
+        .from('client_packages')
+        .select('*, package:packages(name)')
+        .eq('client_id', user.id)
+        .in('status', ['active', 'frozen'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (pkgData) setPkg(pkgData as unknown as ClientPackage)
+
+      // Get booking history
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id, status, created_at, session:class_sessions(start_time, class_type:class_types(name))')
+        .eq('client_id', user.id)
+        .in('status', ['attended', 'no_show'])
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (bookings) setHistory(bookings as unknown as BookingHistory[])
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
+
+  const handleFreeze = async () => {
+    if (!pkg) return
+    setFreezing(true)
+    try {
+      if (pkg.status === 'frozen') {
+        // Unfreeze — extend expiry by frozen days
+        const frozenDays = pkg.freeze_start
+          ? Math.ceil((Date.now() - new Date(pkg.freeze_start).getTime()) / (1000 * 60 * 60 * 24))
+          : 0
+        const newExpiry = new Date(pkg.expiry_date)
+        newExpiry.setDate(newExpiry.getDate() + frozenDays)
+
+        await supabase
+          .from('client_packages')
+          .update({ status: 'active', freeze_start: null, freeze_end: new Date().toISOString(), expiry_date: newExpiry.toISOString() })
+          .eq('id', pkg.id)
+
+        setPkg({ ...pkg, status: 'active', freeze_start: null, expiry_date: newExpiry.toISOString() })
+      } else {
+        // Freeze
+        await supabase
+          .from('client_packages')
+          .update({ status: 'frozen', freeze_start: new Date().toISOString() })
+          .eq('id', pkg.id)
+
+        setPkg({ ...pkg, status: 'frozen', freeze_start: new Date().toISOString() })
+      }
+    } catch { /* silent */ }
+    setFreezing(false)
+  }
+
+  const daysLeft = pkg ? Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0
+  const sessionsUsed = pkg ? pkg.sessions_total - pkg.sessions_remaining : 0
+  const progress = pkg ? (pkg.sessions_remaining / pkg.sessions_total) * 100 : 0
   const circumference = 45 * 2 * Math.PI
+
+  if (loading) {
+    return (
+      <main className="bg-background min-h-screen pb-24 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+      </main>
+    )
+  }
 
   return (
     <main className="bg-background min-h-screen pb-24">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <Link href="/" className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </Link>
         <h1 className="text-lg font-semibold text-foreground">My Package</h1>
-        <button
-          onClick={() => setHasPackage(!hasPackage)}
-          className="text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground"
-        >
-          {hasPackage ? 'No Pkg' : 'Has Pkg'}
-        </button>
       </div>
 
       <div className="px-4 pt-6 space-y-6">
-        {hasPackage ? (
+        {pkg ? (
           <>
             {/* Hero Card */}
-            <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-6 text-white shadow-lg">
+            <div className={`rounded-2xl p-6 text-white shadow-lg ${
+              pkg.status === 'frozen' 
+                ? 'bg-gradient-to-r from-[#5C6B6E] to-[#5C6B6E]/80' 
+                : 'bg-gradient-to-r from-[#006D77] to-[#E86500]'
+            }`}>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-lg font-bold">{sessionsTotal} Classes</p>
-                <span className="text-xs px-3 py-1 bg-white/20 rounded-full font-medium">Active</span>
+                <p className="text-lg font-bold">{pkg.package?.name || `${pkg.sessions_total} Classes`}</p>
+                <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                  pkg.status === 'frozen' ? 'bg-white/30' : 'bg-white/20'
+                }`}>
+                  {pkg.status === 'frozen' ? '❄️ Frozen' : 'Active'}
+                </span>
               </div>
 
               <div className="flex items-center justify-center my-6">
                 <div className="relative w-32 h-32">
                   <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
                     <circle cx="50" cy="50" r="45" fill="none" stroke="white" strokeWidth="3" opacity="0.2" />
-                    <circle
-                      cx="50" cy="50" r="45" fill="none" stroke="white" strokeWidth="4"
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="white" strokeWidth="4"
                       strokeDasharray={`${(circumference * progress) / 100} ${circumference}`}
-                      strokeLinecap="round"
-                    />
+                      strokeLinecap="round" />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-4xl font-bold">{sessionsRemaining}</span>
+                    <span className="text-4xl font-bold">{pkg.sessions_remaining}</span>
                     <span className="text-xs text-white/80">remaining</span>
                   </div>
                 </div>
               </div>
 
-              <p className="text-center text-sm text-white/80">Expires Aug 15, 2026</p>
+              <p className="text-center text-sm text-white/80">
+                Expires {new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
             </div>
 
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
               {[
                 { icon: CheckCircle, label: 'Used', value: sessionsUsed, color: 'text-[#006D77]' },
-                { icon: Package, label: 'Remaining', value: sessionsRemaining, color: 'text-[#E86500]' },
-                { icon: Calendar, label: 'Days Left', value: 28, color: 'text-[#006D77]' },
+                { icon: Package, label: 'Remaining', value: pkg.sessions_remaining, color: 'text-[#E86500]' },
+                { icon: Calendar, label: 'Days Left', value: daysLeft, color: 'text-[#006D77]' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white border border-border rounded-xl p-4 text-center shadow-sm">
                   <stat.icon className={`w-5 h-5 mx-auto mb-2 ${stat.color}`} />
@@ -84,45 +173,61 @@ export default function MyPackagePage() {
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-[#006D77] text-[#006D77] font-medium hover:bg-[#006D77]/5 transition-colors">
-                <Snowflake className="w-4 h-4" />
-                Freeze
+              <button
+                onClick={handleFreeze}
+                disabled={freezing}
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-colors disabled:opacity-60 ${
+                  pkg.status === 'frozen'
+                    ? 'bg-[#006D77] text-white hover:bg-[#004E5C]'
+                    : 'border-2 border-[#006D77] text-[#006D77] hover:bg-[#006D77]/5'
+                }`}
+              >
+                {freezing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Snowflake className="w-4 h-4" />}
+                {pkg.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
               </button>
-              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#006D77] text-white font-medium hover:bg-[#004E5C] transition-colors">
+              <Link href="/packages"
+                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#006D77] text-white font-medium hover:bg-[#004E5C] transition-colors">
                 <RefreshCw className="w-4 h-4" />
                 Renew
-              </button>
+              </Link>
             </div>
 
             {/* Session History */}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-4">Session History</h3>
-              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-                {sessionHistory.map((session, i) => (
-                  <div key={i} className={`flex items-center justify-between px-4 py-3 ${i < sessionHistory.length - 1 ? 'border-b border-border' : ''}`}>
-                    <span className="text-sm text-muted-foreground w-20">{session.date}</span>
-                    <span className="text-sm font-medium text-foreground flex-1">{session.className}</span>
-                    {session.status === 'attended' ? (
-                      <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[#4CAF50]/10 text-[#4CAF50] rounded-full">
-                        <Check className="w-3 h-3" /> Attended
+            {history.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-4">Session History</h3>
+                <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+                  {history.map((booking, i) => (
+                    <div key={booking.id} className={`flex items-center justify-between px-4 py-3 ${i < history.length - 1 ? 'border-b border-border' : ''}`}>
+                      <span className="text-sm text-muted-foreground w-20">
+                        {new Date(booking.session?.start_time || booking.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[#E53935]/10 text-[#E53935] rounded-full">
-                        <X className="w-3 h-3" /> No Show
+                      <span className="text-sm font-medium text-foreground flex-1">
+                        {booking.session?.class_type?.name || 'Class'}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      {booking.status === 'attended' ? (
+                        <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[#4CAF50]/10 text-[#4CAF50] rounded-full">
+                          <Check className="w-3 h-3" /> Attended
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 bg-[#E53935]/10 text-[#E53935] rounded-full">
+                          <X className="w-3 h-3" /> No Show
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </>
         ) : (
+          /* No Package State */
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 rounded-full bg-secondary/30 flex items-center justify-center mb-6">
               <Package className="w-10 h-10 text-muted-foreground" />
             </div>
             <h3 className="text-xl font-bold text-foreground mb-2">No Active Package</h3>
-            <p className="text-sm text-muted-foreground mb-6">Your last package expired on June 1, 2026</p>
+            <p className="text-sm text-muted-foreground mb-6 text-center">Purchase a package to start booking classes</p>
             <Link href="/packages" className="px-8 py-3 bg-[#006D77] text-white font-medium rounded-xl hover:bg-[#004E5C] transition-colors">
               Browse Packages
             </Link>
