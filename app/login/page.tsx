@@ -28,7 +28,7 @@ export default function LoginPage() {
     try {
       const { user } = await loginUser(form.email, form.password)
       if (user.role === 'admin') {
-        router.replace('/admin')
+        router.replace('/select-role')
       } else {
         router.replace('/')
       }
