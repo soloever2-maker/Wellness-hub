@@ -61,6 +61,12 @@ export async function loginUser(email: string, password: string) {
     throw new Error('REJECTED')
   }
 
+  // Save role for biometric login
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('saved_email', email)
+    localStorage.setItem('saved_role', profile.role)
+  }
+
   return { user: profile, session: data.session }
 }
 
