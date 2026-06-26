@@ -183,10 +183,30 @@ export default function LoginPage() {
     setError('')
     try {
       const verified = await authenticateWithBiometric()
-      if (!verified) { setError('Biometric failed. Use your password.'); return }
-      router.replace('/')
-    } catch { setError('Biometric failed. Try your password.') }
-    finally { setBiometricLoading(false) }
+      if (!verified) {
+        setError('Biometric authentication failed. Use your password instead.')
+        setBiometricLoading(false)
+        return
+      }
+
+      // Check if Supabase session is still valid
+      const { getSession } = await import('@/lib/auth')
+      const session = await getSession()
+
+      if (session) {
+        // Session valid → go home
+        const { getCurrentUser } = await import('@/lib/auth')
+        const user = await getCurrentUser()
+        router.replace(user?.role === 'admin' ? '/select-role' : '/')
+      } else {
+        // Session expired → ask user to login with password once
+        setError('Your session expired. Please sign in with your password once to refresh it.')
+      }
+    } catch {
+      setError('Biometric failed. Try your password.')
+    } finally {
+      setBiometricLoading(false)
+    }
   }
 
   const handleRegister = async (e: React.FormEvent) => {
