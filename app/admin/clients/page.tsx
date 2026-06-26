@@ -1,36 +1,49 @@
 'use client'
 
-import { useState } from 'react'
-import { Search, X, MessageCircle, Snowflake, Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { supabase } from '@/lib/supabase'
 
-const clients = [
-  { id: 1, name: 'Sarah Ahmed', phone: '+20 101 234 5678', package: '8 Classes', remaining: 5, lastVisit: 'June 22', status: 'active', totalSpent: 4800 },
-  { id: 2, name: 'Nour Hassan', phone: '+20 102 345 6789', package: '4 Classes', remaining: 1, lastVisit: 'June 20', status: 'expiring', totalSpent: 2100 },
-  { id: 3, name: 'Layla Mohamed', phone: '+20 103 456 7890', package: '12 Classes', remaining: 9, lastVisit: 'June 18', status: 'active', totalSpent: 6400 },
-  { id: 4, name: 'Mona Ali', phone: '+20 104 567 8901', package: null, remaining: 0, lastVisit: 'May 30', status: 'no_package', totalSpent: 1400 },
-  { id: 5, name: 'Yasmin Khaled', phone: '+20 105 678 9012', package: '4 Classes', remaining: 2, lastVisit: 'June 15', status: 'active', totalSpent: 3500 },
-  { id: 6, name: 'Dina Samir', phone: '+20 106 789 0123', package: null, remaining: 0, lastVisit: 'Apr 20', status: 'no_package', totalSpent: 700 },
-  { id: 7, name: 'Hana Tarek', phone: '+20 107 890 1234', package: '8 Classes', remaining: 2, lastVisit: 'June 24', status: 'expiring', totalSpent: 5200 },
-  { id: 8, name: 'Rana Fathy', phone: '+20 108 901 2345', package: '12 Classes', remaining: 11, lastVisit: 'June 25', status: 'active', totalSpent: 1600 },
-]
+type Client = {
+  id: string
+  full_name: string
+  phone: string
+  email: string
+  status: string
+  created_at: string
+}
 
-const filters = ['All', 'Active Package', 'Expiring Soon', 'No Package']
-
-type Client = typeof clients[0]
+const filters = ['All', 'Approved', 'Pending']
 
 export default function AdminClientsPage() {
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (!error && data) {
+        setClients(data as Client[])
+      }
+      setLoading(false)
+    }
+    fetchClients()
+  }, [])
+
   const filtered = clients.filter((c) => {
-    const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search)
+    const matchesSearch = (c.full_name || '').toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)
     const matchesFilter =
       activeFilter === 'All' ? true :
-      activeFilter === 'Active Package' ? c.status === 'active' :
-      activeFilter === 'Expiring Soon' ? c.status === 'expiring' :
-      c.status === 'no_package'
+      activeFilter === 'Approved' ? c.status === 'approved' :
+      c.status === 'pending'
     return matchesSearch && matchesFilter
   })
 
@@ -68,37 +81,49 @@ export default function AdminClientsPage() {
 
       {/* Client List */}
       <div className="px-4 pt-4 space-y-2">
-        {filtered.map((client) => (
-          <button
-            key={client.id}
-            onClick={() => setSelectedClient(client)}
-            className="w-full text-left bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-[#006D77]">{client.name.split(' ').map(n => n[0]).join('')}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-foreground text-sm">{client.name}</h4>
-                <p className="text-xs text-muted-foreground">{client.phone}</p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                {client.package ? (
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                    client.status === 'expiring'
-                      ? 'bg-[#FF9800]/10 text-[#FF9800]'
-                      : 'bg-[#4CAF50]/10 text-[#4CAF50]'
-                  }`}>
-                    {client.remaining} left
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium px-2.5 py-1 bg-gray-100 text-gray-400 rounded-full">No Package</span>
-                )}
-                <p className="text-[10px] text-muted-foreground mt-1">Last: {client.lastVisit}</p>
-              </div>
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center text-center py-12">
+            <div className="w-16 h-16 rounded-full bg-[#E0EEF0] flex items-center justify-center mb-3">
+              <Users className="w-8 h-8 text-[#006D77]/40" />
             </div>
-          </button>
-        ))}
+            <p className="text-sm text-muted-foreground">
+              {search ? 'No clients match your search' : 'No clients registered yet'}
+            </p>
+          </div>
+        ) : (
+          filtered.map((client) => (
+            <button
+              key={client.id}
+              onClick={() => setSelectedClient(client)}
+              className="w-full text-left bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-[#006D77]">
+                    {(client.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-foreground text-sm">{client.full_name}</h4>
+                  <p className="text-xs text-muted-foreground">{client.phone}</p>
+                </div>
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                  client.status === 'approved'
+                    ? 'bg-[#4CAF50]/10 text-[#4CAF50]'
+                    : client.status === 'pending'
+                    ? 'bg-[#FF9800]/10 text-[#FF9800]'
+                    : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {client.status}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
       </div>
 
       {/* Client Detail Sheet */}
@@ -108,10 +133,12 @@ export default function AdminClientsPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="font-bold text-[#006D77]">{selectedClient.name.split(' ').map(n => n[0]).join('')}</span>
+                  <span className="font-bold text-[#006D77]">
+                    {(selectedClient.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </span>
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">{selectedClient.name}</h2>
+                  <h2 className="text-lg font-bold text-foreground">{selectedClient.full_name}</h2>
                   <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
                 </div>
               </div>
@@ -120,24 +147,25 @@ export default function AdminClientsPage() {
               </button>
             </div>
 
-            {/* Package Info */}
-            {selectedClient.package && (
-              <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-4 text-white mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/80">Active Package</p>
-                    <p className="text-lg font-bold">{selectedClient.package}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">{selectedClient.remaining}</p>
-                    <p className="text-xs text-white/80">remaining</p>
-                  </div>
-                </div>
+            <div className="bg-white border border-border rounded-2xl p-4 mb-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Email</span>
+                <span className="text-sm font-medium text-foreground">{selectedClient.email}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-sm font-medium text-foreground capitalize">{selectedClient.status}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Joined</span>
+                <span className="text-sm font-medium text-foreground">
+                  {new Date(selectedClient.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
 
             {/* Quick Actions */}
-            <div className="grid grid-cols-3 gap-2 mb-6">
+            <div className="grid grid-cols-3 gap-2">
               <button className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
                 <Plus className="w-5 h-5 text-[#006D77]" />
                 <span className="text-[10px] font-medium text-foreground">Add Pkg</span>
@@ -146,15 +174,11 @@ export default function AdminClientsPage() {
                 <Snowflake className="w-5 h-5 text-[#E86500]" />
                 <span className="text-[10px] font-medium text-foreground">Freeze</span>
               </button>
-              <button className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
+              <a href={`https://wa.me/${(selectedClient.phone || '').replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
                 <MessageCircle className="w-5 h-5 text-[#4CAF50]" />
                 <span className="text-[10px] font-medium text-foreground">WhatsApp</span>
-              </button>
-            </div>
-
-            <div className="bg-white border border-border rounded-2xl p-4">
-              <p className="text-sm text-muted-foreground">Total Spent</p>
-              <p className="text-2xl font-bold text-foreground">{selectedClient.totalSpent.toLocaleString()} EGP</p>
+              </a>
             </div>
           </div>
         </div>

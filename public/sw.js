@@ -1,11 +1,5 @@
-const CACHE_NAME = 'align-enjy-v1'
+const CACHE_NAME = 'align-enjy-v2'
 const STATIC_ASSETS = [
-  '/',
-  '/schedule',
-  '/bookings',
-  '/packages',
-  '/my-package',
-  '/profile',
   '/manifest.json',
   '/icon.png',
   '/logo.png',
@@ -13,46 +7,75 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS)
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
   )
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
+    caches.keys().then((cacheNames) =>
+      Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       )
-    })
+    )
   )
   self.clients.claim()
 })
 
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests
   if (event.request.method !== 'GET') return
-  // Skip API calls and Supabase
   if (event.request.url.includes('supabase.co')) return
   if (event.request.url.includes('/api/')) return
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+  const url = new URL(event.request.url)
+
+  // Pages (navigation requests) → NETWORK FIRST
+  // This ensures you always get the latest version of pages
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache a copy for offline use
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
           return response
-        }
-        const responseToCache = response.clone()
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache)
         })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+    )
+    return
+  }
+
+  // Static assets (images, fonts, manifest) → CACHE FIRST
+  if (STATIC_ASSETS.some((asset) => url.pathname === asset) ||
+      url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?|ttf|eot)$/)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          }
+          return response
+        })
+      })
+    )
+    return
+  }
+
+  // Everything else (JS, CSS chunks) → NETWORK FIRST with cache fallback
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+        }
         return response
       })
-    })
+      .catch(() => caches.match(event.request))
   )
 })

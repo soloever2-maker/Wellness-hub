@@ -71,10 +71,13 @@ export async function loginUser(email: string, password: string) {
 
 // ── LOGOUT ────────────────────────────────────────────────────
 export async function logoutUser() {
-  const { error } = await supabase.auth.signOut()
-  if (error) throw new Error(error.message)
-  // Note: we KEEP the biometric refresh token so user can sign back in with biometrics
-  // Only clear it if user explicitly disables biometric in profile
+  await supabase.auth.signOut()
+
+  // Clear all history entries so back button can't return to protected pages
+  if (typeof window !== 'undefined') {
+    // Replace current history entry with login
+    window.history.replaceState(null, '', '/login')
+  }
 }
 
 // ── GET CURRENT USER ─────────────────────────────────────────

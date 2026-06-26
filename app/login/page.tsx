@@ -319,7 +319,7 @@ export default function LoginPage() {
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input type="text" required autoComplete="name" value={form.fullName}
                       onChange={e => setForm({ ...form, fullName: e.target.value })}
-                      placeholder="Sarah Ahmed"
+                      placeholder="Your full name"
                       className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
