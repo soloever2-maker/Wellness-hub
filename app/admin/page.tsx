@@ -1,7 +1,11 @@
 'use client'
 
-import { Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock, UserCheck } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
+import { getCurrentUser } from '@/lib/auth'
+import Link from 'next/link'
 
 const stats = [
   { icon: Calendar, label: "Today's Classes", value: '4', color: 'text-[#006D77]' },
@@ -31,19 +35,25 @@ const recentActivity = [
 ]
 
 export default function AdminDashboardPage() {
+  const [firstName, setFirstName] = useState('')
+  useEffect(() => {
+    getCurrentUser().then(u => {
+      if (u?.full_name) setFirstName(u.full_name.split(' ')[0])
+    })
+  }, [])
+
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
   return (
     <main className="bg-background min-h-screen pb-24">
       {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
+      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Hi Enjy 👋 — June 25, 2026</p>
+            <p className="text-sm text-muted-foreground">Hi {firstName || 'Enjy'} 👋 — {today}</p>
           </div>
-          <button className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center relative">
-            <span className="text-lg">🔔</span>
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#006D77] text-white text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
-          </button>
+          <UserMenu variant="admin" />
         </div>
       </div>
 
@@ -58,6 +68,24 @@ export default function AdminDashboardPage() {
             </div>
           ))}
         </div>
+
+        {/* Pending Approvals Banner */}
+        <Link href="/admin/approvals">
+          <div className="bg-gradient-to-r from-[#E86500] to-[#E86500]/80 rounded-2xl p-4 flex items-center justify-between shadow-md shadow-[#E86500]/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <UserCheck className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-sm">Pending Approvals</p>
+                <p className="text-white/80 text-xs">Review new client requests</p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+              <span className="text-[#E86500] font-bold text-sm">!</span>
+            </div>
+          </div>
+        </Link>
 
         {/* Alerts */}
         <div>

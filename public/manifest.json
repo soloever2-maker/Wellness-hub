@@ -23,9 +23,18 @@
       "purpose": "any maskable"
     }
   ],
+  "screenshots": [],
   "categories": ["health", "fitness", "lifestyle"],
   "shortcuts": [
-    { "name": "Book a Class", "url": "/schedule" },
-    { "name": "My Bookings", "url": "/bookings" }
+    {
+      "name": "Book a Class",
+      "url": "/schedule",
+      "description": "Browse and book yoga classes"
+    },
+    {
+      "name": "My Bookings",
+      "url": "/bookings",
+      "description": "View your upcoming bookings"
+    }
   ]
 }

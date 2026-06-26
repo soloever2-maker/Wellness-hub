@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase'
 
 type Mode = 'login' | 'register' | 'pending'
 
-// Floating lotus particles
+// Floating brand elements (lotus + swirls)
 function FloatingParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -27,123 +27,120 @@ function FloatingParticles() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+    const dpr = window.devicePixelRatio || 1
+    const resize = () => {
+      canvas.width = window.innerWidth * dpr
+      canvas.height = window.innerHeight * dpr
+      canvas.style.width = window.innerWidth + 'px'
+      canvas.style.height = window.innerHeight + 'px'
+      ctx.scale(dpr, dpr)
+    }
+    resize()
 
     const particles: {
       x: number; y: number; size: number; speedX: number; speedY: number;
-      opacity: number; rotation: number; rotSpeed: number; type: number
+      opacity: number; rotation: number; rotSpeed: number; type: number; color: string
     }[] = []
 
-    // Create 18 particles
-    for (let i = 0; i < 18; i++) {
+    // 38 particles - much more than before
+    for (let i = 0; i < 38; i++) {
+      const colorChoice = Math.random()
       particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        size: Math.random() * 18 + 8,
-        speedX: (Math.random() - 0.5) * 0.4,
-        speedY: (Math.random() - 0.5) * 0.4,
-        opacity: Math.random() * 0.25 + 0.05,
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        size: Math.random() * 22 + 10,
+        speedX: (Math.random() - 0.5) * 0.5,
+        speedY: (Math.random() - 0.5) * 0.5,
+        opacity: Math.random() * 0.18 + 0.06,
         rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.01,
-        type: Math.floor(Math.random() * 2), // 0 = lotus petal, 1 = swirl dot
+        rotSpeed: (Math.random() - 0.5) * 0.012,
+        type: Math.floor(Math.random() * 3), // 0=lotus, 1=swirl, 2=infinity
+        color: colorChoice < 0.5 ? '#006D77' : (colorChoice < 0.85 ? '#E86500' : '#004E5C'),
       })
     }
 
-    const drawLotus = (
-      ctx: CanvasRenderingContext2D,
-      x: number, y: number, size: number,
-      opacity: number, rotation: number
-    ) => {
+    const drawLotus = (x: number, y: number, size: number, opacity: number, rotation: number, color: string) => {
       ctx.save()
       ctx.translate(x, y)
       ctx.rotate(rotation)
       ctx.globalAlpha = opacity
-
-      const petalCount = 5
-      for (let i = 0; i < petalCount; i++) {
+      const petals = 5
+      for (let i = 0; i < petals; i++) {
         ctx.save()
-        ctx.rotate((i / petalCount) * Math.PI * 2)
+        ctx.rotate((i / petals) * Math.PI * 2)
         ctx.beginPath()
-        ctx.ellipse(0, -size * 0.6, size * 0.25, size * 0.6, 0, 0, Math.PI * 2)
-        ctx.strokeStyle = '#E86500'
-        ctx.lineWidth = 1.2
+        ctx.ellipse(0, -size * 0.55, size * 0.22, size * 0.55, 0, 0, Math.PI * 2)
+        ctx.strokeStyle = color
+        ctx.lineWidth = 1.4
         ctx.stroke()
         ctx.restore()
       }
-
-      // Center circle
       ctx.beginPath()
-      ctx.arc(0, 0, size * 0.15, 0, Math.PI * 2)
-      ctx.strokeStyle = '#006D77'
-      ctx.lineWidth = 1.2
+      ctx.arc(0, 0, size * 0.12, 0, Math.PI * 2)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1.4
       ctx.stroke()
-
       ctx.restore()
     }
 
-    const drawSwirl = (
-      ctx: CanvasRenderingContext2D,
-      x: number, y: number, size: number,
-      opacity: number, rotation: number
-    ) => {
+    const drawSwirl = (x: number, y: number, size: number, opacity: number, rotation: number, color: string) => {
       ctx.save()
       ctx.translate(x, y)
       ctx.rotate(rotation)
       ctx.globalAlpha = opacity
       ctx.beginPath()
-      ctx.arc(0, 0, size * 0.4, 0, Math.PI * 1.5)
-      ctx.strokeStyle = '#006D77'
-      ctx.lineWidth = 1.5
+      ctx.arc(0, 0, size * 0.4, 0, Math.PI * 1.6)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1.8
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    const drawInfinity = (x: number, y: number, size: number, opacity: number, rotation: number, color: string) => {
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(rotation)
+      ctx.globalAlpha = opacity
+      ctx.beginPath()
+      ctx.arc(-size * 0.3, 0, size * 0.3, 0, Math.PI * 2)
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1.4
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(size * 0.3, 0, size * 0.3, 0, Math.PI * 2)
       ctx.stroke()
       ctx.restore()
     }
 
     let animId: number
-
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-
       particles.forEach(p => {
-        if (p.type === 0) {
-          drawLotus(ctx, p.x, p.y, p.size, p.opacity, p.rotation)
-        } else {
-          drawSwirl(ctx, p.x, p.y, p.size, p.opacity, p.rotation)
-        }
+        if (p.type === 0) drawLotus(p.x, p.y, p.size, p.opacity, p.rotation, p.color)
+        else if (p.type === 1) drawSwirl(p.x, p.y, p.size, p.opacity, p.rotation, p.color)
+        else drawInfinity(p.x, p.y, p.size, p.opacity, p.rotation, p.color)
 
         p.x += p.speedX
         p.y += p.speedY
         p.rotation += p.rotSpeed
 
-        if (p.x < -50) p.x = canvas.width + 50
-        if (p.x > canvas.width + 50) p.x = -50
-        if (p.y < -50) p.y = canvas.height + 50
-        if (p.y > canvas.height + 50) p.y = -50
+        if (p.x < -60) p.x = window.innerWidth + 60
+        if (p.x > window.innerWidth + 60) p.x = -60
+        if (p.y < -60) p.y = window.innerHeight + 60
+        if (p.y > window.innerHeight + 60) p.y = -60
       })
-
       animId = requestAnimationFrame(animate)
     }
-
     animate()
 
-    const handleResize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    window.addEventListener('resize', handleResize)
-
+    window.addEventListener('resize', resize)
     return () => {
       cancelAnimationFrame(animId)
-      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('resize', resize)
     }
   }, [])
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 pointer-events-none z-0"
-    />
-  )
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />
 }
 
 export default function LoginPage() {
@@ -191,11 +188,9 @@ export default function LoginPage() {
         return
       }
 
-      // Check Supabase session
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        // Use saved role — no need to query DB again
         const role = getSavedRole()
         router.replace(role === 'admin' ? '/select-role' : '/')
       } else {
@@ -218,7 +213,9 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       setError(msg.includes('already registered') ? 'Email already registered. Try signing in.' : msg)
-    } finally { setLoading(false) }
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -227,38 +224,38 @@ export default function LoginPage() {
 
       <div className="relative z-10 flex-1 flex flex-col px-6 py-8 max-w-sm mx-auto w-full">
 
-        {/* Icon + name above card — directly on background */}
-        <div className="pt-12 pb-8 flex flex-col items-center">
-          <div style={{ mixBlendMode: 'multiply' }}>
+        {/* Logo Section — much bigger and clean */}
+        <div className="pt-8 pb-6 flex flex-col items-center">
+          <div style={{ mixBlendMode: 'multiply' }} className="mb-3">
             <Image
               src="/icon.png"
               alt="Align with Enjy"
-              width={110}
-              height={110}
-              className="object-contain mb-5"
+              width={180}
+              height={180}
+              className="object-contain"
               priority
             />
           </div>
-          <h1 className="text-2xl font-bold text-[#006D77] tracking-wide">Align with Enjy</h1>
+          <h1 className="text-3xl font-bold text-[#006D77] tracking-wide text-center">Align with Enjy</h1>
           <p className="text-xs text-[#E86500] font-semibold tracking-[0.25em] uppercase mt-2">
             Wellness & Yoga Center
           </p>
         </div>
 
-        {/* ── ERROR ── */}
+        {/* Error */}
         {error && (
-          <div className="mb-4 px-4 py-3 bg-red-50/80 backdrop-blur border border-red-200 rounded-xl">
+          <div className="mb-4 px-4 py-3 bg-red-50/90 backdrop-blur border border-red-200 rounded-xl">
             <p className="text-sm text-red-600 text-center">{error}</p>
           </div>
         )}
 
-        {/* ── CARD ── */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl shadow-[#006D77]/10 border border-white p-6">
+        {/* Card */}
+        <div className="bg-white/85 backdrop-blur-sm rounded-3xl shadow-xl shadow-[#006D77]/10 border border-white p-6">
 
           {mode === 'login' && (
             <>
               <h2 className="text-xl font-bold text-foreground text-center mb-1">Welcome Back</h2>
-              <p className="text-xs text-muted-foreground text-center mb-5">Sign in to continue your journey</p>
+              <p className="text-xs text-muted-foreground text-center mb-5">Sign in to continue</p>
 
               {showBiometric && (
                 <>
