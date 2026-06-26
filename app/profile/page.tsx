@@ -1,19 +1,39 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter } from 'next/navigation'
 import { logoutUser } from '@/lib/auth'
+import {
+  isBiometricSupported,
+  isBiometricEnabled,
+  registerBiometric,
+  disableBiometric,
+  getSavedEmail,
+} from '@/lib/biometric'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [reminders, setReminders] = useState({ whatsapp: true, hour24: true, hour2: false })
   const [isEditing, setIsEditing] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false)
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
+  const [biometricSupported, setBiometricSupported] = useState(false)
+  const [biometricPassword, setBiometricPassword] = useState('')
+  const [biometricLoading, setBiometricLoading] = useState(false)
+  const [biometricError, setBiometricError] = useState('')
   const [profile, setProfile] = useState({ name: 'Sarah Ahmed', phone: '+20 101 234 5678', email: 'sarah@email.com' })
   const [editForm, setEditForm] = useState(profile)
+
+  useEffect(() => {
+    setBiometricSupported(isBiometricSupported())
+    setBiometricEnabled(isBiometricEnabled())
+    const email = getSavedEmail()
+    if (email) setProfile(p => ({ ...p, email }))
+  }, [])
 
   const handleSave = () => {
     setProfile(editForm)
@@ -168,6 +188,108 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Security */}
+        {biometricSupported && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Security</p>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                  <Fingerprint className="w-5 h-5 text-[#006D77]" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Biometric Login</p>
+                    <p className="text-xs text-muted-foreground">Fingerprint / Face ID</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (biometricEnabled) {
+                      disableBiometric()
+                      setBiometricEnabled(false)
+                    } else {
+                      setBiometricError('')
+                      setBiometricPassword('')
+                      setShowBiometricSetup(true)
+                    }
+                  }}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${biometricEnabled ? 'bg-[#006D77]' : 'bg-gray-200'}`}
+                >
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${biometricEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Biometric Setup Modal */}
+        {showBiometricSetup && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-foreground">Enable Biometrics</h3>
+                <button onClick={() => setShowBiometricSetup(false)} className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
+                  <X className="w-5 h-5 text-foreground" />
+                </button>
+              </div>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-[#E0EEF0] flex items-center justify-center">
+                  <Fingerprint className="w-8 h-8 text-[#006D77]" />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground text-center mb-6">
+                Enter your password to confirm, then follow the biometric prompt on your device
+              </p>
+              {biometricError && (
+                <p className="text-xs text-red-500 text-center mb-3">{biometricError}</p>
+              )}
+              <div className="mb-4">
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    value={biometricPassword}
+                    onChange={(e) => setBiometricPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
+                  />
+                </div>
+              </div>
+              <button
+                disabled={!biometricPassword || biometricLoading}
+                onClick={async () => {
+                  if (!biometricPassword) return
+                  setBiometricLoading(true)
+                  setBiometricError('')
+                  try {
+                    // Verify password first
+                    const { loginUser } = await import('@/lib/auth')
+                    await loginUser(profile.email, biometricPassword)
+                    // Then register biometric
+                    const success = await registerBiometric(profile.email)
+                    if (success) {
+                      setBiometricEnabled(true)
+                      setShowBiometricSetup(false)
+                    } else {
+                      setBiometricError('Biometric setup failed. Make sure your device supports it.')
+                    }
+                  } catch {
+                    setBiometricError('Wrong password. Please try again.')
+                  } finally {
+                    setBiometricLoading(false)
+                  }
+                }}
+                className="w-full py-3 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {biometricLoading
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <><Fingerprint className="w-5 h-5" /> Enable Biometrics</>
+                }
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Support */}
         <div>
