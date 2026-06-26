@@ -68,7 +68,7 @@ export function Schedule() {
               className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               <h3 className="text-xl font-bold text-foreground mb-4 flex items-center">
-                <span className="w-1 h-6 bg-gradient-to-b from-[#D63384] to-[#7B2D8E] rounded mr-3"></span>
+                <span className="w-1 h-6 bg-gradient-to-b from-[#006D77] to-[#E86500] rounded mr-3"></span>
                 {day.day}
               </h3>
 
@@ -99,7 +99,7 @@ export function Schedule() {
           ))}
         </div>
 
-        <div className="mt-12 bg-gradient-to-r from-[#D63384] to-[#7B2D8E] rounded-2xl p-8 md:p-12 text-white text-center">
+        <div className="mt-12 bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-8 md:p-12 text-white text-center">
           <MapPin className="w-8 h-8 mx-auto mb-4 opacity-90" />
           <h3 className="text-2xl md:text-3xl font-bold mb-3">
             Located in Cairo, Egypt

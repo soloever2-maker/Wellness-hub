@@ -4,10 +4,10 @@ import { Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock } from '
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 
 const stats = [
-  { icon: Calendar, label: "Today's Classes", value: '4', color: 'text-[#D63384]' },
-  { icon: CheckCircle, label: "Today's Bookings", value: '18', color: 'text-[#7B2D8E]' },
-  { icon: DollarSign, label: 'Month Revenue', value: '12,400 EGP', color: 'text-[#D63384]' },
-  { icon: Users, label: 'Active Clients', value: '34', color: 'text-[#7B2D8E]' },
+  { icon: Calendar, label: "Today's Classes", value: '4', color: 'text-[#006D77]' },
+  { icon: CheckCircle, label: "Today's Bookings", value: '18', color: 'text-[#E86500]' },
+  { icon: DollarSign, label: 'Month Revenue', value: '12,400 EGP', color: 'text-[#006D77]' },
+  { icon: Users, label: 'Active Clients', value: '34', color: 'text-[#E86500]' },
 ]
 
 const alerts = [
@@ -42,7 +42,7 @@ export default function AdminDashboardPage() {
           </div>
           <button className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center relative">
             <span className="text-lg">🔔</span>
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#D63384] text-white text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#006D77] text-white text-[10px] font-bold rounded-full flex items-center justify-center">3</span>
           </button>
         </div>
       </div>
@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
           {stats.map((stat) => (
-            <div key={stat.label} className="bg-white border border-border rounded-2xl p-4 shadow-sm border-l-4 border-l-[#D63384]">
+            <div key={stat.label} className="bg-white border border-border rounded-2xl p-4 shadow-sm border-l-4 border-l-[#006D77]">
               <stat.icon className={`w-5 h-5 mb-2 ${stat.color}`} />
               <p className="text-2xl font-bold text-foreground">{stat.value}</p>
               <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
@@ -77,19 +77,19 @@ export default function AdminDashboardPage() {
         {/* Today's Schedule */}
         <div>
           <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-[#D63384]" />
+            <Clock className="w-4 h-4 text-[#006D77]" />
             {"Today's Classes"}
           </h3>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {todaySchedule.map((cls, i) => (
               <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < todaySchedule.length - 1 ? 'border-b border-border' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#D63384] w-20">{cls.time}</span>
+                  <span className="text-sm font-medium text-[#006D77] w-20">{cls.time}</span>
                   <span className="text-sm font-medium text-foreground">{cls.name}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">{cls.booked}/{cls.total}</span>
-                  <button className="text-xs font-medium px-3 py-1.5 border border-[#D63384] text-[#D63384] rounded-full hover:bg-[#D63384]/5 transition-colors">
+                  <button className="text-xs font-medium px-3 py-1.5 border border-[#006D77] text-[#006D77] rounded-full hover:bg-[#006D77]/5 transition-colors">
                     Attendance
                   </button>
                 </div>

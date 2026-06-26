@@ -41,7 +41,7 @@ export default function MyPackagePage() {
         {hasPackage ? (
           <>
             {/* Hero Card */}
-            <div className="bg-gradient-to-r from-[#D63384] to-[#7B2D8E] rounded-2xl p-6 text-white shadow-lg">
+            <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-6 text-white shadow-lg">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-lg font-bold">{sessionsTotal} Classes</p>
                 <span className="text-xs px-3 py-1 bg-white/20 rounded-full font-medium">Active</span>
@@ -70,9 +70,9 @@ export default function MyPackagePage() {
             {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: CheckCircle, label: 'Used', value: sessionsUsed, color: 'text-[#D63384]' },
-                { icon: Package, label: 'Remaining', value: sessionsRemaining, color: 'text-[#7B2D8E]' },
-                { icon: Calendar, label: 'Days Left', value: 28, color: 'text-[#D63384]' },
+                { icon: CheckCircle, label: 'Used', value: sessionsUsed, color: 'text-[#006D77]' },
+                { icon: Package, label: 'Remaining', value: sessionsRemaining, color: 'text-[#E86500]' },
+                { icon: Calendar, label: 'Days Left', value: 28, color: 'text-[#006D77]' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white border border-border rounded-xl p-4 text-center shadow-sm">
                   <stat.icon className={`w-5 h-5 mx-auto mb-2 ${stat.color}`} />
@@ -84,11 +84,11 @@ export default function MyPackagePage() {
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
-              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-[#D63384] text-[#D63384] font-medium hover:bg-[#D63384]/5 transition-colors">
+              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-[#006D77] text-[#006D77] font-medium hover:bg-[#006D77]/5 transition-colors">
                 <Snowflake className="w-4 h-4" />
                 Freeze
               </button>
-              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#D63384] text-white font-medium hover:bg-[#AD1457] transition-colors">
+              <button className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#006D77] text-white font-medium hover:bg-[#004E5C] transition-colors">
                 <RefreshCw className="w-4 h-4" />
                 Renew
               </button>
@@ -123,7 +123,7 @@ export default function MyPackagePage() {
             </div>
             <h3 className="text-xl font-bold text-foreground mb-2">No Active Package</h3>
             <p className="text-sm text-muted-foreground mb-6">Your last package expired on June 1, 2026</p>
-            <Link href="/packages" className="px-8 py-3 bg-[#D63384] text-white font-medium rounded-xl hover:bg-[#AD1457] transition-colors">
+            <Link href="/packages" className="px-8 py-3 bg-[#006D77] text-white font-medium rounded-xl hover:bg-[#004E5C] transition-colors">
               Browse Packages
             </Link>
           </div>

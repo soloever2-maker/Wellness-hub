@@ -10,8 +10,8 @@ export function TrainerSection() {
           {/* Trainer image placeholder with elegant styling */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#D63384] to-[#7B2D8E] rounded-3xl blur-3xl opacity-30 -z-10"></div>
-              <div className="w-64 h-64 md:w-80 md:h-80 rounded-3xl bg-gradient-to-br from-[#F8BBD0] to-[#7B2D8E] p-1">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#006D77] to-[#E86500] rounded-3xl blur-3xl opacity-30 -z-10"></div>
+              <div className="w-64 h-64 md:w-80 md:h-80 rounded-3xl bg-gradient-to-br from-[#FFD9B8] to-[#E86500] p-1">
                 <div className="w-full h-full rounded-3xl bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center text-muted-foreground text-center">
                   <span className="text-lg font-medium">Trainer Profile Image</span>
                 </div>
@@ -22,7 +22,7 @@ export function TrainerSection() {
           {/* Trainer info */}
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-1 w-8 bg-gradient-to-r from-[#D63384] to-[#7B2D8E]"></div>
+              <div className="h-1 w-8 bg-gradient-to-r from-[#006D77] to-[#E86500]"></div>
               <span className="text-sm font-bold uppercase tracking-widest text-primary">
                 Meet Your Trainer
               </span>
@@ -57,7 +57,7 @@ export function TrainerSection() {
               </div>
             </div>
 
-            <button className="bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white px-8 py-4 rounded-full font-bold hover:shadow-lg transition-all duration-300 hover:scale-105">
+            <button className="bg-gradient-to-r from-[#006D77] to-[#E86500] text-white px-8 py-4 rounded-full font-bold hover:shadow-lg transition-all duration-300 hover:scale-105">
               Book a Session
             </button>
           </div>

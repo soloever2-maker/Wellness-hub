@@ -44,7 +44,7 @@ export default function AdminPaymentsPage() {
             </Link>
             <h1 className="text-xl font-bold text-foreground">Payments</h1>
           </div>
-          <button className="flex items-center gap-1.5 text-sm font-medium text-[#D63384] px-3 py-1.5 border border-[#D63384] rounded-full hover:bg-[#D63384]/5 transition-colors">
+          <button className="flex items-center gap-1.5 text-sm font-medium text-[#006D77] px-3 py-1.5 border border-[#006D77] rounded-full hover:bg-[#006D77]/5 transition-colors">
             <Download className="w-4 h-4" />
             Export
           </button>
@@ -56,7 +56,7 @@ export default function AdminPaymentsPage() {
         <div className="grid grid-cols-3 gap-3">
           {summaryCards.map((card) => (
             <div key={card.label} className="bg-white border border-border rounded-2xl p-3 shadow-sm text-center">
-              <card.icon className="w-5 h-5 text-[#D63384] mx-auto mb-2" />
+              <card.icon className="w-5 h-5 text-[#006D77] mx-auto mb-2" />
               <p className="text-sm font-bold text-foreground">{card.value}</p>
               <p className="text-[10px] text-muted-foreground mt-1">{card.label}</p>
             </div>
@@ -71,8 +71,8 @@ export default function AdminPaymentsPage() {
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors capitalize ${
                 filter === f
-                  ? 'bg-[#D63384] text-white'
-                  : 'bg-white border border-border text-foreground hover:bg-[#F8BBD0]/20'
+                  ? 'bg-[#006D77] text-white'
+                  : 'bg-white border border-border text-foreground hover:bg-[#FFD9B8]/20'
               }`}
             >
               {f === 'all' ? 'All' : f === 'online' ? 'Online' : 'Cash'}
@@ -96,7 +96,7 @@ export default function AdminPaymentsPage() {
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
                     tx.method === 'paymob'
-                      ? 'bg-[#F8BBD0]/30 text-[#D63384]'
+                      ? 'bg-[#FFD9B8]/30 text-[#006D77]'
                       : 'bg-gray-100 text-gray-600'
                   }`}>
                     {tx.method === 'paymob' ? 'Paymob' : 'Cash'}

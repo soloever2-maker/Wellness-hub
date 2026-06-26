@@ -14,7 +14,7 @@ export function TodaysClasses() {
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold text-foreground">Today&apos;s Classes</h3>
-        <Link href="/schedule" className="text-sm font-medium text-[#D63384]">See All →</Link>
+        <Link href="/schedule" className="text-sm font-medium text-[#006D77]">See All →</Link>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
         {todaysClasses.map((cls) => (

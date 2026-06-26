@@ -15,7 +15,7 @@ export function BookingSection({ state, onBook, onJoinWaitlist, onCancel }: Book
           <>
             <button
               onClick={onBook}
-              className="w-full bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-[#006D77] to-[#E86500] text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all active:scale-[0.98]"
             >
               Book This Class
             </button>
@@ -29,7 +29,7 @@ export function BookingSection({ state, onBook, onJoinWaitlist, onCancel }: Book
           <>
             <button
               onClick={onJoinWaitlist}
-              className="w-full border-2 border-[#D63384] text-[#D63384] font-bold py-4 rounded-[12px] hover:bg-[#D63384]/5 transition-all active:scale-[0.98]"
+              className="w-full border-2 border-[#006D77] text-[#006D77] font-bold py-4 rounded-[12px] hover:bg-[#006D77]/5 transition-all active:scale-[0.98]"
             >
               Join Waitlist
             </button>

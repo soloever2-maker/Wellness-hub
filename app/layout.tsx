@@ -10,8 +10,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'The Wellness Hub - Yoga & Fitness for Women in Cairo',
-  description: 'Join The Wellness Hub, an exclusive wellness sanctuary for women featuring yoga, fitness, and holistic wellness classes run by trainer Enjy Gebril in Cairo, Egypt.',
+  title: 'Align with Enjy - Yoga & Fitness for Women in Cairo',
+  description: 'Join Align with Enjy, an exclusive wellness sanctuary for women featuring yoga, fitness, and holistic wellness classes run by trainer Enjy Gebril in Cairo, Egypt.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: 'light',
-  themeColor: '#D63384',
+  themeColor: '#006D77',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

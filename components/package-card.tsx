@@ -9,7 +9,7 @@ export function PackageCard() {
 
   return (
     <Link href="/my-package" className="block">
-      <div className="bg-gradient-to-r from-[#D63384] to-[#7B2D8E] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
+      <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
         <div className="flex items-start justify-between mb-6">
           <div>
             <p className="text-sm font-medium text-white/80">Your Package</p>

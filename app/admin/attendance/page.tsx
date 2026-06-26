@@ -62,8 +62,8 @@ export default function AdminAttendancePage() {
               onClick={() => setSelectedClass(cls)}
               className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 selectedClass.id === cls.id
-                  ? 'bg-[#D63384] text-white shadow-md'
-                  : 'bg-white border border-border text-foreground hover:border-[#D63384]/30'
+                  ? 'bg-[#006D77] text-white shadow-md'
+                  : 'bg-white border border-border text-foreground hover:border-[#006D77]/30'
               }`}
             >
               {cls.name} — {cls.time} ({cls.booked})
@@ -136,7 +136,7 @@ export default function AdminAttendancePage() {
                   <h4 className="text-sm font-semibold text-foreground">{client.name}</h4>
                   <p className="text-xs text-muted-foreground">{client.phone}</p>
                 </div>
-                <button className="text-xs font-medium px-3 py-1.5 bg-[#D63384] text-white rounded-full">
+                <button className="text-xs font-medium px-3 py-1.5 bg-[#006D77] text-white rounded-full">
                   Promote
                 </button>
               </div>
@@ -152,7 +152,7 @@ export default function AdminAttendancePage() {
           <span className="text-[#E53935] font-medium">No Show: {counts.no_show}</span>
           <span className="text-gray-400 font-medium">Pending: {counts.pending}</span>
         </div>
-        <button className="w-full py-3 bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white font-semibold rounded-xl">
+        <button className="w-full py-3 bg-gradient-to-r from-[#006D77] to-[#E86500] text-white font-semibold rounded-xl">
           Save Attendance
         </button>
       </div>

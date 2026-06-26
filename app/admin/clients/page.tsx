@@ -46,7 +46,7 @@ export default function AdminClientsPage() {
             placeholder="Search by name or phone..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D63384]/30"
+            className="w-full pl-10 pr-4 py-2.5 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
@@ -56,7 +56,7 @@ export default function AdminClientsPage() {
               onClick={() => setActiveFilter(f)}
               className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium transition-all ${
                 activeFilter === f
-                  ? 'bg-[#D63384] text-white'
+                  ? 'bg-[#006D77] text-white'
                   : 'bg-white border border-border text-foreground'
               }`}
             >
@@ -76,7 +76,7 @@ export default function AdminClientsPage() {
           >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-[#D63384]">{client.name.split(' ').map(n => n[0]).join('')}</span>
+                <span className="text-sm font-bold text-[#006D77]">{client.name.split(' ').map(n => n[0]).join('')}</span>
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-foreground text-sm">{client.name}</h4>
@@ -108,7 +108,7 @@ export default function AdminClientsPage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                  <span className="font-bold text-[#D63384]">{selectedClient.name.split(' ').map(n => n[0]).join('')}</span>
+                  <span className="font-bold text-[#006D77]">{selectedClient.name.split(' ').map(n => n[0]).join('')}</span>
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-foreground">{selectedClient.name}</h2>
@@ -122,7 +122,7 @@ export default function AdminClientsPage() {
 
             {/* Package Info */}
             {selectedClient.package && (
-              <div className="bg-gradient-to-r from-[#D63384] to-[#7B2D8E] rounded-2xl p-4 text-white mb-4">
+              <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-4 text-white mb-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-white/80">Active Package</p>
@@ -139,11 +139,11 @@ export default function AdminClientsPage() {
             {/* Quick Actions */}
             <div className="grid grid-cols-3 gap-2 mb-6">
               <button className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
-                <Plus className="w-5 h-5 text-[#D63384]" />
+                <Plus className="w-5 h-5 text-[#006D77]" />
                 <span className="text-[10px] font-medium text-foreground">Add Pkg</span>
               </button>
               <button className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
-                <Snowflake className="w-5 h-5 text-[#7B2D8E]" />
+                <Snowflake className="w-5 h-5 text-[#E86500]" />
                 <span className="text-[10px] font-medium text-foreground">Freeze</span>
               </button>
               <button className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">

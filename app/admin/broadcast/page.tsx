@@ -50,8 +50,8 @@ export default function AdminBroadcastPage() {
                 onClick={() => setSelectedAudience(aud.id)}
                 className={`flex-1 px-3 py-2.5 rounded-xl text-center transition-colors ${
                   selectedAudience === aud.id
-                    ? 'bg-[#D63384] text-white'
-                    : 'bg-white border border-border text-foreground hover:bg-[#F8BBD0]/20'
+                    ? 'bg-[#006D77] text-white'
+                    : 'bg-white border border-border text-foreground hover:bg-[#FFD9B8]/20'
                 }`}
               >
                 <p className="text-sm font-medium">{aud.label}</p>
@@ -76,7 +76,7 @@ export default function AdminBroadcastPage() {
               <span className="text-xs text-muted-foreground">{message.length}/1000</span>
               <button
                 onClick={() => setShowPreview(!showPreview)}
-                className="flex items-center gap-1.5 text-xs font-medium text-[#D63384] hover:text-[#AD1457] transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-[#006D77] hover:text-[#004E5C] transition-colors"
               >
                 <Eye className="w-3.5 h-3.5" />
                 Preview
@@ -92,7 +92,7 @@ export default function AdminBroadcastPage() {
             <div className="bg-[#E5DDD5] rounded-2xl p-4">
               <div className="max-w-[280px]">
                 <div className="bg-[#DCF8C6] rounded-xl rounded-tl-sm px-3 py-2 shadow-sm">
-                  <p className="text-xs font-semibold text-[#075E54] mb-1">The Wellness Hub</p>
+                  <p className="text-xs font-semibold text-[#075E54] mb-1">Align with Enjy</p>
                   <p className="text-sm text-[#303030] whitespace-pre-wrap">{message}</p>
                   <p className="text-[10px] text-[#999] text-right mt-1">
                     {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
@@ -107,7 +107,7 @@ export default function AdminBroadcastPage() {
         <button
           onClick={() => setShowConfirm(true)}
           disabled={!message.trim()}
-          className="w-full py-3.5 bg-[#D63384] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#AD1457] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#D63384]/20"
+          className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#004E5C] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-[#006D77]/20"
         >
           <Send className="w-5 h-5" />
           Send to {selectedCount} clients via WhatsApp
@@ -117,8 +117,8 @@ export default function AdminBroadcastPage() {
         {showConfirm && (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-6">
             <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-              <div className="w-12 h-12 rounded-full bg-[#F8BBD0]/30 flex items-center justify-center mx-auto mb-4">
-                <MessageCircle className="w-6 h-6 text-[#D63384]" />
+              <div className="w-12 h-12 rounded-full bg-[#FFD9B8]/30 flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-6 h-6 text-[#006D77]" />
               </div>
               <h3 className="text-lg font-bold text-foreground text-center mb-2">Send Broadcast?</h3>
               <p className="text-sm text-muted-foreground text-center mb-6">
@@ -133,7 +133,7 @@ export default function AdminBroadcastPage() {
                 </button>
                 <button
                   onClick={() => setShowConfirm(false)}
-                  className="flex-1 py-2.5 bg-[#D63384] text-white rounded-xl text-sm font-medium hover:bg-[#AD1457] transition-colors"
+                  className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-medium hover:bg-[#004E5C] transition-colors"
                 >
                   Send Now
                 </button>

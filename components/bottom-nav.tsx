@@ -29,7 +29,7 @@ export function BottomNav({ activePage = 'home' }: BottomNavProps) {
               href={item.href}
               className={`flex flex-col items-center gap-1 py-2 px-3 rounded-full transition-all ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#D63384]/20 to-[#7B2D8E]/20 text-primary'
+                  ? 'bg-gradient-to-r from-[#006D77]/20 to-[#E86500]/20 text-primary'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >

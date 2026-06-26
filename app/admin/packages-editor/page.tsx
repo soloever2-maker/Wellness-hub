@@ -51,7 +51,7 @@ export default function AdminPackagesEditorPage() {
 
       <div className="px-4 pt-4 space-y-4">
         {packages.map((pkg) => (
-          <div key={pkg.id} className={`bg-white border rounded-2xl shadow-sm overflow-hidden transition-all ${editedIds.has(pkg.id) ? 'border-[#D63384] ring-1 ring-[#D63384]/20' : 'border-border'}`}>
+          <div key={pkg.id} className={`bg-white border rounded-2xl shadow-sm overflow-hidden transition-all ${editedIds.has(pkg.id) ? 'border-[#006D77] ring-1 ring-[#006D77]/20' : 'border-border'}`}>
             <div className="p-4 space-y-4">
               {/* Package Name */}
               <div>
@@ -60,7 +60,7 @@ export default function AdminPackagesEditorPage() {
                   type="text"
                   value={pkg.name}
                   onChange={(e) => handleChange(pkg.id, 'name', e.target.value)}
-                  className="w-full text-lg font-bold text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#D63384]/30 focus:border-[#D63384]"
+                  className="w-full text-lg font-bold text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                 />
               </div>
 
@@ -72,7 +72,7 @@ export default function AdminPackagesEditorPage() {
                     type="number"
                     value={pkg.sessions}
                     onChange={(e) => handleChange(pkg.id, 'sessions', parseInt(e.target.value) || 0)}
-                    className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#D63384]/30 focus:border-[#D63384]"
+                    className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                   />
                 </div>
                 <div>
@@ -81,7 +81,7 @@ export default function AdminPackagesEditorPage() {
                     type="number"
                     value={pkg.validity}
                     onChange={(e) => handleChange(pkg.id, 'validity', parseInt(e.target.value) || 0)}
-                    className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#D63384]/30 focus:border-[#D63384]"
+                    className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                   />
                 </div>
               </div>
@@ -93,7 +93,7 @@ export default function AdminPackagesEditorPage() {
                   type="number"
                   value={pkg.price}
                   onChange={(e) => handleChange(pkg.id, 'price', parseInt(e.target.value) || 0)}
-                  className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#D63384]/30 focus:border-[#D63384]"
+                  className="w-full text-foreground bg-background border border-border rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                 />
               </div>
 
@@ -102,7 +102,7 @@ export default function AdminPackagesEditorPage() {
                 <span className="text-sm font-medium text-foreground">Active</span>
                 <button
                   onClick={() => handleChange(pkg.id, 'isActive', !pkg.isActive)}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${pkg.isActive ? 'bg-[#D63384]' : 'bg-gray-200'}`}
+                  className={`w-12 h-7 rounded-full transition-colors relative ${pkg.isActive ? 'bg-[#006D77]' : 'bg-gray-200'}`}
                 >
                   <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${pkg.isActive ? 'translate-x-5' : 'translate-x-0.5'}`} />
                 </button>
@@ -112,7 +112,7 @@ export default function AdminPackagesEditorPage() {
               {editedIds.has(pkg.id) && (
                 <button
                   onClick={() => handleSave(pkg.id)}
-                  className="w-full py-2.5 bg-[#D63384] text-white font-medium rounded-xl hover:bg-[#AD1457] transition-colors"
+                  className="w-full py-2.5 bg-[#006D77] text-white font-medium rounded-xl hover:bg-[#004E5C] transition-colors"
                 >
                   Save Changes
                 </button>
@@ -122,8 +122,8 @@ export default function AdminPackagesEditorPage() {
         ))}
 
         {/* Info Note */}
-        <div className="bg-[#F8BBD0]/20 border border-[#F8BBD0] rounded-2xl px-4 py-3 flex items-start gap-3">
-          <Info className="w-5 h-5 text-[#D63384] mt-0.5 shrink-0" />
+        <div className="bg-[#FFD9B8]/20 border border-[#FFD9B8] rounded-2xl px-4 py-3 flex items-start gap-3">
+          <Info className="w-5 h-5 text-[#006D77] mt-0.5 shrink-0" />
           <p className="text-sm text-foreground">Changes apply to new purchases only. Existing client packages are not affected.</p>
         </div>
       </div>

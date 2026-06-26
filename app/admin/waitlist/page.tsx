@@ -49,7 +49,7 @@ export default function AdminWaitlistPage() {
 
   const statusStyles = {
     waiting: 'bg-[#FF9800]/10 text-[#FF9800]',
-    notified: 'bg-[#D63384]/10 text-[#D63384]',
+    notified: 'bg-[#006D77]/10 text-[#006D77]',
     booked: 'bg-[#4CAF50]/10 text-[#4CAF50]',
   }
 
@@ -80,7 +80,7 @@ export default function AdminWaitlistPage() {
                 <h3 className="text-sm font-bold text-foreground">{cls.name}</h3>
                 <p className="text-xs text-muted-foreground">{cls.date} at {cls.time}</p>
               </div>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#F8BBD0]/30 text-[#D63384]">
+              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[#FFD9B8]/30 text-[#006D77]">
                 {cls.waitlist.length} waiting
               </span>
             </div>
@@ -104,7 +104,7 @@ export default function AdminWaitlistPage() {
                       Joined {entry.joinedAt}
                     </div>
                     {entry.status === 'waiting' && (
-                      <button className="flex items-center gap-1 text-xs font-medium text-[#D63384] hover:text-[#AD1457] transition-colors">
+                      <button className="flex items-center gap-1 text-xs font-medium text-[#006D77] hover:text-[#004E5C] transition-colors">
                         <UserPlus className="w-3.5 h-3.5" />
                         Promote to Booked
                       </button>

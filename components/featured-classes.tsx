@@ -10,7 +10,7 @@ const classes = [
     duration: '60 min',
     level: 'All Levels',
     icon: Flame,
-    color: 'from-[#D63384] to-[#7B2D8E]',
+    color: 'from-[#006D77] to-[#E86500]',
   },
   {
     id: 2,
@@ -19,7 +19,7 @@ const classes = [
     duration: '75 min',
     level: 'Beginner',
     icon: Wind,
-    color: 'from-[#F8BBD0] to-[#7B2D8E]',
+    color: 'from-[#FFD9B8] to-[#E86500]',
   },
   {
     id: 3,
@@ -28,7 +28,7 @@ const classes = [
     duration: '45 min',
     level: 'Intermediate',
     icon: Heart,
-    color: 'from-[#D63384] to-[#7B2D8E]',
+    color: 'from-[#006D77] to-[#E86500]',
   },
 ]
 
@@ -77,7 +77,7 @@ export function FeaturedClasses() {
                     </span>
                   </div>
 
-                  <button className="w-full bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 group-hover:scale-105">
+                  <button className="w-full bg-gradient-to-r from-[#006D77] to-[#E86500] text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300 group-hover:scale-105">
                     Learn More
                   </button>
                 </div>

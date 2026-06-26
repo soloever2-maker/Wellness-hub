@@ -50,7 +50,7 @@ export default function SchedulePage() {
         </Link>
         <h1 className="text-lg font-semibold text-foreground">Class Schedule</h1>
         <button onClick={() => setShowFilter(!showFilter)}
-          className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${showFilter ? 'bg-[#D63384] border-[#D63384]' : 'bg-white border-border'}`}>
+          className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${showFilter ? 'bg-[#006D77] border-[#006D77]' : 'bg-white border-border'}`}>
           {showFilter ? <X className="w-5 h-5 text-white" /> : <SlidersHorizontal className="w-5 h-5 text-foreground" />}
         </button>
       </div>
@@ -61,7 +61,7 @@ export default function SchedulePage() {
           <div className="flex gap-2 flex-wrap">
             {classTypes.map((type) => (
               <button key={type} onClick={() => { setSelectedType(type); setShowFilter(false) }}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedType === type ? 'bg-[#D63384] text-white' : 'bg-background border border-border text-foreground hover:bg-[#F8BBD0]/20'}`}>
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedType === type ? 'bg-[#006D77] text-white' : 'bg-background border border-border text-foreground hover:bg-[#FFD9B8]/20'}`}>
                 {type}
               </button>
             ))}
@@ -72,7 +72,7 @@ export default function SchedulePage() {
       {selectedType !== 'All' && (
         <div className="px-4 pt-3">
           <button onClick={() => setSelectedType('All')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F8BBD0]/30 text-[#D63384] rounded-full text-xs font-medium">
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFD9B8]/30 text-[#006D77] rounded-full text-xs font-medium">
             {selectedType} <X className="w-3 h-3" />
           </button>
         </div>
@@ -82,7 +82,7 @@ export default function SchedulePage() {
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {weekDates.map((d) => (
             <button key={d.date} onClick={() => setSelectedDate(d.date)}
-              className={`flex flex-col items-center gap-1 min-w-[48px] py-3 px-2 rounded-2xl transition-all ${selectedDate === d.date ? 'bg-[#D63384] text-white shadow-md' : 'bg-white border border-border text-foreground hover:border-[#D63384]/30'}`}>
+              className={`flex flex-col items-center gap-1 min-w-[48px] py-3 px-2 rounded-2xl transition-all ${selectedDate === d.date ? 'bg-[#006D77] text-white shadow-md' : 'bg-white border border-border text-foreground hover:border-[#006D77]/30'}`}>
               <span className="text-xs font-medium">{d.day}</span>
               <span className="text-lg font-bold">{d.date}</span>
             </button>

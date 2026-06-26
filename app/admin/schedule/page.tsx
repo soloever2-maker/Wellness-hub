@@ -7,18 +7,18 @@ import { AdminBottomNav } from '@/components/admin-bottom-nav'
 const weekDays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 
 const scheduleData: Record<string, { name: string; time: string; color: string }[]> = {
-  Sat: [{ name: 'Gentle Yoga', time: '9:00', color: 'bg-[#F8BBD0]' }],
+  Sat: [{ name: 'Gentle Yoga', time: '9:00', color: 'bg-[#FFD9B8]' }],
   Sun: [
-    { name: 'Power Yoga', time: '11:00', color: 'bg-[#D63384]' },
-    { name: 'Gentle Yoga', time: '7:30', color: 'bg-[#F8BBD0]' },
+    { name: 'Power Yoga', time: '11:00', color: 'bg-[#006D77]' },
+    { name: 'Gentle Yoga', time: '7:30', color: 'bg-[#FFD9B8]' },
   ],
   Mon: [
-    { name: 'Mat Pilates', time: '7:30', color: 'bg-[#7B2D8E]' },
-    { name: 'Belly Dancing', time: '8:20', color: 'bg-[#D63384]' },
+    { name: 'Mat Pilates', time: '7:30', color: 'bg-[#E86500]' },
+    { name: 'Belly Dancing', time: '8:20', color: 'bg-[#006D77]' },
   ],
-  Tue: [{ name: 'Aqua Aerobics', time: '6:00', color: 'bg-[#7B2D8E]' }],
-  Wed: [{ name: 'Gentle Yoga', time: '8:00', color: 'bg-[#F8BBD0]' }],
-  Thu: [{ name: 'Power Yoga', time: '11:00', color: 'bg-[#D63384]' }],
+  Tue: [{ name: 'Aqua Aerobics', time: '6:00', color: 'bg-[#E86500]' }],
+  Wed: [{ name: 'Gentle Yoga', time: '8:00', color: 'bg-[#FFD9B8]' }],
+  Thu: [{ name: 'Power Yoga', time: '11:00', color: 'bg-[#006D77]' }],
   Fri: [],
 }
 
@@ -69,7 +69,7 @@ export default function AdminSchedulePage() {
                 <button
                   key={i}
                   className={`w-full ${cls.color} rounded-lg px-1.5 py-2 text-left ${
-                    cls.color === 'bg-[#F8BBD0]' ? 'text-[#2D1B2E]' : 'text-white'
+                    cls.color === 'bg-[#FFD9B8]' ? 'text-[#1A2E33]' : 'text-white'
                   }`}
                 >
                   <p className="text-[10px] font-bold leading-tight truncate">{cls.name}</p>
@@ -78,7 +78,7 @@ export default function AdminSchedulePage() {
               ))}
               <button
                 onClick={() => setShowModal(true)}
-                className="w-full border border-dashed border-border rounded-lg py-2 flex items-center justify-center hover:border-[#D63384]/40 hover:bg-[#D63384]/5 transition-colors"
+                className="w-full border border-dashed border-border rounded-lg py-2 flex items-center justify-center hover:border-[#006D77]/40 hover:bg-[#006D77]/5 transition-colors"
               >
                 <Plus className="w-3 h-3 text-muted-foreground" />
               </button>
@@ -90,7 +90,7 @@ export default function AdminSchedulePage() {
       {/* FAB */}
       <button
         onClick={() => setShowModal(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-r from-[#D63384] to-[#7B2D8E] rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow z-20"
+        className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow z-20"
       >
         <Plus className="w-6 h-6 text-white" />
       </button>
@@ -113,7 +113,7 @@ export default function AdminSchedulePage() {
                 <select
                   value={newClass.type}
                   onChange={(e) => setNewClass(p => ({ ...p, type: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D63384]/30"
+                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
                 >
                   {classTypes.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -126,7 +126,7 @@ export default function AdminSchedulePage() {
                   type="date"
                   value={newClass.date}
                   onChange={(e) => setNewClass(p => ({ ...p, date: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D63384]/30"
+                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
                 />
               </div>
 
@@ -137,7 +137,7 @@ export default function AdminSchedulePage() {
                   type="time"
                   value={newClass.time}
                   onChange={(e) => setNewClass(p => ({ ...p, time: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D63384]/30"
+                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
                 />
               </div>
 
@@ -151,7 +151,7 @@ export default function AdminSchedulePage() {
                       onClick={() => setNewClass(p => ({ ...p, duration: d }))}
                       className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
                         newClass.duration === d
-                          ? 'bg-[#D63384] text-white'
+                          ? 'bg-[#006D77] text-white'
                           : 'bg-white border border-border text-foreground'
                       }`}
                     >
@@ -168,7 +168,7 @@ export default function AdminSchedulePage() {
                   type="number"
                   value={newClass.capacity}
                   onChange={(e) => setNewClass(p => ({ ...p, capacity: parseInt(e.target.value) || 0 }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#D63384]/30"
+                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
                 />
               </div>
 
@@ -177,7 +177,7 @@ export default function AdminSchedulePage() {
                 <span className="text-sm font-medium text-foreground">Recurring Weekly</span>
                 <button
                   onClick={() => setNewClass(p => ({ ...p, recurring: !p.recurring }))}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${newClass.recurring ? 'bg-[#D63384]' : 'bg-gray-200'}`}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${newClass.recurring ? 'bg-[#006D77]' : 'bg-gray-200'}`}
                 >
                   <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${newClass.recurring ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
                 </button>
@@ -185,7 +185,7 @@ export default function AdminSchedulePage() {
 
               <button
                 onClick={() => setShowModal(false)}
-                className="w-full py-4 bg-gradient-to-r from-[#D63384] to-[#7B2D8E] text-white font-semibold rounded-xl mt-4"
+                className="w-full py-4 bg-gradient-to-r from-[#006D77] to-[#E86500] text-white font-semibold rounded-xl mt-4"
               >
                 Create Class
               </button>

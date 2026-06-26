@@ -34,10 +34,10 @@ export default function AdminMorePage() {
               <Link
                 key={item.label}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#F8BBD0]/10 transition-colors ${i < managementItems.length - 1 ? 'border-b border-border' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFD9B8]/10 transition-colors ${i < managementItems.length - 1 ? 'border-b border-border' : ''}`}
               >
-                <div className="w-9 h-9 rounded-xl bg-[#F8BBD0]/30 flex items-center justify-center">
-                  <item.icon className="w-5 h-5 text-[#D63384]" />
+                <div className="w-9 h-9 rounded-xl bg-[#FFD9B8]/30 flex items-center justify-center">
+                  <item.icon className="w-5 h-5 text-[#006D77]" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground">{item.label}</p>
@@ -57,10 +57,10 @@ export default function AdminMorePage() {
             {settingsItems.map((item, i) => (
               <button
                 key={item.label}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F8BBD0]/10 transition-colors text-left ${i < settingsItems.length - 1 ? 'border-b border-border' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFD9B8]/10 transition-colors text-left ${i < settingsItems.length - 1 ? 'border-b border-border' : ''}`}
               >
-                <div className="w-9 h-9 rounded-xl bg-[#F3E5F5] flex items-center justify-center">
-                  <item.icon className="w-5 h-5 text-[#7B2D8E]" />
+                <div className="w-9 h-9 rounded-xl bg-[#E0EEF0] flex items-center justify-center">
+                  <item.icon className="w-5 h-5 text-[#E86500]" />
                 </div>
                 <span className="text-sm font-medium text-foreground flex-1">{item.label}</span>
                 {item.value && <span className="text-xs text-muted-foreground">{item.value}</span>}
