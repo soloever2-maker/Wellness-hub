@@ -17,24 +17,22 @@ interface BottomNavProps {
 
 export function BottomNav({ activePage = 'home' }: BottomNavProps) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-      <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-around">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg">
+      <div className="flex items-center justify-around px-2 pb-safe">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activePage === item.id
-
           return (
             <Link
               key={item.id}
               href={item.href}
-              className={`flex flex-col items-center gap-1 py-2 px-3 rounded-full transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-[#006D77]/20 to-[#E86500]/20 text-primary'
-                  : 'text-muted-foreground hover:text-foreground'
+              className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-all ${
+                isActive ? 'text-[#006D77]' : 'text-muted-foreground'
               }`}
             >
-              <Icon className="w-6 h-6" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <Icon className="w-5 h-5 shrink-0" />
+              <span className="text-[10px] font-medium truncate w-full text-center px-1">{item.label}</span>
+              {isActive && <span className="w-4 h-0.5 rounded-full bg-[#006D77] mt-0.5" />}
             </Link>
           )
         })}
