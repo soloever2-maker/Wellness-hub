@@ -1,19 +1,32 @@
 import { supabase } from './supabase'
 
+// ── Phone → fake email (internal only) ───────────────────────
+function phoneToEmail(phone: string): string {
+  const normalized = phone
+    .replace(/[\s\-\(\)\+]/g, '')
+    .replace(/^20/, '')
+    .replace(/^0/, '')
+  return `${normalized}@alignwithenjy.app`
+}
+
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/[\s\-\(\)\+]/g, '')
+  if (digits.startsWith('20')) return `+${digits}`
+  if (digits.startsWith('0')) return `+20${digits.slice(1)}`
+  return `+20${digits}`
+}
+
 // ── REGISTER ─────────────────────────────────────────────────
 export async function registerUser(
   fullName: string,
   phone: string,
-  email: string,
   password: string
 ) {
-  const normalizedPhone = phone.startsWith('+20')
-    ? phone
-    : `+20${phone.replace(/^0/, '')}`
+  const normalizedPhone = normalizePhone(phone)
+  const fakeEmail = phoneToEmail(phone)
 
-  // Create auth user + pass metadata (trigger will create the profile automatically)
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
+    email: fakeEmail,
     password,
     options: {
       data: {
@@ -23,49 +36,36 @@ export async function registerUser(
     },
   })
 
-  if (authError) throw new Error(authError.message)
+  if (authError) {
+    if (authError.message.includes('already registered')) {
+      throw new Error('Phone number already registered. Try signing in.')
+    }
+    throw new Error(authError.message)
+  }
   if (!authData.user) throw new Error('Registration failed')
 
   return { success: true }
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
-function isPhone(input: string): boolean {
-  const cleaned = input.replace(/[\s\-\(\)]/g, '')
-  return /^[\+]?[0-9]{10,15}$/.test(cleaned) && !input.includes('@')
-}
+export async function loginUser(phoneOrEmail: string, password: string) {
+  let email = phoneOrEmail.trim()
 
-function normalizePhone(phone: string): string {
-  const cleaned = phone.replace(/[\s\-\(\)\+]/g, '')
-  if (cleaned.startsWith('20') && cleaned.length >= 12) return `+${cleaned}`
-  if (cleaned.startsWith('0')) return `+20${cleaned.slice(1)}`
-  return `+20${cleaned}`
-}
-
-export async function loginUser(emailOrPhone: string, password: string) {
-  let email = emailOrPhone.trim()
-
-  // If phone number → find the linked email
-  if (isPhone(email)) {
-    const normalized = normalizePhone(email)
-    const { data: userRow } = await supabase
-      .from('users')
-      .select('email')
-      .or(`phone.eq.${normalized},phone.eq.${email}`)
-      .maybeSingle()
-
-    if (!userRow?.email) throw new Error('No account found with this phone number.')
-    email = userRow.email
+  // If not an email → treat as phone → convert to fake email
+  if (!email.includes('@')) {
+    email = phoneToEmail(email)
   }
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  })
 
-  if (error) throw new Error(error.message)
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+  if (error) {
+    if (error.message.includes('Invalid login')) {
+      throw new Error('Wrong phone number or password.')
+    }
+    throw new Error(error.message)
+  }
   if (!data.user) throw new Error('Login failed')
 
-  // Get user profile
   const { data: profile, error: profileError } = await supabase
     .from('users')
     .select('*')
@@ -74,7 +74,6 @@ export async function loginUser(emailOrPhone: string, password: string) {
 
   if (profileError) throw new Error('User profile not found')
 
-  // Check approval status
   if (profile.status === 'pending') {
     await supabase.auth.signOut()
     throw new Error('PENDING')
@@ -85,7 +84,6 @@ export async function loginUser(emailOrPhone: string, password: string) {
     throw new Error('REJECTED')
   }
 
-  // Save role for biometric login redirect
   if (typeof window !== 'undefined') {
     localStorage.setItem('saved_role', profile.role)
   }
@@ -96,10 +94,7 @@ export async function loginUser(emailOrPhone: string, password: string) {
 // ── LOGOUT ────────────────────────────────────────────────────
 export async function logoutUser() {
   await supabase.auth.signOut()
-
-  // Clear all history entries so back button can't return to protected pages
   if (typeof window !== 'undefined') {
-    // Replace current history entry with login
     window.history.replaceState(null, '', '/login')
   }
 }
@@ -118,7 +113,7 @@ export async function getCurrentUser() {
   return profile || null
 }
 
-// ── CHECK SESSION ─────────────────────────────────────────────
+// ── GET SESSION ──────────────────────────────────────────────
 export async function getSession() {
   const { data: { session } } = await supabase.auth.getSession()
   return session
