@@ -16,14 +16,13 @@ export async function registerUser(
   if (authError) throw new Error(authError.message)
   if (!authData.user) throw new Error('Registration failed')
 
-  // 2. Create user profile with status = pending
-  const { error: profileError } = await supabase.from('users').insert({
-    auth_id: authData.user.id,
-    full_name: fullName,
-    phone: phone.startsWith('+20') ? phone : `+20${phone}`,
-    email,
-    role: 'client',
-    status: 'pending',
+  // 2. Create user profile via SECURITY DEFINER function
+  // (bypasses RLS — safe because the function is controlled server-side)
+  const { error: profileError } = await supabase.rpc('create_user_profile', {
+    p_auth_id: authData.user.id,
+    p_full_name: fullName,
+    p_phone: phone.startsWith('+20') ? phone : `+20${phone.replace(/^0/, '')}`,
+    p_email: email,
   })
 
   if (profileError) throw new Error(profileError.message)
