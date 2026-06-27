@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell } from 'lucide-react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell, Sparkles } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { logoutUser, getCurrentUser } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { isPushSupported, isPushEnabled, subscribeToPush, unsubscribeFromPush } from '@/lib/push-client'
-import { playTing } from '@/lib/sounds'
+import { playTing, playSingingBowl } from '@/lib/sounds'
 import {
   isBiometricSupported,
   isBiometricEnabled,
@@ -19,6 +19,7 @@ import {
 
 export default function ProfilePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [reminders, setReminders] = useState({ whatsapp: true, hour24: true, hour2: true })
   const [isEditing, setIsEditing] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
@@ -38,6 +39,9 @@ export default function ProfilePage() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
   const [pushError, setPushError] = useState('')
+  // Welcome onboarding
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [welcomeStep, setWelcomeStep] = useState<'intro' | 'notifications' | 'biometric'>('intro')
 
   useEffect(() => {
     setBiometricSupported(isBiometricSupported())
@@ -48,6 +52,11 @@ export default function ProfilePage() {
       setPushSupported(supported)
       if (supported) isPushEnabled().then(setPushEnabled)
     })
+
+    // Show welcome modal on first login
+    if (searchParams.get('welcome') === 'true') {
+      setTimeout(() => setShowWelcome(true), 600)
+    }
 
     const fetchUser = async () => {
       try {
@@ -511,6 +520,147 @@ export default function ProfilePage() {
 
         <p className="text-center text-xs text-muted-foreground py-4">Align with Enjy v1.0</p>
       </div>
+
+      {/* ── Welcome Onboarding Modal ── */}
+      {showWelcome && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-end">
+          <div className="bg-white w-full rounded-t-3xl shadow-2xl overflow-hidden">
+
+            {/* Intro Step */}
+            {welcomeStep === 'intro' && (
+              <div className="p-6 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#006D77] to-[#E86500] flex items-center justify-center">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Welcome, {profile.name.split(' ')[0] || 'there'}! 🧘‍♀️
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  Your account is approved. Let&apos;s set up two things to make your experience even better.
+                </p>
+                <div className="space-y-3 text-left mb-6">
+                  <div className="flex items-center gap-3 bg-[#E0EEF0] rounded-xl p-3">
+                    <Bell className="w-5 h-5 text-[#006D77] shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Class Reminders</p>
+                      <p className="text-xs text-muted-foreground">Get notified 24h & 2h before your class</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 bg-[#FFD9B8]/30 rounded-xl p-3">
+                    <Fingerprint className="w-5 h-5 text-[#E86500] shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Biometric Login</p>
+                      <p className="text-xs text-muted-foreground">Log in with your fingerprint or Face ID</p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setWelcomeStep('notifications')}
+                  className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-2xl hover:bg-[#004E5C] transition-colors"
+                >
+                  Let&apos;s Set Up →
+                </button>
+                <button onClick={() => { setShowWelcome(false); router.replace('/') }}
+                  className="w-full py-2 text-sm text-muted-foreground mt-2">
+                  Skip for now
+                </button>
+              </div>
+            )}
+
+            {/* Notifications Step */}
+            {welcomeStep === 'notifications' && (
+              <div className="p-6 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-[#E0EEF0] flex items-center justify-center">
+                    <Bell className="w-8 h-8 text-[#006D77]" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-foreground mb-2">Stay on Track</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  Enable notifications to get reminders before your classes — with the sound of a singing bowl 🎵
+                </p>
+
+                {pushEnabled ? (
+                  <div className="bg-[#4CAF50]/10 border border-[#4CAF50]/20 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                    <Check className="w-5 h-5 text-[#4CAF50]" />
+                    <p className="text-sm font-medium text-[#4CAF50]">Notifications are enabled!</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={async () => {
+                      setPushLoading(true)
+                      const result = await subscribeToPush(profile.userId)
+                      if (result.ok) {
+                        setPushEnabled(true)
+                        playTing()
+                      }
+                      setPushLoading(false)
+                    }}
+                    disabled={pushLoading || !pushSupported}
+                    className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-2xl hover:bg-[#004E5C] transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mb-3"
+                  >
+                    {pushLoading
+                      ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : <><Bell className="w-5 h-5" /> Enable Notifications</>
+                    }
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setWelcomeStep(biometricSupported ? 'biometric' : 'intro')}
+                  className="w-full py-3 border border-border rounded-2xl text-sm font-medium text-foreground hover:bg-muted/30 transition-colors"
+                >
+                  {biometricSupported ? 'Next →' : 'Finish'}
+                </button>
+                {!biometricSupported && (
+                  <button onClick={() => { setShowWelcome(false); router.replace('/') }}
+                    className="w-full py-2 text-sm text-muted-foreground mt-1">
+                    Go to Home
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Biometric Step */}
+            {welcomeStep === 'biometric' && (
+              <div className="p-6 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="w-16 h-16 rounded-full bg-[#FFD9B8]/30 flex items-center justify-center">
+                    <Fingerprint className="w-8 h-8 text-[#E86500]" />
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-foreground mb-2">Quick Login</h2>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+                  Use your fingerprint or Face ID to log in instantly — no password needed next time.
+                </p>
+
+                {biometricEnabled ? (
+                  <div className="bg-[#4CAF50]/10 border border-[#4CAF50]/20 rounded-2xl p-4 mb-6 flex items-center gap-3">
+                    <Check className="w-5 h-5 text-[#4CAF50]" />
+                    <p className="text-sm font-medium text-[#4CAF50]">Biometrics enabled!</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowWelcome(false); setShowBiometricSetup(true) }}
+                    className="w-full py-3.5 bg-[#E86500] text-white font-bold rounded-2xl hover:bg-[#C55200] transition-colors flex items-center justify-center gap-2 mb-3"
+                  >
+                    <Fingerprint className="w-5 h-5" /> Set Up Biometrics
+                  </button>
+                )}
+
+                <button
+                  onClick={() => { setShowWelcome(false); playSingingBowl(0.3); router.replace('/') }}
+                  className="w-full py-3 bg-[#006D77] text-white font-bold rounded-2xl hover:bg-[#004E5C] transition-colors"
+                >
+                  🧘‍♀️ Start Booking Classes
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <BottomNav activePage="profile" />
     </main>
