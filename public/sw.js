@@ -99,11 +99,16 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.registration.showNotification(title, options).then(() => {
-      // If app is open → tell it to play singing bowl sound
+      // If app is open → tell it to play sound + show in-app banner
       return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
         .then(clients => {
           clients.forEach(client => {
-            client.postMessage({ type: 'PLAY_SOUND', sound: 'singing_bowl' })
+            client.postMessage({
+              type: 'PUSH_RECEIVED',
+              sound: 'singing_bowl',
+              title,
+              body,
+            })
           })
         })
     })
