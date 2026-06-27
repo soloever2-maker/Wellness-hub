@@ -119,15 +119,15 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
-        // If app already open → focus it and navigate
+        // If app already open → focus it
         const appClient = clients.find(c => c.url.includes(self.location.origin))
         if (appClient) {
           appClient.focus()
-          appClient.postMessage({ type: 'NAVIGATE', url: '/schedule' })
+          appClient.postMessage({ type: 'NAVIGATE', url: '/notifications' })
           return
         }
         // Open new window
-        return self.clients.openWindow('/schedule')
+        return self.clients.openWindow('/notifications')
       })
   )
 })
