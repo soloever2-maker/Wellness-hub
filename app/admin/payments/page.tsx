@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Filter, CreditCard } from 'lucide-react'
+import { Filter, CreditCard, ArrowLeft } from 'lucide-react'
+import Link from 'next/link'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 
 export default function AdminPaymentsPage() {
@@ -11,7 +12,12 @@ export default function AdminPaymentsPage() {
     <main className="bg-background min-h-screen pb-24">
       {/* Top Bar */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 space-y-3">
-        <h1 className="text-xl font-bold text-foreground">Payments</h1>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/more" className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center">
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </Link>
+          <h1 className="text-xl font-bold text-foreground">Payments</h1>
+        </div>
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
           {['All', 'Paid', 'Failed'].map((f) => (
             <button
