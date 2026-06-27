@@ -30,7 +30,33 @@ export async function registerUser(
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
-export async function loginUser(email: string, password: string) {
+function isPhone(input: string): boolean {
+  const cleaned = input.replace(/[\s\-\(\)]/g, '')
+  return /^[\+]?[0-9]{10,15}$/.test(cleaned) && !input.includes('@')
+}
+
+function normalizePhone(phone: string): string {
+  const cleaned = phone.replace(/[\s\-\(\)\+]/g, '')
+  if (cleaned.startsWith('20') && cleaned.length >= 12) return `+${cleaned}`
+  if (cleaned.startsWith('0')) return `+20${cleaned.slice(1)}`
+  return `+20${cleaned}`
+}
+
+export async function loginUser(emailOrPhone: string, password: string) {
+  let email = emailOrPhone.trim()
+
+  // If phone number → find the linked email
+  if (isPhone(email)) {
+    const normalized = normalizePhone(email)
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('email')
+      .or(`phone.eq.${normalized},phone.eq.${email}`)
+      .maybeSingle()
+
+    if (!userRow?.email) throw new Error('No account found with this phone number.')
+    email = userRow.email
+  }
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
