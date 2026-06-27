@@ -1,40 +1,120 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { supabase } from '@/lib/supabase'
 
-const weekDays = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-
-const scheduleData: Record<string, { name: string; time: string; color: string }[]> = {
-  Sat: [{ name: 'Gentle Yoga', time: '9:00', color: 'bg-[#FFD9B8]' }],
-  Sun: [
-    { name: 'Power Yoga', time: '11:00', color: 'bg-[#006D77]' },
-    { name: 'Gentle Yoga', time: '7:30', color: 'bg-[#FFD9B8]' },
-  ],
-  Mon: [
-    { name: 'Mat Pilates', time: '7:30', color: 'bg-[#E86500]' },
-    { name: 'Belly Dancing', time: '8:20', color: 'bg-[#006D77]' },
-  ],
-  Tue: [{ name: 'Aqua Aerobics', time: '6:00', color: 'bg-[#E86500]' }],
-  Wed: [{ name: 'Gentle Yoga', time: '8:00', color: 'bg-[#FFD9B8]' }],
-  Thu: [{ name: 'Power Yoga', time: '11:00', color: 'bg-[#006D77]' }],
-  Fri: [],
+type Session = {
+  id: string
+  start_time: string
+  end_time: string
+  max_capacity: number
+  booked_count: number
+  is_cancelled: boolean
+  class_type: { id: string; name: string }
 }
 
-const classTypes = ['Power Yoga', 'Mat Pilates', 'Gentle Yoga', 'Belly Rhythmic Dancing', 'Aqua Aerobics']
-const durations = [45, 60, 75, 90]
+type ClassType = { id: string; name: string }
+
+const DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const colorByName: Record<string, string> = {
+  'Power Yoga':             'bg-[#006D77] text-white',
+  'Mat Pilates':            'bg-[#E86500] text-white',
+  'Belly Rhythmic Dancing': 'bg-[#006D77] text-white',
+  'Aqua Aerobics':          'bg-[#E86500] text-white',
+  'Gentle Yoga & Recovery': 'bg-[#FFD9B8] text-[#006D77]',
+}
+
+function getWeekDates(offset: number) {
+  const today = new Date()
+  const day = today.getDay()
+  const diff = day === 6 ? 0 : -(day + 1)
+  const sat = new Date(today)
+  sat.setDate(today.getDate() + diff + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sat)
+    d.setDate(sat.getDate() + i)
+    return d
+  })
+}
 
 export default function AdminSchedulePage() {
-  const [showModal, setShowModal] = useState(false)
-  const [newClass, setNewClass] = useState({
-    type: classTypes[0],
-    date: '',
-    time: '',
-    duration: 60,
-    capacity: 12,
-    recurring: false,
-  })
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [classTypes, setClassTypes] = useState<ClassType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [addDay, setAddDay] = useState<Date | null>(null)
+  const [newSession, setNewSession] = useState({ class_type_id: '', time: '', capacity: 12 })
+  const [saving, setSaving] = useState(false)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
+
+  const weekDates = getWeekDates(weekOffset)
+  const weekLabel = `${weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+
+  useEffect(() => {
+    supabase.from('class_types').select('id, name').then(({ data }) => {
+      if (data) {
+        setClassTypes(data)
+        if (data[0]) setNewSession(s => ({ ...s, class_type_id: data[0].id }))
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    const fetchWeek = async () => {
+      setLoading(true)
+      const start = new Date(weekDates[0]); start.setHours(0, 0, 0, 0)
+      const end = new Date(weekDates[6]); end.setHours(23, 59, 59, 999)
+
+      const { data } = await supabase
+        .from('class_sessions')
+        .select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, class_type:class_types(id, name)')
+        .gte('start_time', start.toISOString())
+        .lte('start_time', end.toISOString())
+        .order('start_time')
+
+      if (data) setSessions(data as unknown as Session[])
+      setLoading(false)
+    }
+    fetchWeek()
+  }, [weekOffset])
+
+  const handleAddSession = async () => {
+    if (!addDay || !newSession.class_type_id || !newSession.time) return
+    setSaving(true)
+
+    const [h, m] = newSession.time.split(':').map(Number)
+    const start = new Date(addDay)
+    start.setHours(h, m, 0, 0)
+    const end = new Date(start)
+    end.setHours(h + 1, m, 0, 0)
+
+    const { data } = await supabase.from('class_sessions').insert({
+      class_type_id: newSession.class_type_id,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      max_capacity: newSession.capacity,
+      booked_count: 0,
+      is_cancelled: false,
+    }).select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, class_type:class_types(id, name)').single()
+
+    if (data) setSessions(prev => [...prev, data as unknown as Session].sort(
+      (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    ))
+
+    setSaving(false)
+    setShowAddModal(false)
+    setNewSession(s => ({ ...s, time: '', capacity: 12 }))
+  }
+
+  const handleCancel = async (sessionId: string) => {
+    setCancellingId(sessionId)
+    await supabase.from('class_sessions').update({ is_cancelled: true }).eq('id', sessionId)
+    setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, is_cancelled: true } : s))
+    setCancellingId(null)
+  }
 
   return (
     <main className="bg-background min-h-screen pb-24">
@@ -43,153 +123,136 @@ export default function AdminSchedulePage() {
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">Manage Schedule</h1>
           <div className="flex items-center gap-2">
-            <button className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
+            <button onClick={() => setWeekOffset(w => w - 1)}
+              className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-medium text-foreground px-2">July 5 – 11</span>
-            <button className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
+            <span className="text-sm font-medium px-1">{weekLabel}</span>
+            <button onClick={() => setWeekOffset(w => w + 1)}
+              className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Weekly Calendar */}
-      <div className="px-2 pt-4">
-        <div className="grid grid-cols-7 gap-1">
-          {/* Headers */}
-          {weekDays.map((day) => (
-            <div key={day} className="text-center text-xs font-semibold text-muted-foreground py-2">{day}</div>
-          ))}
-
-          {/* Class Blocks */}
-          {weekDays.map((day) => (
-            <div key={`blocks-${day}`} className="min-h-[120px] bg-white border border-border rounded-xl p-1 space-y-1">
-              {(scheduleData[day] || []).map((cls, i) => (
-                <button
-                  key={i}
-                  className={`w-full ${cls.color} rounded-lg px-1.5 py-2 text-left ${
-                    cls.color === 'bg-[#FFD9B8]' ? 'text-[#1A2E33]' : 'text-white'
-                  }`}
-                >
-                  <p className="text-[10px] font-bold leading-tight truncate">{cls.name}</p>
-                  <p className="text-[9px] opacity-80">{cls.time}</p>
-                </button>
-              ))}
-              <button
-                onClick={() => setShowModal(true)}
-                className="w-full border border-dashed border-border rounded-lg py-2 flex items-center justify-center hover:border-[#006D77]/40 hover:bg-[#006D77]/5 transition-colors"
-              >
-                <Plus className="w-3 h-3 text-muted-foreground" />
-              </button>
-            </div>
-          ))}
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <Loader2 className="w-8 h-8 animate-spin text-[#006D77]" />
         </div>
-      </div>
+      ) : (
+        <div className="px-4 pt-4">
+          {/* Week grid */}
+          <div className="grid grid-cols-7 gap-1">
+            {/* Day headers */}
+            {DAYS.map((day, i) => {
+              const date = weekDates[i]
+              const isToday = date?.toDateString() === new Date().toDateString()
+              return (
+                <div key={day} className="text-center pb-2">
+                  <p className="text-xs text-muted-foreground">{day}</p>
+                  <p className={`text-sm font-bold ${isToday ? 'text-[#E86500]' : 'text-foreground'}`}>
+                    {date?.getDate()}
+                  </p>
+                </div>
+              )
+            })}
+
+            {/* Day columns */}
+            {weekDates.map((date, i) => {
+              const daySessions = sessions.filter(s =>
+                new Date(s.start_time).toDateString() === date.toDateString()
+              )
+              return (
+                <div key={i} className="min-h-[160px] flex flex-col gap-1">
+                  {daySessions.map(s => {
+                    const name = (s.class_type as any)?.name || ''
+                    const time = new Date(s.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+                    const color = colorByName[name] || 'bg-muted text-foreground'
+                    return (
+                      <div key={s.id} className={`relative rounded-lg p-1.5 text-xs ${color} ${s.is_cancelled ? 'opacity-40 line-through' : ''}`}>
+                        <p className="font-semibold text-[10px] leading-tight line-clamp-1">{name}</p>
+                        <p className="text-[10px] opacity-80">{time}</p>
+                        <p className="text-[10px] opacity-70">{s.booked_count}/{s.max_capacity}</p>
+                        {!s.is_cancelled && (
+                          <button onClick={() => handleCancel(s.id)}
+                            disabled={cancellingId === s.id}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/40">
+                            {cancellingId === s.id
+                              ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              : <X className="w-2.5 h-2.5" />
+                            }
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {/* Add button */}
+                  <button onClick={() => { setAddDay(date); setShowAddModal(true) }}
+                    className="w-full h-7 rounded-lg border border-dashed border-border flex items-center justify-center hover:bg-muted/40 transition-colors mt-auto">
+                    <Plus className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* FAB */}
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow z-20"
-      >
-        <Plus className="w-6 h-6 text-white" />
+      <button onClick={() => { setAddDay(new Date()); setShowAddModal(true) }}
+        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#006D77] text-white shadow-lg flex items-center justify-center hover:bg-[#004E5C] transition-colors">
+        <Plus className="w-6 h-6" />
       </button>
 
-      {/* Add Class Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end">
-          <div className="bg-background w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-foreground">Add Class Session</h2>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+      {/* Add Session Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white w-full rounded-t-3xl p-6 space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">Add Class</h3>
+              <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-4">
-              {/* Class Type */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Class Type</label>
-                <select
-                  value={newClass.type}
-                  onChange={(e) => setNewClass(p => ({ ...p, type: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                >
-                  {classTypes.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+            {addDay && (
+              <p className="text-sm text-[#006D77] font-medium">
+                📅 {addDay.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </p>
+            )}
 
-              {/* Date */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Date</label>
-                <input
-                  type="date"
-                  value={newClass.date}
-                  onChange={(e) => setNewClass(p => ({ ...p, date: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                />
-              </div>
-
-              {/* Start Time */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Start Time</label>
-                <input
-                  type="time"
-                  value={newClass.time}
-                  onChange={(e) => setNewClass(p => ({ ...p, time: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                />
-              </div>
-
-              {/* Duration */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Duration</label>
-                <div className="flex gap-2">
-                  {durations.map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setNewClass(p => ({ ...p, duration: d }))}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        newClass.duration === d
-                          ? 'bg-[#006D77] text-white'
-                          : 'bg-white border border-border text-foreground'
-                      }`}
-                    >
-                      {d} min
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Capacity */}
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">Max Capacity</label>
-                <input
-                  type="number"
-                  value={newClass.capacity}
-                  onChange={(e) => setNewClass(p => ({ ...p, capacity: parseInt(e.target.value) || 0 }))}
-                  className="w-full px-4 py-3 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                />
-              </div>
-
-              {/* Recurring */}
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium text-foreground">Recurring Weekly</span>
-                <button
-                  onClick={() => setNewClass(p => ({ ...p, recurring: !p.recurring }))}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${newClass.recurring ? 'bg-[#006D77]' : 'bg-gray-200'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${newClass.recurring ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-
-              <button
-                onClick={() => setShowModal(false)}
-                className="w-full py-4 bg-gradient-to-r from-[#006D77] to-[#E86500] text-white font-semibold rounded-xl mt-4"
-              >
-                Create Class
-              </button>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Class Type</label>
+              <select value={newSession.class_type_id}
+                onChange={e => setNewSession(s => ({ ...s, class_type_id: e.target.value }))}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30">
+                {classTypes.map(ct => (
+                  <option key={ct.id} value={ct.id}>{ct.name}</option>
+                ))}
+              </select>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Start Time</label>
+                <input type="time" value={newSession.time}
+                  onChange={e => setNewSession(s => ({ ...s, time: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Capacity</label>
+                <input type="number" value={newSession.capacity} min={1} max={50}
+                  onChange={e => setNewSession(s => ({ ...s, capacity: +e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
+              </div>
+            </div>
+
+            <button onClick={handleAddSession}
+              disabled={saving || !newSession.time || !newSession.class_type_id}
+              className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-xl hover:bg-[#004E5C] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Plus className="w-5 h-5" /> Add to Schedule</>}
+            </button>
           </div>
         </div>
       )}
