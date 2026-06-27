@@ -5,6 +5,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint 
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
+import { playSingingBowl } from '@/lib/sounds'
 import {
   isBiometricSupported,
   isBiometricEnabled,
@@ -163,6 +164,7 @@ export default function LoginPage() {
     setError('')
     try {
       const { user } = await loginUser(form.email, form.password)
+      playSingingBowl(0.5)
       router.replace(user.role === 'admin' ? '/select-role' : '/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
@@ -188,6 +190,7 @@ export default function LoginPage() {
 
       // Step 2: Login with the retrieved credentials (creates a fresh session)
       const { user } = await loginUser(result.email, result.password)
+      playSingingBowl(0.5)
       router.replace(user.role === 'admin' ? '/select-role' : '/')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''

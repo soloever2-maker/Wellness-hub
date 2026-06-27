@@ -1,6 +1,13 @@
 const CACHE_NAME = 'align-enjy-v3'
 const STATIC_ASSETS = ['/manifest.json', '/icon.png', '/icon-192x192.png', '/icon-512x512.png']
 
+// ── Skip waiting when told to (for update banner) ──────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 // ── Install ────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
