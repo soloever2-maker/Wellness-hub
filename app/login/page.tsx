@@ -165,7 +165,18 @@ export default function LoginPage() {
     try {
       const { user } = await loginUser(form.email, form.password)
       playSingingBowl(0.5)
-      router.replace(user.role === 'admin' ? '/select-role' : '/')
+      if (user.role === 'admin') {
+        router.replace('/select-role')
+      } else {
+        // First-time login → go to profile for onboarding
+        const welcomed = localStorage.getItem(`welcomed_${user.id}`)
+        if (!welcomed) {
+          localStorage.setItem(`welcomed_${user.id}`, 'true')
+          router.replace('/profile?welcome=true')
+        } else {
+          router.replace('/')
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'PENDING') setMode('pending')
@@ -191,7 +202,17 @@ export default function LoginPage() {
       // Step 2: Login with the retrieved credentials (creates a fresh session)
       const { user } = await loginUser(result.email, result.password)
       playSingingBowl(0.5)
-      router.replace(user.role === 'admin' ? '/select-role' : '/')
+      if (user.role === 'admin') {
+        router.replace('/select-role')
+      } else {
+        const welcomed = localStorage.getItem(`welcomed_${user.id}`)
+        if (!welcomed) {
+          localStorage.setItem(`welcomed_${user.id}`, 'true')
+          router.replace('/profile?welcome=true')
+        } else {
+          router.replace('/')
+        }
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'PENDING') setMode('pending')
