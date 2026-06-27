@@ -24,7 +24,7 @@ type ClientPackage = {
   package: { name: string }
 }
 
-type BookingStatus = 'idle' | 'loading' | 'success' | 'already_booked' | 'no_package' | 'full' | 'error'
+type BookingStatus = 'idle' | 'loading' | 'success' | 'already_booked' | 'no_package' | 'full' | 'error' | 'waitlisted'
 
 const classEmoji: Record<string, string> = {
   'Power Yoga': '🔥', 'Mat Pilates': '💪', 'Gentle Yoga & Recovery': '🧘',
@@ -105,20 +105,50 @@ function ClassPageInner() {
       })
       if (error) throw error
 
-      // Update booked_count in session + decrement sessions_remaining
+      // Update booked_count + decrement sessions_remaining
       await supabase.from('class_sessions')
         .update({ booked_count: session.booked_count + 1 })
         .eq('id', session.id)
 
       const pkg = myPackages.find(p => p.id === selectedPackageId)
       if (pkg) {
+        const newRemaining = pkg.sessions_remaining - 1
         await supabase.from('client_packages')
-          .update({ sessions_remaining: pkg.sessions_remaining - 1 })
+          .update({ sessions_remaining: newRemaining })
           .eq('id', selectedPackageId)
+
+        // Low balance notification — last session remaining
+        if (newRemaining === 1) {
+          fetch('/api/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              client_id: userId,
+              title: '⚠️ Last Session!',
+              body: 'You have 1 session left in your package. Tap to renew before it runs out!',
+              type: 'low_balance',
+            }),
+          }).catch(() => {})
+        }
       }
 
       playSingingBowl(0.5)
       setStatus('success')
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const handleJoinWaitlist = async () => {
+    if (!session || !userId) return
+    setStatus('loading')
+    try {
+      await supabase.from('waitlist').insert({
+        session_id: session.id,
+        client_id: userId,
+        status: 'waiting',
+      })
+      setStatus('waitlisted')
     } catch {
       setStatus('error')
     }
@@ -241,9 +271,26 @@ function ClassPageInner() {
             </Link>
           </div>
         )}
-        {isFull && status !== 'already_booked' && status !== 'success' && (
-          <button className="w-full py-3.5 border-2 border-[#E86500] text-[#E86500] font-semibold rounded-xl">
-            Join Waitlist
+        {/* Waitlisted */}
+        {status === 'waitlisted' && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-[#006D77]">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">Added to waitlist!</span>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">
+              You'll get a notification if a spot opens up 🎉
+            </p>
+          </div>
+        )}
+        {/* Full — Join Waitlist */}
+        {isFull && status !== 'already_booked' && status !== 'success' && status !== 'waitlisted' && (
+          <button onClick={handleJoinWaitlist} disabled={status === 'loading'}
+            className="w-full py-3.5 border-2 border-[#E86500] text-[#E86500] font-semibold rounded-xl hover:bg-[#E86500]/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            {status === 'loading'
+              ? <Loader2 className="w-5 h-5 animate-spin" />
+              : 'Join Waitlist'
+            }
           </button>
         )}
         {status === 'idle' && !isFull && myPackages.length > 0 && (
