@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2 } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -134,6 +134,10 @@ export default function AdminMorePage() {
                 icon: ClipboardList, label: 'Waitlist', desc: 'Manage waitlists per class',
                 href: '/admin/waitlist',
                 value: loading ? '—' : stats.waitlistCount > 0 ? `${stats.waitlistCount} waiting` : 'Empty',
+              },
+              {
+                icon: Download, label: 'Export Reports', desc: 'Download Excel — clients, bookings, revenue',
+                href: '/admin/export', value: '',
               },
               {
                 icon: Megaphone, label: 'Broadcast', desc: 'Send Push to client groups',
