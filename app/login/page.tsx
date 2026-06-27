@@ -295,12 +295,12 @@ export default function LoginPage() {
               <form onSubmit={handleLogin} className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
-                  <div className="flex">
-                    <span className="flex items-center px-3 bg-muted border border-r-0 border-border rounded-l-xl text-sm font-medium text-muted-foreground">+20</span>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input type="tel" required value={form.phone}
                       onChange={e => setForm({ ...form, phone: e.target.value })}
-                      placeholder="10X XXXX XXXX"
-                      className="flex-1 bg-background border border-border rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                      placeholder="01XXXXXXXXX"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
                 <div>
@@ -346,13 +346,13 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone</label>
-                  <div className="flex">
-                    <span className="flex items-center px-3 bg-muted border border-r-0 border-border rounded-l-xl text-sm font-medium">+20</span>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input type="tel" required autoComplete="tel" value={form.phone}
                       onChange={e => setForm({ ...form, phone: e.target.value })}
-                      placeholder="10X XXXX XXXX"
-                      className="flex-1 bg-background border border-border rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                      placeholder="01XXXXXXXXX"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
                 <div>
