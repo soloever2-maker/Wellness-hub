@@ -150,11 +150,9 @@ export default function LoginPage() {
   const [biometricLoading, setBiometricLoading] = useState(false)
   const [error, setError] = useState('')
   const [showBiometric, setShowBiometric] = useState(false)
-  const [form, setForm] = useState({ fullName: '', phone: '', email: '', password: '' })
+  const [form, setForm] = useState({ fullName: '', phone: '', password: '' })
 
   useEffect(() => {
-    const saved = getSavedEmail()
-    if (saved) setForm(f => ({ ...f, email: saved }))
     setShowBiometric(isBiometricSupported() && isBiometricEnabled())
   }, [])
 
@@ -163,7 +161,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      const { user } = await loginUser(form.email, form.password)
+      const { user } = await loginUser(form.phone, form.password)
       playSingingBowl(0.5)
       if (user.role === 'admin') {
         router.replace('/select-role')
@@ -228,11 +226,11 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      await registerUser(form.fullName, form.phone, form.email, form.password)
+      await registerUser(form.fullName, form.phone, form.password)
       setMode('pending')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
-      setError(msg.includes('already registered') ? 'Email already registered. Try signing in.' : msg)
+      setError(msg || 'Registration failed. Try again.')
     } finally {
       setLoading(false)
     }
@@ -296,13 +294,13 @@ export default function LoginPage() {
 
               <form onSubmit={handleLogin} className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email or Phone</label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input type="text" required autoComplete="email" value={form.email}
-                      onChange={e => setForm({ ...form, email: e.target.value })}
-                      placeholder="you@email.com or 010XXXXXXXX"
-                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
+                  <div className="flex">
+                    <span className="flex items-center px-3 bg-muted border border-r-0 border-border rounded-l-xl text-sm font-medium text-muted-foreground">+20</span>
+                    <input type="tel" required value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      placeholder="10X XXXX XXXX"
+                      className="flex-1 bg-background border border-border rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
                 <div>
@@ -355,16 +353,6 @@ export default function LoginPage() {
                       onChange={e => setForm({ ...form, phone: e.target.value })}
                       placeholder="10X XXXX XXXX"
                       className="flex-1 bg-background border border-border rounded-r-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input type="email" required autoComplete="email" value={form.email}
-                      onChange={e => setForm({ ...form, email: e.target.value })}
-                      placeholder="you@email.com"
-                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
                 <div>
