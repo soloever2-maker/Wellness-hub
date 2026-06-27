@@ -5,8 +5,6 @@ import Link from 'next/link'
 import { Calendar } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
 const classEmoji: Record<string, string> = {
   'Power Yoga': '🔥', 'Mat Pilates': '💪', 'Gentle Yoga & Recovery': '🧘',
   'Belly Rhythmic Dancing': '💃', 'Aqua Aerobics': '🌊',
@@ -20,32 +18,33 @@ type Session = {
   class_type: { name: string }
 }
 
-function getWeekRange() {
-  const today = new Date()
-  const day = today.getDay() // 0=Sun
-  const sun = new Date(today)
-  sun.setDate(today.getDate() - day)
-  sun.setHours(0, 0, 0, 0)
-  const sat = new Date(sun)
-  sat.setDate(sun.getDate() + 6)
-  sat.setHours(23, 59, 59, 999)
-  return { sun, sat }
+// Build 7 days starting from today
+function getNext7Days() {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    d.setHours(0, 0, 0, 0)
+    return d
+  })
 }
 
 export function ThisWeekSection() {
-  const today = new Date()
-  const [selectedDay, setSelectedDay] = useState(today.getDay()) // 0=Sun
+  const days = getNext7Days()
+  const [selectedIdx, setSelectedIdx] = useState(0) // today
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const { sun, sat } = getWeekRange()
+    const start = days[0]
+    const end = new Date(days[6])
+    end.setHours(23, 59, 59, 999)
+
     supabase
       .from('class_sessions')
       .select('id, start_time, max_capacity, booked_count, class_type:class_types(name)')
       .eq('is_cancelled', false)
-      .gte('start_time', sun.toISOString())
-      .lte('start_time', sat.toISOString())
+      .gte('start_time', start.toISOString())
+      .lte('start_time', end.toISOString())
       .order('start_time')
       .then(({ data }) => {
         if (data) setSessions(data as unknown as Session[])
@@ -53,9 +52,18 @@ export function ThisWeekSection() {
       })
   }, [])
 
+  // Filter sessions for selected day by matching date string
+  const selectedDate = days[selectedIdx]
   const daySessions = sessions.filter(s => {
-    return new Date(s.start_time).getDay() === selectedDay
+    const d = new Date(s.start_time)
+    return (
+      d.getFullYear() === selectedDate.getFullYear() &&
+      d.getMonth() === selectedDate.getMonth() &&
+      d.getDate() === selectedDate.getDate()
+    )
   })
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
     <div>
@@ -63,22 +71,25 @@ export function ThisWeekSection() {
 
       {/* Day pills */}
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
-        {DAYS.map((day, i) => {
-          const isToday = i === today.getDay()
-          const hasClasses = sessions.some(s => new Date(s.start_time).getDay() === i)
+        {days.map((date, i) => {
+          const isToday = i === 0
+          const hasClasses = sessions.some(s => {
+            const d = new Date(s.start_time)
+            return d.getDate() === date.getDate() && d.getMonth() === date.getMonth()
+          })
           return (
-            <button key={day} onClick={() => setSelectedDay(i)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full font-medium text-sm transition-all relative ${
-                selectedDay === i
+            <button key={i} onClick={() => setSelectedIdx(i)}
+              className={`flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl transition-all relative ${
+                selectedIdx === i
                   ? 'bg-[#006D77] text-white shadow-md'
                   : 'bg-white text-foreground border border-border hover:bg-muted'
               }`}>
-              {day}
-              {isToday && selectedDay !== i && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#E86500]" />
-              )}
-              {hasClasses && selectedDay !== i && !isToday && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#006D77]/40" />
+              <span className="text-[10px] font-medium">{DAY_NAMES[date.getDay()]}</span>
+              <span className={`text-sm font-bold mt-0.5 ${isToday && selectedIdx !== i ? 'text-[#E86500]' : ''}`}>
+                {date.getDate()}
+              </span>
+              {hasClasses && selectedIdx !== i && (
+                <span className="w-1 h-1 rounded-full bg-[#E86500] mt-0.5" />
               )}
             </button>
           )
@@ -91,7 +102,7 @@ export function ThisWeekSection() {
       ) : daySessions.length === 0 ? (
         <div className="bg-white border border-border rounded-xl p-4 flex items-center gap-3 text-muted-foreground">
           <Calendar className="w-5 h-5" />
-          <p className="text-sm">No classes on {DAYS[selectedDay]}</p>
+          <p className="text-sm">No classes on {DAY_NAMES[selectedDate.getDay()]} {selectedDate.getDate()}</p>
         </div>
       ) : (
         <div className="space-y-2">
