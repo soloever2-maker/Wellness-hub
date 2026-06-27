@@ -1,10 +1,7 @@
-const CACHE_NAME = 'align-enjy-v2'
-const STATIC_ASSETS = [
-  '/manifest.json',
-  '/icon.png',
-  '/logo.png',
-]
+const CACHE_NAME = 'align-enjy-v3'
+const STATIC_ASSETS = ['/manifest.json', '/icon.png', '/icon-192x192.png', '/icon-512x512.png']
 
+// ── Install ────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -12,19 +9,17 @@ self.addEventListener('install', (event) => {
   self.skipWaiting()
 })
 
+// ── Activate — clear old caches ────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) =>
-      Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      )
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
     )
   )
   self.clients.claim()
 })
 
+// ── Fetch — network first for pages ────────────────────────────
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   if (event.request.url.includes('supabase.co')) return
@@ -32,50 +27,100 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url)
 
-  // Pages (navigation requests) → NETWORK FIRST
-  // This ensures you always get the latest version of pages
-  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+  if (event.request.mode === 'navigate' ||
+      event.request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          // Cache a copy for offline use
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
-          return response
+        .then((res) => {
+          const clone = res.clone()
+          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone))
+          return res
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+        .catch(() => caches.match(event.request).then(c => c || caches.match('/')))
     )
     return
   }
 
-  // Static assets (images, fonts, manifest) → CACHE FIRST
-  if (STATIC_ASSETS.some((asset) => url.pathname === asset) ||
-      url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?|ttf|eot)$/)) {
+  if (STATIC_ASSETS.some(a => url.pathname === a) ||
+      url.pathname.match(/\.(png|jpg|jpeg|svg|ico|woff2?)$/)) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
+      caches.match(event.request).then(cached => {
         if (cached) return cached
-        return fetch(event.request).then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+        return fetch(event.request).then(res => {
+          if (res?.status === 200) {
+            caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()))
           }
-          return response
+          return res
         })
       })
     )
     return
   }
 
-  // Everything else (JS, CSS chunks) → NETWORK FIRST with cache fallback
   event.respondWith(
     fetch(event.request)
-      .then((response) => {
-        if (response && response.status === 200 && response.type === 'basic') {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+      .then(res => {
+        if (res?.status === 200 && res.type === 'basic') {
+          caches.open(CACHE_NAME).then(c => c.put(event.request, res.clone()))
         }
-        return response
+        return res
       })
       .catch(() => caches.match(event.request))
+  )
+})
+
+// ── Push Notifications ─────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  if (!event.data) return
+
+  const data = event.data.json()
+  const { title, body, icon, badge, tag, data: extraData } = data
+
+  const options = {
+    body,
+    icon: icon || '/icon-192x192.png',
+    badge: badge || '/icon-96x96.png',
+    tag: tag || 'align-notification',
+    renotify: true,
+    requireInteraction: false,
+    data: extraData || {},
+    actions: [
+      { action: 'open', title: 'View Schedule' },
+      { action: 'dismiss', title: 'Dismiss' },
+    ],
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(title, options).then(() => {
+      // If app is open → tell it to play singing bowl sound
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        .then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: 'PLAY_SOUND', sound: 'singing_bowl' })
+          })
+        })
+    })
+  )
+})
+
+// ── Notification click ─────────────────────────────────────────
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+
+  if (event.action === 'dismiss') return
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clients => {
+        // If app already open → focus it and navigate
+        const appClient = clients.find(c => c.url.includes(self.location.origin))
+        if (appClient) {
+          appClient.focus()
+          appClient.postMessage({ type: 'NAVIGATE', url: '/schedule' })
+          return
+        }
+        // Open new window
+        return self.clients.openWindow('/schedule')
+      })
   )
 })

@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock } from 'lucide-react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter } from 'next/navigation'
 import { logoutUser, getCurrentUser } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { isPushSupported, isPushEnabled, subscribeToPush, unsubscribeFromPush } from '@/lib/push-client'
+import { playTing } from '@/lib/sounds'
 import {
   isBiometricSupported,
   isBiometricEnabled,
@@ -31,10 +33,21 @@ export default function ProfilePage() {
   const [saveError, setSaveError] = useState('')
   const [profile, setProfile] = useState({ name: '', phone: '', email: '', userId: '' })
   const [editForm, setEditForm] = useState(profile)
+  // Push notifications state
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+  const [pushError, setPushError] = useState('')
 
   useEffect(() => {
     setBiometricSupported(isBiometricSupported())
     setBiometricEnabled(isBiometricEnabled())
+
+    // Check push notification support + status
+    isPushSupported().then(supported => {
+      setPushSupported(supported)
+      if (supported) isPushEnabled().then(setPushEnabled)
+    })
 
     const fetchUser = async () => {
       try {
@@ -261,46 +274,91 @@ export default function ProfilePage() {
         </div>
 
         {/* Notifications */}
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Notifications</p>
-          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-            {[
-              { label: 'WhatsApp Reminders', desc: 'Booking confirmations', key: 'whatsapp' as const, prefKey: 'reminders_whatsapp' },
-              { label: '24-hour reminder', desc: 'Day before class', key: 'hour24' as const, prefKey: 'reminders_24h' },
-              { label: '2-hour reminder', desc: 'Before class starts', key: 'hour2' as const, prefKey: 'reminders_2h' },
-            ].map((item, i) => (
-              <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < 2 ? 'border-b border-border' : ''}`}>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+        {pushSupported && (
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Notifications</p>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+
+              {/* Master Push Toggle */}
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <Bell className="w-5 h-5 text-[#006D77]" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Push Notifications</p>
+                    <p className="text-xs text-muted-foreground">Class reminders on your phone</p>
+                  </div>
                 </div>
                 <button
                   onClick={async () => {
-                    const newVal = !reminders[item.key]
-                    setReminders(prev => ({ ...prev, [item.key]: newVal }))
-                    // Save to Supabase immediately
-                    if (profile.userId) {
-                      const { data: current } = await supabase
-                        .from('users')
-                        .select('preferences')
-                        .eq('id', profile.userId)
-                        .single()
-                      const prefs = (current?.preferences as Record<string, boolean>) || {}
-                      prefs[item.prefKey] = newVal
-                      await supabase
-                        .from('users')
-                        .update({ preferences: prefs })
-                        .eq('id', profile.userId)
+                    setPushLoading(true)
+                    setPushError('')
+                    if (pushEnabled) {
+                      await unsubscribeFromPush()
+                      setPushEnabled(false)
+                    } else {
+                      const result = await subscribeToPush(profile.userId)
+                      if (result.ok) {
+                        setPushEnabled(true)
+                        playTing()
+                      } else {
+                        setPushError(result.error || 'Failed')
+                      }
                     }
+                    setPushLoading(false)
                   }}
-                  className={`w-11 h-6 rounded-full transition-colors relative ${reminders[item.key] ? 'bg-[#006D77]' : 'bg-gray-200'}`}
+                  disabled={pushLoading}
+                  className={`w-11 h-6 rounded-full transition-colors relative ${pushEnabled ? 'bg-[#006D77]' : 'bg-gray-200'} disabled:opacity-60`}
                 >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${reminders[item.key] ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${pushEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
                 </button>
               </div>
-            ))}
+
+              {pushError && (
+                <div className="px-4 py-2 bg-red-50">
+                  <p className="text-xs text-red-500">{pushError}</p>
+                </div>
+              )}
+
+              {/* Reminder timing sub-toggles (only when push is enabled) */}
+              {pushEnabled && (
+                <>
+                  {[
+                    { label: '24-hour reminder', desc: 'Day before class', key: 'hour24' as const, prefKey: 'reminders_24h' },
+                    { label: '2-hour reminder', desc: 'Before class starts', key: 'hour2' as const, prefKey: 'reminders_2h' },
+                  ].map((item, i) => (
+                    <div key={i} className={`flex items-center justify-between pl-12 pr-4 py-3 ${i < 1 ? 'border-b border-border' : ''}`}>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{item.label}</p>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          const newVal = !reminders[item.key]
+                          setReminders(prev => ({ ...prev, [item.key]: newVal }))
+                          if (profile.userId) {
+                            const { data: current } = await supabase.from('users').select('preferences').eq('id', profile.userId).single()
+                            const prefs = (current?.preferences as Record<string, boolean>) || {}
+                            prefs[item.prefKey] = newVal
+                            await supabase.from('users').update({ preferences: prefs }).eq('id', profile.userId)
+                          }
+                        }}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${reminders[item.key] ? 'bg-[#006D77]' : 'bg-gray-200'}`}
+                      >
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${reminders[item.key] ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {!pushEnabled && (
+              <p className="text-xs text-muted-foreground px-1 mt-1">
+                Enable to get reminders 24h and 2h before your class 🧘‍♀️
+              </p>
+            )}
           </div>
-        </div>
+        )}
 
         {/* Security */}
         {biometricSupported && (
