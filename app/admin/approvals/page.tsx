@@ -27,10 +27,7 @@ export default function AdminApprovalsPage() {
 
   const fetchPending = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('v_pending_users')
-      .select('*')
-      .order('created_at', { ascending: true })
+    const { data, error } = await supabase.rpc('get_pending_users')
     if (!error && data) setUsers(data)
     setLoading(false)
   }
