@@ -41,7 +41,7 @@ export function UpcomingBookingsList() {
     fetchBookings()
   }, [])
 
-  const handleCancel = async (bookingId: string, sessionTime: string) => {
+  const handleCancel = async (bookingId: string, sessionId: string, sessionTime: string) => {
     const hoursUntil = (new Date(sessionTime).getTime() - Date.now()) / (1000 * 60 * 60)
     if (hoursUntil < 12) {
       alert('Cannot cancel within 12 hours of the class.')
@@ -54,6 +54,21 @@ export function UpcomingBookingsList() {
       .eq('id', bookingId)
 
     if (!error) {
+      // Decrement booked_count
+      const { data: session } = await supabase
+        .from('class_sessions').select('booked_count').eq('id', sessionId).single()
+      if (session && session.booked_count > 0) {
+        await supabase.from('class_sessions')
+          .update({ booked_count: session.booked_count - 1 }).eq('id', sessionId)
+      }
+
+      // Waitlist cascade
+      fetch('/api/waitlist/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).catch(() => {})
+
       setBookings(prev => prev.filter(b => b.id !== bookingId))
     }
     setCancellingId(null)
@@ -103,7 +118,7 @@ export function UpcomingBookingsList() {
               </div>
               {canCancel && (
                 <button
-                  onClick={() => handleCancel(booking.id, booking.session.start_time)}
+                  onClick={() => handleCancel(booking.id, booking.session.id, booking.session.start_time)}
                   disabled={cancellingId === booking.id}
                   className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors disabled:opacity-50"
                 >
