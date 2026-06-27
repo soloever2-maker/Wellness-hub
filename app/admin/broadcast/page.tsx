@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Send, Megaphone, Loader2 } from 'lucide-react'
+import { ArrowLeft, Send, Megaphone, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { createClient } from '@supabase/supabase-js'
 
 type Audience = 'all' | 'active' | 'expiring'
 
@@ -18,13 +17,14 @@ type AudienceOption = {
 export default function AdminBroadcastPage() {
   const [selectedAudience, setSelectedAudience] = useState<Audience>('all')
   const [message, setMessage] = useState('')
+  const [title, setTitle] = useState('')
   const [showConfirm, setShowConfirm] = useState(false)
   const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
+  const [result, setResult] = useState<{ sent: number; total: number; reason?: string } | null>(null)
   const [audiences, setAudiences] = useState<AudienceOption[]>([
-    { id: 'all', label: 'All Clients', count: 0, desc: 'All approved clients' },
-    { id: 'active', label: 'Active Packages', count: 0, desc: 'Clients with active packages' },
-    { id: 'expiring', label: 'Expiring Soon', count: 0, desc: 'Packages expiring in 7 days' },
+    { id: 'all',      label: 'All Clients',      count: 0, desc: 'All approved clients' },
+    { id: 'active',   label: 'Active Packages',  count: 0, desc: 'Clients with active packages' },
+    { id: 'expiring', label: 'Expiring Soon',    count: 0, desc: 'Packages expiring in 7 days' },
   ])
 
   useEffect(() => {
@@ -35,11 +35,10 @@ export default function AdminBroadcastPage() {
         supabase.from('client_packages').select('id', { count: 'exact' }).eq('status', 'active')
           .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
       ])
-
       setAudiences([
-        { id: 'all', label: 'All Clients', count: allRes.count || 0, desc: 'All approved clients' },
-        { id: 'active', label: 'Active Packages', count: activeRes.count || 0, desc: 'Clients with active packages' },
-        { id: 'expiring', label: 'Expiring Soon', count: expiringRes.count || 0, desc: 'Packages expiring in 7 days' },
+        { id: 'all',      label: 'All Clients',     count: allRes.count || 0,      desc: 'All approved clients' },
+        { id: 'active',   label: 'Active Packages', count: activeRes.count || 0,   desc: 'Clients with active packages' },
+        { id: 'expiring', label: 'Expiring Soon',   count: expiringRes.count || 0, desc: 'Packages expiring in 7 days' },
       ])
     }
     fetchCounts()
@@ -47,55 +46,63 @@ export default function AdminBroadcastPage() {
 
   const selectedCount = audiences.find(a => a.id === selectedAudience)?.count || 0
 
+  const getClientIds = async (): Promise<string[]> => {
+    if (selectedAudience === 'all') {
+      const { data } = await supabase.from('users').select('id').eq('status', 'approved').eq('role', 'client')
+      return data?.map(c => c.id) || []
+    }
+    if (selectedAudience === 'active') {
+      const { data } = await supabase.from('client_packages').select('client_id').eq('status', 'active')
+      return data?.map(p => p.client_id) || []
+    }
+    if (selectedAudience === 'expiring') {
+      const { data } = await supabase.from('client_packages').select('client_id').eq('status', 'active')
+        .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+      return data?.map(p => p.client_id) || []
+    }
+    return []
+  }
+
   const handleSend = async () => {
     setSending(true)
+    setResult(null)
     try {
-      // Get target client IDs
-      let query = supabase.from('users').select('id').eq('status', 'approved').eq('role', 'client')
-      if (selectedAudience === 'active') {
-        const { data: pkgs } = await supabase.from('client_packages').select('client_id').eq('status', 'active')
-        const ids = pkgs?.map(p => p.client_id) || []
-        if (ids.length === 0) { setSending(false); return }
-        query = query.in('id', ids)
-      } else if (selectedAudience === 'expiring') {
-        const { data: pkgs } = await supabase.from('client_packages').select('client_id').eq('status', 'active')
-          .lte('expiry_date', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
-        const ids = pkgs?.map(p => p.client_id) || []
-        if (ids.length === 0) { setSending(false); return }
-        query = query.in('id', ids)
-      }
+      const clientIds = await getClientIds()
+      if (!clientIds.length) { setSending(false); return }
 
-      const { data: clients } = await query
+      // Call the push broadcast API
+      const res = await fetch('/api/push/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientIds,
+          title: title || '📢 Message from Enjy',
+          body: message,
+        }),
+      })
 
-      if (!clients?.length) { setSending(false); return }
+      const data = await res.json()
 
-      // Get push subscriptions for these clients
-      const clientIds = clients.map(c => c.id)
-      const { data: subs } = await supabase
-        .from('push_subscriptions')
-        .select('endpoint, p256dh, auth')
-        .in('client_id', clientIds)
-
-      // Log broadcast
+      // Log in notification_log
       await supabase.from('notification_log').insert(
-        clients.map(c => ({
-          client_id: c.id,
+        clientIds.map(id => ({
+          client_id: id,
           type: 'broadcast',
           channel: 'push',
           message,
-          status: subs?.length ? 'sent' : 'pending',
+          status: data.sent > 0 ? 'sent' : 'pending',
           sent_at: new Date().toISOString(),
         }))
       )
 
-      setSending(false)
-      setSent(true)
+      setResult({ sent: data.sent || 0, total: data.total || clientIds.length, reason: data.reason })
       setShowConfirm(false)
       setMessage('')
-      setTimeout(() => setSent(false), 4000)
+      setTitle('')
     } catch {
-      setSending(false)
+      setResult({ sent: 0, total: 0, reason: 'Network error. Try again.' })
     }
+    setSending(false)
   }
 
   return (
@@ -110,9 +117,28 @@ export default function AdminBroadcastPage() {
       </div>
 
       <div className="px-4 pt-4 space-y-6">
-        {sent && (
-          <div className="bg-[#4CAF50]/10 border border-[#4CAF50]/20 rounded-2xl p-4 text-center">
-            <p className="text-sm font-medium text-[#4CAF50]">✓ Broadcast logged successfully!</p>
+
+        {/* Result banner */}
+        {result && (
+          <div className={`rounded-2xl p-4 flex items-start gap-3 ${
+            result.sent > 0 ? 'bg-[#4CAF50]/10 border border-[#4CAF50]/20' : 'bg-[#FF9800]/10 border border-[#FF9800]/20'
+          }`}>
+            {result.sent > 0
+              ? <CheckCircle className="w-5 h-5 text-[#4CAF50] shrink-0 mt-0.5" />
+              : <AlertCircle className="w-5 h-5 text-[#FF9800] shrink-0 mt-0.5" />
+            }
+            <div>
+              {result.sent > 0
+                ? <p className="text-sm font-semibold text-[#4CAF50]">✓ Sent to {result.sent} of {result.total} clients</p>
+                : <p className="text-sm font-semibold text-[#FF9800]">No push subscriptions yet</p>
+              }
+              {result.reason && <p className="text-xs text-muted-foreground mt-1">{result.reason}</p>}
+              {result.sent === 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Clients need to enable notifications from their Profile → Notifications toggle first.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -120,15 +146,16 @@ export default function AdminBroadcastPage() {
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Send to</h3>
           <div className="space-y-2">
-            {audiences.map((aud) => (
+            {audiences.map(aud => (
               <button key={aud.id} onClick={() => setSelectedAudience(aud.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-colors border ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left border transition-colors ${
                   selectedAudience === aud.id
                     ? 'bg-[#006D77] border-[#006D77] text-white'
                     : 'bg-white border-border text-foreground hover:bg-muted/30'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${selectedAudience === aud.id ? 'bg-white/20 text-white' : 'bg-[#E0EEF0] text-[#006D77]'}`}>
+                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                  selectedAudience === aud.id ? 'bg-white/20 text-white' : 'bg-[#E0EEF0] text-[#006D77]'
+                }`}>
                   {aud.count}
                 </div>
                 <div>
@@ -140,6 +167,14 @@ export default function AdminBroadcastPage() {
           </div>
         </div>
 
+        {/* Title */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Notification Title <span className="text-muted-foreground font-normal">(optional)</span></h3>
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+            placeholder="📢 Message from Enjy"
+            className="w-full bg-white border border-border rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+        </div>
+
         {/* Message */}
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Message</h3>
@@ -147,8 +182,7 @@ export default function AdminBroadcastPage() {
             <textarea value={message} onChange={e => setMessage(e.target.value)}
               placeholder="Type your message to clients..."
               className="w-full px-4 py-3 text-sm text-foreground bg-transparent resize-none focus:outline-none min-h-[120px]"
-              maxLength={500}
-            />
+              maxLength={500} />
             <div className="flex justify-end px-4 py-2 border-t border-border">
               <span className="text-xs text-muted-foreground">{message.length}/500</span>
             </div>
@@ -156,17 +190,15 @@ export default function AdminBroadcastPage() {
         </div>
 
         {/* Send Button */}
-        <button onClick={() => setShowConfirm(true)} disabled={!message.trim() || selectedCount === 0}
-          className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#004E5C] transition-colors disabled:opacity-40 shadow-lg shadow-[#006D77]/20"
-        >
+        <button onClick={() => setShowConfirm(true)}
+          disabled={!message.trim() || selectedCount === 0}
+          className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-[#004E5C] transition-colors disabled:opacity-40 shadow-lg shadow-[#006D77]/20">
           <Send className="w-5 h-5" />
           Send Push to {selectedCount} clients
         </button>
 
         {selectedCount === 0 && (
-          <p className="text-xs text-center text-muted-foreground -mt-2">
-            No clients in this group yet
-          </p>
+          <p className="text-xs text-center text-muted-foreground -mt-2">No clients in this group yet</p>
         )}
       </div>
 
@@ -174,7 +206,7 @@ export default function AdminBroadcastPage() {
       {showConfirm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-6">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <div className="w-12 h-12 rounded-full bg-[#FFD9B8]/30 flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 rounded-full bg-[#E0EEF0] flex items-center justify-center mx-auto mb-4">
               <Megaphone className="w-6 h-6 text-[#006D77]" />
             </div>
             <h3 className="text-lg font-bold text-foreground text-center mb-2">Send Broadcast?</h3>
@@ -182,10 +214,12 @@ export default function AdminBroadcastPage() {
               Push notification to <span className="font-semibold text-foreground">{selectedCount} clients</span>. Cannot be undone.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowConfirm(false)} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">Cancel</button>
+              <button onClick={() => setShowConfirm(false)}
+                className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
+                Cancel
+              </button>
               <button onClick={handleSend} disabled={sending}
-                className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-60"
-              >
+                className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-60">
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Now'}
               </button>
             </div>
