@@ -17,10 +17,22 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<AppUser | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     getCurrentUser().then(setUser)
+  }, [])
+
+  // Read unread counter from localStorage + listen for updates
+  useEffect(() => {
+    const readCount = () => {
+      const n = parseInt(localStorage.getItem('notifs_unread') || '0')
+      setUnreadCount(n)
+    }
+    readCount()
+    window.addEventListener('notifs_updated', readCount)
+    return () => window.removeEventListener('notifs_updated', readCount)
   }, [])
 
   // Close menu when clicking outside
@@ -56,9 +68,16 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
       {showNotifications && variant !== 'admin' && (
         <Link
           href="/notifications"
-          className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors"
+          className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors relative"
         >
           <Bell className="w-5 h-5 text-foreground" />
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E86500] flex items-center justify-center">
+              <span className="text-[8px] font-bold text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            </span>
+          )}
         </Link>
       )}
 
