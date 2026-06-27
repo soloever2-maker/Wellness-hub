@@ -1,68 +1,60 @@
 'use client'
 
-import { Star } from 'lucide-react'
+import Image from 'next/image'
+import { ExternalLink } from 'lucide-react'
 
-export function TrainerSection() {
+const ENJY_IMG = 'https://soloever2-maker.github.io/Enjy-FlowWA/about.jpg'
+const ENJY_SITE = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
+
+const certs = ['RYT-500 Yoga Alliance', 'YACEP Continuing Education', 'Therapeutic Yoga 860h', 'Yin Yoga 100h']
+
+export function TrainerCard() {
   return (
-    <section className="py-16 px-4 md:px-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-          {/* Trainer image placeholder with elegant styling */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#006D77] to-[#E86500] rounded-3xl blur-3xl opacity-30 -z-10"></div>
-              <div className="w-64 h-64 md:w-80 md:h-80 rounded-3xl bg-gradient-to-br from-[#FFD9B8] to-[#E86500] p-1">
-                <div className="w-full h-full rounded-3xl bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center text-muted-foreground text-center">
-                  <span className="text-lg font-medium">Trainer Profile Image</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Trainer info */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="h-1 w-8 bg-gradient-to-r from-[#006D77] to-[#E86500]"></div>
-              <span className="text-sm font-bold uppercase tracking-widest text-primary">
-                Meet Your Trainer
-              </span>
-            </div>
-
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
-              Enjy Gebril
-            </h2>
-
-            <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              With over a decade of experience in yoga and fitness, Enjy has dedicated her career to empowering women through movement, mindfulness, and wellness. Her holistic approach combines traditional yoga philosophy with modern fitness techniques.
-            </p>
-
-            <div className="mb-8 space-y-4">
-              <div className="flex items-start gap-3">
-                <Star className="w-5 h-5 text-accent flex-shrink-0 mt-1" />
-                <p className="text-foreground">
-                  <span className="font-semibold">Specialized Training:</span> Vinyasa Flow, Restorative Yoga, and Power Fitness
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Star className="w-5 h-5 text-accent flex-shrink-0 mt-1" />
-                <p className="text-foreground">
-                  <span className="font-semibold">Mission:</span> Create a safe, judgment-free sanctuary for women to discover their strength
-                </p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Star className="w-5 h-5 text-accent flex-shrink-0 mt-1" />
-                <p className="text-foreground">
-                  <span className="font-semibold">Belief:</span> Wellness is a journey, not a destination—celebrate every step
-                </p>
-              </div>
-            </div>
-
-            <button className="bg-gradient-to-r from-[#006D77] to-[#E86500] text-white px-8 py-4 rounded-full font-bold hover:shadow-lg transition-all duration-300 hover:scale-105">
-              Book a Session
-            </button>
-          </div>
+    <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+      {/* Photo */}
+      <div className="relative h-52 w-full">
+        <Image
+          src={ENJY_IMG}
+          alt="Enjy Gebril"
+          fill
+          className="object-cover object-top"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#006D77]/80 to-transparent" />
+        <div className="absolute bottom-3 left-4 text-white">
+          <p className="text-xs font-medium text-white/80">Your Trainer</p>
+          <h3 className="text-lg font-bold">Enjy Gebril</h3>
+        </div>
+        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full">
+          <p className="text-xs font-bold text-[#006D77]">⭐ 5.0 · Google</p>
         </div>
       </div>
-    </section>
+
+      {/* Bio */}
+      <div className="p-4 space-y-3">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Certified yoga therapist & multi-style instructor. Dedicated to empowering women through movement, mindfulness, and wellness.
+        </p>
+
+        {/* Certs */}
+        <div className="flex flex-wrap gap-1.5">
+          {certs.map(c => (
+            <span key={c} className="text-[10px] font-medium px-2 py-1 bg-[#E0EEF0] text-[#006D77] rounded-full">
+              {c}
+            </span>
+          ))}
+        </div>
+
+        {/* Website link */}
+        <a
+          href={ENJY_SITE}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-[#006D77] to-[#004E5C] text-white rounded-xl hover:opacity-90 transition-opacity"
+        >
+          <span className="text-sm font-semibold">Visit Enjy&apos;s Website</span>
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+    </div>
   )
 }
