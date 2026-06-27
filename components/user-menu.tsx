@@ -56,10 +56,9 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
       {showNotifications && variant !== 'admin' && (
         <Link
           href="/notifications"
-          className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors relative"
+          className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors"
         >
           <Bell className="w-5 h-5 text-foreground" />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#E86500]" />
         </Link>
       )}
 
