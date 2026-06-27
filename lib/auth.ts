@@ -2,17 +2,20 @@ import { supabase } from './supabase'
 
 // ── Phone → fake email (internal only) ───────────────────────
 function phoneToEmail(phone: string): string {
-  const normalized = phone
-    .replace(/[\s\-\(\)\+]/g, '')
-    .replace(/^20/, '')
-    .replace(/^0/, '')
-  return `${normalized}@alignwithenjy.app`
+  // Strip everything except digits
+  const digits = phone.replace(/\D/g, '')
+  // Normalize: remove country code prefix, keep 10 digits (1XXXXXXXXX)
+  let local = digits
+  if (local.startsWith('20') && local.length >= 12) local = local.slice(2)  // +201... → 1...
+  if (local.startsWith('0') && local.length === 11) local = local.slice(1)  // 01...  → 1...
+  return `${local}@alignwithenjy.app`
 }
 
 function normalizePhone(phone: string): string {
-  const digits = phone.replace(/[\s\-\(\)\+]/g, '')
-  if (digits.startsWith('20')) return `+${digits}`
-  if (digits.startsWith('0')) return `+20${digits.slice(1)}`
+  const digits = phone.replace(/\D/g, '')
+  if (digits.startsWith('20') && digits.length >= 12) return `+${digits}`
+  if (digits.startsWith('0') && digits.length === 11) return `+20${digits.slice(1)}`
+  if (digits.length === 10) return `+20${digits}`
   return `+20${digits}`
 }
 
