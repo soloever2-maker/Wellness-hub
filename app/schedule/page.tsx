@@ -174,7 +174,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-foreground text-sm">{name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{time} · {s.60} min</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{time} · 60 min</p>
                     <p className="text-xs text-muted-foreground">Enjy Gebril</p>
                   </div>
                   <div className="text-right flex-shrink-0">
