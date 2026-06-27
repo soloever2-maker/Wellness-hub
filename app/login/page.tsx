@@ -296,12 +296,12 @@ export default function LoginPage() {
 
               <form onSubmit={handleLogin} className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email or Phone</label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input type="email" required autoComplete="email" value={form.email}
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="text" required autoComplete="email" value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
-                      placeholder="you@email.com"
+                      placeholder="you@email.com or 010XXXXXXXX"
                       className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
                   </div>
                 </div>
