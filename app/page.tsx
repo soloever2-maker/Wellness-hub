@@ -3,6 +3,7 @@ import { PackageCard } from '@/components/package-card'
 import { TodaysClasses } from '@/components/todays-classes'
 import { ThisWeekSection } from '@/components/this-week-section'
 import { QuickActions } from '@/components/quick-actions'
+import { TrainerCard } from '@/components/trainer'
 import { BottomNav } from '@/components/bottom-nav'
 
 export default function Page() {
@@ -13,6 +14,7 @@ export default function Page() {
         <PackageCard />
         <TodaysClasses />
         <ThisWeekSection />
+        <TrainerCard />
         <QuickActions />
       </div>
       <BottomNav />
