@@ -476,6 +476,12 @@ export default function ProfilePage() {
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Support</p>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+            <a href="https://soloever2-maker.github.io/Enjy-FlowWA/" target="_blank" rel="noopener noreferrer" className="flex items-center w-full px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors">
+              <Camera className="w-5 h-5 text-[#006D77] mr-3" />
+              <span className="text-sm text-foreground flex-1 text-left">Enjy&apos;s Website</span>
+              <span className="text-xs text-muted-foreground mr-2">alignwithenjy.app</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            </a>
             <a href="https://wa.me/201063751653" target="_blank" rel="noopener noreferrer" className="flex items-center w-full px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors">
               <MessageCircle className="w-5 h-5 text-[#006D77] mr-3" />
               <span className="text-sm text-foreground flex-1 text-left">Contact Enjy</span>
