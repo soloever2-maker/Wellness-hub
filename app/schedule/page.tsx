@@ -9,8 +9,8 @@ import { supabase } from '@/lib/supabase'
 type Session = {
   id: string
   start_time: string
-  duration_minutes: number
-  capacity: number
+  60: number
+  max_capacity: number
   booked_count: number
   class_type: { name: string; color: string }
 }
@@ -68,7 +68,7 @@ export default function SchedulePage() {
 
       const { data } = await supabase
         .from('class_sessions')
-        .select('id, start_time, duration_minutes, capacity, class_type:class_types(name)')
+        .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name)')
         .eq('is_cancelled', false)
         .gte('start_time', start.toISOString())
         .lte('start_time', end.toISOString())
@@ -160,7 +160,7 @@ export default function SchedulePage() {
           </div>
         ) : (
           daySessions.map(s => {
-            const spotsLeft = s.capacity - s.booked_count
+            const spotsLeft = s.max_capacity - s.booked_count
             const isFull = spotsLeft <= 0
             const time = new Date(s.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
             const name = (s.class_type as any)?.name || 'Class'
@@ -174,7 +174,7 @@ export default function SchedulePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-foreground text-sm">{name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{time} · {s.duration_minutes} min</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{time} · {s.60} min</p>
                     <p className="text-xs text-muted-foreground">Enjy Gebril</p>
                   </div>
                   <div className="text-right flex-shrink-0">
