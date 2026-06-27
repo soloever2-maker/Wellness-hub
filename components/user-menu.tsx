@@ -53,9 +53,9 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
 
   return (
     <div className="flex items-center gap-2">
-      {showNotifications && (
+      {showNotifications && variant !== 'admin' && (
         <Link
-          href={variant === 'admin' ? '/admin' : '/notifications'}
+          href="/notifications"
           className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors relative"
         >
           <Bell className="w-5 h-5 text-foreground" />
