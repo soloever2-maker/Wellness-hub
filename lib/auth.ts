@@ -7,25 +7,24 @@ export async function registerUser(
   email: string,
   password: string
 ) {
-  // 1. Create auth user
+  const normalizedPhone = phone.startsWith('+20')
+    ? phone
+    : `+20${phone.replace(/^0/, '')}`
+
+  // Create auth user + pass metadata (trigger will create the profile automatically)
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone: normalizedPhone,
+      },
+    },
   })
 
   if (authError) throw new Error(authError.message)
   if (!authData.user) throw new Error('Registration failed')
-
-  // 2. Create user profile via SECURITY DEFINER function
-  // (bypasses RLS — safe because the function is controlled server-side)
-  const { error: profileError } = await supabase.rpc('create_user_profile', {
-    p_auth_id: authData.user.id,
-    p_full_name: fullName,
-    p_phone: phone.startsWith('+20') ? phone : `+20${phone.replace(/^0/, '')}`,
-    p_email: email,
-  })
-
-  if (profileError) throw new Error(profileError.message)
 
   return { success: true }
 }
