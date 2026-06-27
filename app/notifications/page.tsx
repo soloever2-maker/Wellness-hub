@@ -53,6 +53,10 @@ export default function NotificationsPage() {
 
       if (data) setNotifications(data as Notification[])
       setLoading(false)
+
+      // Mark all as read
+      localStorage.setItem('notifs_unread', '0')
+      window.dispatchEvent(new Event('notifs_updated'))
     }
     fetchNotifs()
   }, [])
