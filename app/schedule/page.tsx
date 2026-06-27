@@ -1,130 +1,197 @@
 'use client'
 
-import { useState } from 'react'
-import { ArrowLeft, SlidersHorizontal, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
+import { supabase } from '@/lib/supabase'
 
-const weekDates = [
-  { day: 'Sun', date: 6, isToday: true },
-  { day: 'Mon', date: 7, isToday: false },
-  { day: 'Tue', date: 8, isToday: false },
-  { day: 'Wed', date: 9, isToday: false },
-  { day: 'Thu', date: 10, isToday: false },
-  { day: 'Fri', date: 11, isToday: false },
-  { day: 'Sat', date: 12, isToday: false },
-]
+type Session = {
+  id: string
+  start_time: string
+  duration_minutes: number
+  capacity: number
+  booked_count: number
+  class_type: { name: string; color: string }
+}
 
-const classTypes = ['All', 'Yoga', 'Pilates', 'Dance', 'Aerobics']
+const DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const classEmoji: Record<string, string> = {
+  'Power Yoga': '🔥', 'Mat Pilates': '💪', 'Gentle Yoga & Recovery': '🧘',
+  'Belly Rhythmic Dancing': '💃', 'Aqua Aerobics': '🌊',
+}
+const colorMap: Record<string, string> = {
+  teal:   'bg-[#006D77] text-white',
+  orange: 'bg-[#E86500] text-white',
+  peach:  'bg-[#FFD9B8] text-[#E86500]',
+  green:  'bg-[#E0EEF0] text-[#006D77]',
+}
 
-const classesData: Record<number, { id: number; name: string; emoji: string; type: string; startTime: string; endTime: string; instructor: string; spotsLeft: number | null }[]> = {
-  6: [
-    { id: 1, name: 'Power Yoga', emoji: '🧘‍♀️', type: 'Yoga', startTime: '11:00 AM', endTime: '12:00 PM', instructor: 'Enjy Gebril', spotsLeft: 4 },
-    { id: 2, name: 'Mat Pilates', emoji: '🤸‍♀️', type: 'Pilates', startTime: '5:00 PM', endTime: '6:00 PM', instructor: 'Enjy Gebril', spotsLeft: null },
-    { id: 3, name: 'Gentle Yoga', emoji: '🌿', type: 'Yoga', startTime: '7:30 PM', endTime: '8:30 PM', instructor: 'Enjy Gebril', spotsLeft: 6 },
-  ],
-  7: [
-    { id: 4, name: 'Belly Rhythmic Dancing', emoji: '💃', type: 'Dance', startTime: '8:20 PM', endTime: '9:20 PM', instructor: 'Enjy Gebril', spotsLeft: 8 },
-    { id: 5, name: 'Aqua Aerobics', emoji: '🏊‍♀️', type: 'Aerobics', startTime: '6:00 PM', endTime: '7:00 PM', instructor: 'Enjy Gebril', spotsLeft: 2 },
-  ],
-  8: [],
-  9: [{ id: 6, name: 'Power Yoga', emoji: '🧘‍♀️', type: 'Yoga', startTime: '11:00 AM', endTime: '12:00 PM', instructor: 'Enjy Gebril', spotsLeft: 10 }],
-  10: [{ id: 7, name: 'Mat Pilates', emoji: '🤸‍♀️', type: 'Pilates', startTime: '7:30 PM', endTime: '8:30 PM', instructor: 'Enjy Gebril', spotsLeft: 5 }],
-  11: [],
-  12: [{ id: 8, name: 'Gentle Yoga & Recovery', emoji: '🌿', type: 'Yoga', startTime: '9:00 AM', endTime: '10:00 AM', instructor: 'Enjy Gebril', spotsLeft: 12 }],
+function getWeekDates(offset: number) {
+  const today = new Date()
+  // Start from Saturday (day 6)
+  const day = today.getDay()
+  const diff = day === 6 ? 0 : -(day + 1) // go back to Saturday
+  const sat = new Date(today)
+  sat.setDate(today.getDate() + diff + offset * 7)
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(sat)
+    d.setDate(sat.getDate() + i)
+    return d
+  })
 }
 
 export default function SchedulePage() {
-  const [selectedDate, setSelectedDate] = useState(6)
-  const [selectedType, setSelectedType] = useState('All')
-  const [showFilter, setShowFilter] = useState(false)
+  const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedDay, setSelectedDay] = useState(new Date().getDay() === 6 ? 0 : ((new Date().getDay() + 1) % 7))
+  const [sessions, setSessions] = useState<Session[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const allClasses = classesData[selectedDate] || []
-  const classes = selectedType === 'All' ? allClasses : allClasses.filter(c => c.type === selectedType)
+  const weekDates = getWeekDates(weekOffset)
+
+  // Set selected day to today on first load
+  useEffect(() => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0=Sun, 6=Sat
+    // Map to our week index (Sat=0, Sun=1, ..., Fri=6)
+    const idx = dayOfWeek === 6 ? 0 : dayOfWeek + 1
+    setSelectedDay(idx)
+  }, [])
+
+  useEffect(() => {
+    const fetchWeek = async () => {
+      setLoading(true)
+      const start = weekDates[0]
+      start.setHours(0, 0, 0, 0)
+      const end = weekDates[6]
+      end.setHours(23, 59, 59, 999)
+
+      const { data } = await supabase
+        .from('class_sessions')
+        .select('id, start_time, duration_minutes, capacity, class_type:class_types(name)')
+        .eq('is_cancelled', false)
+        .gte('start_time', start.toISOString())
+        .lte('start_time', end.toISOString())
+        .order('start_time')
+
+      if (data) {
+        const ids = data.map(s => s.id)
+        const { data: bookings } = await supabase
+          .from('bookings').select('session_id')
+          .in('session_id', ids).eq('status', 'confirmed')
+
+        const counts: Record<string, number> = {}
+        bookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+
+        setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
+      }
+      setLoading(false)
+    }
+    fetchWeek()
+  }, [weekOffset])
+
+  const selectedDate = weekDates[selectedDay]
+  const daySessions = sessions.filter(s => {
+    const d = new Date(s.start_time)
+    return d.toDateString() === selectedDate?.toDateString()
+  })
+
+  const weekLabel = `${weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 
   return (
     <main className="bg-background min-h-screen pb-24">
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
-        <Link href="/" className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </Link>
-        <h1 className="text-lg font-semibold text-foreground">Class Schedule</h1>
-        <button onClick={() => setShowFilter(!showFilter)}
-          className={`w-10 h-10 rounded-full border flex items-center justify-center transition-colors ${showFilter ? 'bg-[#006D77] border-[#006D77]' : 'bg-white border-border'}`}>
-          {showFilter ? <X className="w-5 h-5 text-white" /> : <SlidersHorizontal className="w-5 h-5 text-foreground" />}
-        </button>
-      </div>
-
-      {showFilter && (
-        <div className="px-4 py-3 bg-white border-b border-border">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Filter by class type</p>
-          <div className="flex gap-2 flex-wrap">
-            {classTypes.map((type) => (
-              <button key={type} onClick={() => { setSelectedType(type); setShowFilter(false) }}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedType === type ? 'bg-[#006D77] text-white' : 'bg-background border border-border text-foreground hover:bg-[#FFD9B8]/20'}`}>
-                {type}
-              </button>
-            ))}
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-foreground">Schedule</h1>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setWeekOffset(w => w - 1)}
+              className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-sm font-medium text-foreground px-1">{weekLabel}</span>
+            <button onClick={() => setWeekOffset(w => w + 1)}
+              className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
-      )}
 
-      {selectedType !== 'All' && (
-        <div className="px-4 pt-3">
-          <button onClick={() => setSelectedType('All')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FFD9B8]/30 text-[#006D77] rounded-full text-xs font-medium">
-            {selectedType} <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      <div className="px-4 py-4">
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-          {weekDates.map((d) => (
-            <button key={d.date} onClick={() => setSelectedDate(d.date)}
-              className={`flex flex-col items-center gap-1 min-w-[48px] py-3 px-2 rounded-2xl transition-all ${selectedDate === d.date ? 'bg-[#006D77] text-white shadow-md' : 'bg-white border border-border text-foreground hover:border-[#006D77]/30'}`}>
-              <span className="text-xs font-medium">{d.day}</span>
-              <span className="text-lg font-bold">{d.date}</span>
-            </button>
-          ))}
+        {/* Day Selector */}
+        <div className="flex gap-1">
+          {DAYS.map((day, i) => {
+            const date = weekDates[i]
+            const isToday = date?.toDateString() === new Date().toDateString()
+            const hasSessions = sessions.some(s => new Date(s.start_time).toDateString() === date?.toDateString())
+            return (
+              <button key={day} onClick={() => setSelectedDay(i)}
+                className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all ${
+                  selectedDay === i
+                    ? 'bg-[#006D77] text-white'
+                    : 'text-foreground hover:bg-muted/40'
+                }`}
+              >
+                <span className="text-[10px] font-medium">{day}</span>
+                <span className={`text-sm font-bold mt-0.5 ${isToday && selectedDay !== i ? 'text-[#E86500]' : ''}`}>
+                  {date?.getDate()}
+                </span>
+                {hasSessions && selectedDay !== i && (
+                  <div className="w-1 h-1 rounded-full bg-[#E86500] mt-0.5" />
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      <div className="px-4 space-y-3">
-        {classes.length === 0 ? (
+      {/* Sessions */}
+      <div className="px-4 pt-4 space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+          </div>
+        ) : daySessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <div className="text-6xl mb-4">🧘‍♀️</div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">{selectedType !== 'All' ? `No ${selectedType} classes today` : 'No classes today'}</h3>
-            <p className="text-sm text-muted-foreground">Check another day for available classes</p>
+            <div className="w-16 h-16 rounded-full bg-[#E0EEF0] flex items-center justify-center mb-3">
+              <Calendar className="w-8 h-8 text-[#006D77]/40" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No classes today</p>
+            <p className="text-xs text-muted-foreground mt-1">Try another day</p>
           </div>
         ) : (
-          classes.map((cls) => (
-            <Link href="/class" key={cls.id}>
-              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
-                <div className="text-center min-w-[60px]">
-                  <p className="text-sm font-bold text-foreground">{cls.startTime}</p>
-                  <p className="text-xs text-muted-foreground">{cls.endTime}</p>
-                </div>
-                <div className="w-px h-12 bg-border" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">{cls.emoji}</span>
-                    <h4 className="font-semibold text-foreground">{cls.name}</h4>
+          daySessions.map(s => {
+            const spotsLeft = s.capacity - s.booked_count
+            const isFull = spotsLeft <= 0
+            const time = new Date(s.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+            const name = (s.class_type as any)?.name || 'Class'
+            const colorKey = (s.class_type as any)?.name?.includes('Pilates') ? 'orange' : (s.class_type as any)?.name?.includes('Dancing') ? 'peach' : (s.class_type as any)?.name?.includes('Gentle') ? 'green' : 'teal'
+
+            return (
+              <Link key={s.id} href={`/class?id=${s.id}`}>
+                <div className="bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${colorMap[colorKey] || colorMap.teal}`}>
+                    {classEmoji[name] || '🧘'}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-0.5 bg-secondary/40 text-muted-foreground rounded-full">{cls.type}</span>
-                    <span className="text-xs text-muted-foreground">{cls.instructor}</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-foreground text-sm">{name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{time} · {s.duration_minutes} min</p>
+                    <p className="text-xs text-muted-foreground">Enjy Gebril</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                      isFull
+                        ? 'bg-red-50 text-red-500'
+                        : spotsLeft <= 3
+                        ? 'bg-[#FFD9B8]/40 text-[#E86500]'
+                        : 'bg-[#E0EEF0] text-[#006D77]'
+                    }`}>
+                      {isFull ? 'Full' : `${spotsLeft} spots`}
+                    </span>
                   </div>
                 </div>
-                <div>
-                  {cls.spotsLeft === null
-                    ? <span className="text-xs font-medium px-3 py-1.5 bg-[#FF9800]/10 text-[#FF9800] rounded-full">Full</span>
-                    : <span className="text-xs font-medium px-3 py-1.5 bg-[#4CAF50]/10 text-[#4CAF50] rounded-full">{cls.spotsLeft} left</span>
-                  }
-                </div>
-              </div>
-            </Link>
-          ))
+              </Link>
+            )
+          })
         )}
       </div>
 
