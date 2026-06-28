@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { CreditCard, ArrowLeft } from 'lucide-react'
+import { CreditCard, ArrowLeft, RotateCcw, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -17,13 +17,14 @@ type Payment = {
   package: { name: string }
 }
 
-const filters = ['All', 'Paid', 'Pending']
+const filters = ['All', 'Paid', 'Pending', 'Refunded']
 
 export default function AdminPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
   const [total, setTotal] = useState(0)
+  const [refundingId, setRefundingId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -40,9 +41,28 @@ export default function AdminPaymentsPage() {
       })
   }, [])
 
+  const handleRefund = async (paymentId: string) => {
+    if (!confirm('Mark this payment as refunded?')) return
+    setRefundingId(paymentId)
+    const { error } = await supabase.from('payments')
+      .update({ status: 'refunded' })
+      .eq('id', paymentId)
+    if (error) {
+      alert('Refund failed: ' + error.message)
+    } else {
+      setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: 'refunded' } : p))
+      setTotal(prev => {
+        const pmt = payments.find(p => p.id === paymentId)
+        return pmt ? prev - (pmt.amount || 0) : prev
+      })
+    }
+    setRefundingId(null)
+  }
+
   const filtered = payments.filter(p =>
     activeFilter === 'All' ? true :
     activeFilter === 'Paid' ? p.status === 'paid' :
+    activeFilter === 'Refunded' ? p.status === 'refunded' :
     p.status === 'pending'
   )
 
@@ -90,11 +110,25 @@ export default function AdminPaymentsPage() {
                     {p.gateway && ` · ${p.gateway}`}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="flex flex-col items-end gap-1.5">
                   <p className="font-bold text-foreground">{(p.amount || 0).toLocaleString()} EGP</p>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    p.status === 'paid' ? 'bg-[#4CAF50]/10 text-[#4CAF50]' : 'bg-[#FF9800]/10 text-[#FF9800]'
+                    p.status === 'paid'     ? 'bg-[#4CAF50]/10 text-[#4CAF50]' :
+                    p.status === 'refunded' ? 'bg-[#E53935]/10 text-[#E53935]' :
+                                              'bg-[#FF9800]/10 text-[#FF9800]'
                   }`}>{p.status}</span>
+                  {p.status === 'paid' && (
+                    <button
+                      onClick={() => handleRefund(p.id)}
+                      disabled={refundingId === p.id}
+                      className="flex items-center gap-1 text-xs font-medium text-[#E53935] border border-[#E53935]/30 px-2.5 py-1 rounded-full hover:bg-[#E53935]/5 transition-colors disabled:opacity-50"
+                    >
+                      {refundingId === p.id
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <RotateCcw className="w-3 h-3" />}
+                      Refund
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
