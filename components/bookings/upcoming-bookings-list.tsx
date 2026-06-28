@@ -31,11 +31,17 @@ export function UpcomingBookingsList() {
         .from('bookings')
         .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
-        .eq('status', 'confirmed')
-        .gte('session.start_time', new Date().toISOString())
-        .order('session.start_time')
+        .in('status', ['confirmed', 'pending'])
+        .order('booked_at', { ascending: false })
 
-      if (data) setBookings(data.filter(b => b.session) as unknown as Booking[])
+      // Filter upcoming sessions client-side (PostgREST can't filter on embedded resource columns)
+      const now = new Date().toISOString()
+      if (data) setBookings(
+        data
+          .filter(b => b.session && (b.session as any).start_time >= now)
+          .sort((a, b) => new Date((a.session as any).start_time).getTime() - new Date((b.session as any).start_time).getTime())
+        as unknown as Booking[]
+      )
       setLoading(false)
     }
     fetchBookings()
