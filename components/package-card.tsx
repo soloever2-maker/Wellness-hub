@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Package } from 'lucide-react'
+import { Package, AlertCircle, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -64,7 +64,14 @@ export function PackageCard() {
   const sessionsUsed = pkg.sessions_total - pkg.sessions_remaining
   const progress = (sessionsUsed / pkg.sessions_total) * 100
 
+  // Warning states
+  const daysToExpiry = Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / 86_400_000))
+  const isLowBalance = pkg.sessions_remaining <= 2 && pkg.sessions_remaining > 0
+  const isExpiringSoon = daysToExpiry <= 7 && daysToExpiry > 0
+  const showWarning = (isLowBalance || isExpiringSoon) && pkg.status !== 'frozen'
+
   return (
+    <div className="space-y-2">
     <Link href="/my-package" className="block">
       <div className={`rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow ${
         pkg.status === 'frozen'
@@ -101,5 +108,32 @@ export function PackageCard() {
         </div>
       </div>
     </Link>
+
+    {showWarning && (
+      <Link href="/packages" className="block">
+        <div className={`rounded-2xl p-3 flex items-center gap-3 ${
+          isLowBalance && pkg.sessions_remaining <= 1
+            ? 'bg-[#E53935]/10 border border-[#E53935]/20'
+            : 'bg-[#FF9800]/10 border border-[#FF9800]/20'
+        }`}>
+          <AlertCircle className={`w-5 h-5 shrink-0 ${
+            isLowBalance && pkg.sessions_remaining <= 1 ? 'text-[#E53935]' : 'text-[#FF9800]'
+          }`} />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">
+              {isLowBalance
+                ? pkg.sessions_remaining === 1
+                  ? 'Last session!'
+                  : `Only ${pkg.sessions_remaining} sessions left`
+                : `Package expires in ${daysToExpiry} day${daysToExpiry > 1 ? 's' : ''}`
+              }
+            </p>
+            <p className="text-xs text-muted-foreground">Tap to renew your package</p>
+          </div>
+          <RefreshCw className="w-4 h-4 text-[#006D77] shrink-0" />
+        </div>
+      </Link>
+    )}
+    </div>
   )
 }
