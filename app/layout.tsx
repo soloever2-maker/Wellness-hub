@@ -5,33 +5,19 @@ import './globals.css'
 import { PWAInit } from '@/components/pwa-init'
 import { AuthGuard } from '@/components/auth-guard'
 import { PageTransition } from '@/components/page-transition'
+import { BackHandler } from '@/components/back-handler'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Align with Enjy',
   description: 'Wellness & Yoga Center — Ladies Only. Book your class with trainer Enjy Gebril in 6th of October, Giza.',
   manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'Align with Enjy',
-  },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Align with Enjy' },
   formatDetection: { telephone: false },
-  icons: {
-    icon: '/icon.png',
-    apple: '/icon.png',
-  },
-  openGraph: {
-    type: 'website',
-    title: 'Align with Enjy',
-    description: 'Wellness & Yoga Center — Ladies Only',
-    siteName: 'Align with Enjy',
-  },
+  icons: { icon: '/icon.png', apple: '/icon.png' },
+  openGraph: { type: 'website', title: 'Align with Enjy', description: 'Wellness & Yoga Center — Ladies Only', siteName: 'Align with Enjy' },
 }
 
 export const viewport: Viewport = {
@@ -43,11 +29,7 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`light ${geistSans.variable} ${geistMono.variable} bg-background`}>
       <head>
@@ -67,6 +49,7 @@ export default function RootLayout({
           <PageTransition>
             {children}
           </PageTransition>
+          <BackHandler />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </AuthGuard>
       </body>
