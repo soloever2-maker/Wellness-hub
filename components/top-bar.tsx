@@ -1,17 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { UserMenu } from './user-menu'
 import { getCurrentUser } from '@/lib/auth'
 
 export function TopBar() {
   const [firstName, setFirstName] = useState('')
+  const [avatarUrl, setAvatarUrl]  = useState('')
 
   useEffect(() => {
     getCurrentUser().then(user => {
-      if (user?.full_name) {
-        setFirstName(user.full_name.split(' ')[0])
-      }
+      if (!user) return
+      if (user.full_name) setFirstName(user.full_name.split(' ')[0])
+      if ((user as any).avatar_url) setAvatarUrl((user as any).avatar_url)
     })
   }, [])
 
@@ -22,12 +24,41 @@ export function TopBar() {
     return 'Good evening'
   })()
 
+  const initials = firstName.slice(0, 1).toUpperCase()
+
   return (
-    <div className="bg-background px-4 py-4 flex items-center justify-between sticky top-0 z-30 border-b border-border/50">
-      <div>
-        <p className="text-xs text-muted-foreground">{greeting}</p>
-        <h1 className="text-lg font-bold text-foreground">{firstName || 'Welcome'} 👋</h1>
+    <div className="bg-background px-4 py-3 flex items-center justify-between sticky top-0 z-30 border-b border-border/40">
+
+      {/* Left: Avatar + Greeting */}
+      <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 border-2 border-[#006D77]/15 shadow-sm">
+          {avatarUrl ? (
+            <Image
+              src={avatarUrl}
+              alt={firstName}
+              width={44}
+              height={44}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
+              <span className="text-white font-bold text-base">{initials || '🧘'}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Text */}
+        <div>
+          <p className="text-[11px] text-muted-foreground leading-none">{greeting}</p>
+          <h1 className="text-base font-bold text-foreground mt-0.5 leading-tight">
+            {firstName || 'Welcome'} 👋
+          </h1>
+        </div>
       </div>
+
+      {/* Right: Notification + Menu */}
       <UserMenu variant="client" />
     </div>
   )
