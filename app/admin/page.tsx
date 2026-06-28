@@ -24,6 +24,7 @@ type PendingRequest = {
   id: string; amount: number; created_at: string
   client:  { id: string; full_name: string }
   package: { id: string; name: string }
+  hasActivePackage?: boolean  // true = replacement request
 }
 
 type RecentBooking = {
@@ -172,7 +173,21 @@ export default function AdminDashboardPage() {
           .eq('status', 'pending')
           .order('created_at', { ascending: false })
           .limit(10)
-        if (data) setPendingReqs(data as unknown as PendingRequest[])
+        if (data) {
+          // Check which clients already have an active package (= replacement request)
+          const clientIds = [...new Set((data as any[]).map(r => r.client?.id).filter(Boolean))]
+          const { data: activePkgs } = await supabase
+            .from('client_packages')
+            .select('client_id')
+            .in('client_id', clientIds)
+            .in('status', ['active', 'frozen'])
+          const activeSet = new Set((activePkgs ?? []).map((p: any) => p.client_id))
+          const enriched = (data as any[]).map(r => ({
+            ...r,
+            hasActivePackage: activeSet.has(r.client?.id),
+          }))
+          setPendingReqs(enriched as unknown as PendingRequest[])
+        }
       } catch {}
 
       // 4. Recent bookings (last 5)
@@ -518,7 +533,12 @@ export default function AdminDashboardPage() {
                       <span className="text-xs font-bold text-[#E86500]">{initials(r.client?.full_name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{r.client?.full_name || '—'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground truncate">{r.client?.full_name || '—'}</p>
+                        {r.hasActivePackage && (
+                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-[#E86500]/10 text-[#E86500] rounded-full">♻️ Replace</span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground">{r.package?.name} · {Number(r.amount).toLocaleString()} EGP</p>
                     </div>
                     <Link
