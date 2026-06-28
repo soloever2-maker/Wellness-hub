@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -31,7 +32,9 @@ type ClientPackageInfo = {
 
 const filters = ['All', 'Approved', 'Pending']
 
-export default function AdminClientsPage() {
+function AdminClientsPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [clients, setClients] = useState<Client[]>([])
   const [packages, setPackages] = useState<PackageOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,12 +58,28 @@ export default function AdminClientsPage() {
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
       ])
-      if (clientsRes.data) setClients(clientsRes.data as Client[])
+      const loadedClients = (clientsRes.data as Client[]) || []
+      if (clientsRes.data) setClients(loadedClients)
+      let firstPkgId = ''
       if (pkgsRes.data) {
         setPackages(pkgsRes.data as PackageOption[])
-        if (pkgsRes.data[0]) setSelectedPkgId(pkgsRes.data[0].id)
+        if (pkgsRes.data[0]) firstPkgId = pkgsRes.data[0].id
+        setSelectedPkgId(firstPkgId)
       }
       setLoading(false)
+
+      // Deep link from Dashboard "Package Requests" → Confirm button
+      const linkedClientId = searchParams.get('clientId')
+      const linkedPkgId = searchParams.get('packageId')
+      if (linkedClientId) {
+        const match = loadedClients.find(c => c.id === linkedClientId)
+        if (match) {
+          await openClient(match)
+          setSelectedPkgId(linkedPkgId || firstPkgId)
+          setShowAddPkg(true)
+        }
+        router.replace('/admin/clients')
+      }
     }
     fetchData()
   }, [])
@@ -104,17 +123,40 @@ export default function AdminClientsPage() {
       return
     }
 
-    // Log payment
-    const { error: paymentError } = await supabase.from('payments').insert({
-      client_id: selectedClient.id,
-      package_id: selectedPkgId,
-      amount: pkg.price,
-      gateway: 'cash',
-      status: 'paid',
-      paid_at: new Date().toISOString(),
-    })
+    // If the client already has a pending request for this exact package
+    // (from tapping "Buy Package" in the app), confirm that one instead of
+    // creating a second, disconnected payment row.
+    const { data: pendingPayment } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('client_id', selectedClient.id)
+      .eq('package_id', selectedPkgId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if (paymentError) console.error('Payment insert failed:', paymentError)
+    let paymentError: { message: string } | null = null
+    if (pendingPayment) {
+      const { error } = await supabase.from('payments').update({
+        status: 'paid',
+        gateway: 'cash',
+        paid_at: new Date().toISOString(),
+      }).eq('id', pendingPayment.id)
+      paymentError = error
+    } else {
+      const { error } = await supabase.from('payments').insert({
+        client_id: selectedClient.id,
+        package_id: selectedPkgId,
+        amount: pkg.price,
+        gateway: 'cash',
+        status: 'paid',
+        paid_at: new Date().toISOString(),
+      })
+      paymentError = error
+    }
+
+    if (paymentError) console.error('Payment insert/update failed:', paymentError)
 
     // Notify client their package is active
     fetch('/api/push/send', {
@@ -341,5 +383,17 @@ export default function AdminClientsPage() {
 
       <AdminBottomNav activePage="clients" />
     </main>
+  )
+}
+
+export default function AdminClientsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+      </div>
+    }>
+      <AdminClientsPageInner />
+    </Suspense>
   )
 }
