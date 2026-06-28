@@ -22,7 +22,7 @@ type Stats = {
 type RecentBooking = {
   id: string
   status: string
-  created_at: string
+  booked_at: string
   client: { full_name: string }
   session: { start_time: string; class_type: { name: string } }
 }
@@ -77,9 +77,9 @@ export default function AdminDashboardPage() {
       try {
         const recentRes = await supabase
           .from('bookings')
-          .select('id, status, created_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+          .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
           .in('status', ['confirmed', 'attended'])
-          .order('created_at', { ascending: false })
+          .order('booked_at', { ascending: false })
           .limit(5)
 
         if (recentRes.error) {
