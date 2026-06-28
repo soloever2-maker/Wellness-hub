@@ -10,7 +10,6 @@ type PastBooking = {
   status: string
   session: {
     start_time: string
-    duration_minutes: number
     class_type: { name: string }
   }
 }
