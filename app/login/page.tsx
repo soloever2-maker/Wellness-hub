@@ -5,6 +5,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint 
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
+import { LoginSplash } from '@/components/login-splash'
 import { playSingingBowl } from '@/lib/sounds'
 import {
   isBiometricSupported,
@@ -145,6 +146,9 @@ function FloatingParticles() {
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
+  const [showSplash, setShowSplash] = useState(false)
+  const [splashRedirect, setSplashRedirect] = useState('')
+  const [splashName, setSplashName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [biometricLoading, setBiometricLoading] = useState(false)
@@ -163,18 +167,19 @@ export default function LoginPage() {
     try {
       const { user } = await loginUser(form.phone, form.password)
       playSingingBowl(0.5)
+      setSplashName(user.full_name?.split(' ')[0] || '')
       if (user.role === 'admin') {
-        router.replace('/select-role')
+        setSplashRedirect('/select-role')
       } else {
-        // First-time login → go to profile for onboarding
         const welcomed = localStorage.getItem(`welcomed_${user.id}`)
         if (!welcomed) {
           localStorage.setItem(`welcomed_${user.id}`, 'true')
-          router.replace('/profile?welcome=true')
+          setSplashRedirect('/profile?welcome=true')
         } else {
-          router.replace('/')
+          setSplashRedirect('/')
         }
       }
+      setShowSplash(true)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'PENDING') setMode('pending')
@@ -200,17 +205,19 @@ export default function LoginPage() {
       // Step 2: Login with the retrieved credentials (creates a fresh session)
       const { user } = await loginUser(result.email, result.password)
       playSingingBowl(0.5)
+      setSplashName(user.full_name?.split(' ')[0] || '')
       if (user.role === 'admin') {
-        router.replace('/select-role')
+        setSplashRedirect('/select-role')
       } else {
         const welcomed = localStorage.getItem(`welcomed_${user.id}`)
         if (!welcomed) {
           localStorage.setItem(`welcomed_${user.id}`, 'true')
-          router.replace('/profile?welcome=true')
+          setSplashRedirect('/profile?welcome=true')
         } else {
-          router.replace('/')
+          setSplashRedirect('/')
         }
       }
+      setShowSplash(true)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'PENDING') setMode('pending')
@@ -237,6 +244,13 @@ export default function LoginPage() {
   }
 
   return (
+    <>
+    {showSplash && (
+      <LoginSplash
+        userName={splashName}
+        onFinished={() => router.replace(splashRedirect)}
+      />
+    )}
     <main className="min-h-screen flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #FAFAF7 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
       <FloatingParticles />
 
@@ -409,5 +423,6 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+    </>
   )
 }
