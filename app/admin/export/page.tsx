@@ -117,7 +117,7 @@ export default function AdminExportPage() {
       if (type === 'payments' || type === 'full') {
         const { data: payments } = await supabase
           .from('payments')
-          .select('amount, method, status, created_at, client:users(full_name, phone), package:packages(name)')
+          .select('amount, gateway, status, created_at, client:users(full_name, phone), package:packages(name)')
           .order('created_at', { ascending: false })
 
         const paymentsData = (payments || []).map(p => ({
@@ -126,7 +126,7 @@ export default function AdminExportPage() {
           'Phone': (p.client as any)?.phone || '—',
           'Package': (p.package as any)?.name || '—',
           'Amount (EGP)': p.amount,
-          'Method': p.method || '—',
+          'Gateway': p.gateway || '—',
           'Status': p.status,
         }))
 
