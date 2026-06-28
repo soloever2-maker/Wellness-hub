@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -35,7 +35,6 @@ function getParent(path: string): string {
 }
 
 export function BackHandler() {
-  const router      = useRouter()
   const pathname    = usePathname()
   const pathnameRef = useRef(pathname)
   const handlingRef = useRef(false)
@@ -65,21 +64,23 @@ export function BackHandler() {
         setShowLogout(true)
         handlingRef.current = false
       } else {
-        router.replace(getParent(current))
+        // window.location.replace = hard navigation
+        // يمنع أي useEffect في الصفحة الحالية يـoverride الـ navigation
+        window.location.replace(getParent(current))
         setTimeout(() => { handlingRef.current = false }, 400)
       }
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [router])
+  }, [])
 
   const handleLogout = async () => {
     setLoggingOut(true)
     await supabase.auth.signOut()
     setShowLogout(false)
     setLoggingOut(false)
-    router.replace('/login')
+    window.location.replace('/login')
   }
 
   if (!showLogout) return null
