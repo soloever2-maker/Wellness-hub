@@ -191,7 +191,7 @@ export default function ProfilePage() {
           />
           <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#006D77]/20 shadow">
             {avatarUrl ? (
-              <Image src={avatarUrl} alt={profile.name} width={80} height={80} className="w-full h-full object-cover" />
+              <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center"
                 style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
