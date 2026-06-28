@@ -45,7 +45,7 @@ export default function PackagesPage() {
         client_id: user.id,
         package_id: pkg.id,
         amount: pkg.price,
-        method: 'pending',
+        gateway: 'whatsapp',
         status: 'pending',
       })
 
