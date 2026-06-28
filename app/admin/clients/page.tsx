@@ -97,36 +97,47 @@ export default function AdminClientsPage() {
       status: 'active',
     })
 
-    if (!error) {
-      // Log payment
-      await supabase.from('payments').insert({
-        client_id: selectedClient.id,
-        package_id: selectedPkgId,
-        amount: pkg.price,
-        gateway: 'manual',
-        status: 'paid',
-        paid_at: new Date().toISOString(),
-      })
-
-      // Notify client their package is active
-      fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: selectedClient.id,
-          title: '🎉 Package Activated!',
-          body: `Your ${pkg.name} (${pkg.session_count} sessions) is now active. Start booking your classes!`,
-          type: 'package_activated',
-        }),
-      }).catch(() => {})
-
-      showToast(`✓ ${pkg.name} added for ${selectedClient.full_name}`)
-      setShowAddPkg(false)
-      // Refresh package info
-      const { data } = await supabase.from('client_packages').select('id, status, sessions_remaining, freeze_start')
-        .eq('client_id', selectedClient.id).in('status', ['active', 'frozen']).limit(1).maybeSingle()
-      if (data) setClientPkg(data as ClientPackageInfo)
+    if (error) {
+      console.error('client_packages insert failed:', error)
+      showToast(`⚠️ Could not add package: ${error.message}`)
+      setSaving(false)
+      return
     }
+
+    // Log payment
+    const { error: paymentError } = await supabase.from('payments').insert({
+      client_id: selectedClient.id,
+      package_id: selectedPkgId,
+      amount: pkg.price,
+      gateway: 'manual',
+      status: 'paid',
+      paid_at: new Date().toISOString(),
+    })
+
+    if (paymentError) console.error('Payment insert failed:', paymentError)
+
+    // Notify client their package is active
+    fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: selectedClient.id,
+        title: '🎉 Package Activated!',
+        body: `Your ${pkg.name} (${pkg.session_count} sessions) is now active. Start booking your classes!`,
+        type: 'package_activated',
+      }),
+    }).catch(() => {})
+
+    showToast(
+      paymentError
+        ? `⚠️ Package added, but payment was NOT recorded: ${paymentError.message}`
+        : `✓ ${pkg.name} added for ${selectedClient.full_name}`
+    )
+    setShowAddPkg(false)
+    // Refresh package info
+    const { data } = await supabase.from('client_packages').select('id, status, sessions_remaining, freeze_start')
+      .eq('client_id', selectedClient.id).in('status', ['active', 'frozen']).limit(1).maybeSingle()
+    if (data) setClientPkg(data as ClientPackageInfo)
     setSaving(false)
   }
 
