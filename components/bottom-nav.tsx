@@ -20,7 +20,7 @@ export function BottomNav() {
   )?.id ?? 'home'
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border">
       <div className="flex items-center justify-around px-2 py-2 pb-safe max-w-lg mx-auto">
         {NAV_ITEMS.map(({ icon: Icon, label, id, href }) => {
           const isActive = activeId === id
