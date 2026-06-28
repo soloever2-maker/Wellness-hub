@@ -12,7 +12,7 @@ type Booking = {
   session: {
     id: string
     start_time: string
-    duration_minutes: number
+    end_time: string
     class_type: { name: string; color: string }
   }
 }
@@ -114,7 +114,7 @@ export function UpcomingBookingsList() {
                 </div>
                 <h3 className="font-bold text-foreground">{name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{dateStr} · {timeStr}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{booking.session.duration_minutes} min · Enjy Gebril</p>
+                <p className="text-xs text-muted-foreground mt-0.5">60 min · Enjy Gebril</p>
               </div>
               {canCancel && (
                 <button
