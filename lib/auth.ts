@@ -47,6 +47,18 @@ export async function registerUser(
   }
   if (!authData.user) throw new Error('Registration failed')
 
+  // ── Link auth user → existing users row ────────────────────
+  // If admin pre-created the user in `users` table (auth_id = NULL),
+  // stamp auth_id now so getCurrentUser() can find their profile.
+  const { error: linkError } = await supabase
+    .from('users')
+    .update({ auth_id: authData.user.id })
+    .eq('phone', normalizedPhone)
+    .is('auth_id', null)   // only update rows that aren't linked yet
+
+  // linkError is non-fatal (e.g. no pre-existing row) — user stays pending
+  if (linkError) console.warn('auth_id link skipped:', linkError.message)
+
   return { success: true }
 }
 
