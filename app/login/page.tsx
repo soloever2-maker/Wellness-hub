@@ -160,6 +160,36 @@ export default function LoginPage() {
     setShowBiometric(isBiometricSupported() && isBiometricEnabled())
   }, [])
 
+  // Scale the whole card to fit the real visible screen height — no page scroll, ever.
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+
+    const fitToScreen = () => {
+      const availableHeight = window.visualViewport?.height ?? window.innerHeight
+      const naturalHeight = el.scrollHeight
+      const nextScale = naturalHeight > availableHeight ? availableHeight / naturalHeight : 1
+      setScale(Math.max(nextScale, 0.6))
+    }
+
+    fitToScreen()
+
+    // Re-fit whenever the card's own height changes (mode switch, error shown, biometric, etc.)
+    const resizeObserver = new ResizeObserver(fitToScreen)
+    resizeObserver.observe(el)
+    window.addEventListener('resize', fitToScreen)
+    window.visualViewport?.addEventListener('resize', fitToScreen)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', fitToScreen)
+      window.visualViewport?.removeEventListener('resize', fitToScreen)
+    }
+  }, [])
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -251,10 +281,11 @@ export default function LoginPage() {
         onFinished={() => router.replace(splashRedirect)}
       />
     )}
-    <main className="min-h-screen flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #FAFAF7 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
+    <main className="h-dvh flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #FAFAF7 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
       <FloatingParticles />
 
-      <div className="relative z-10 flex-1 flex flex-col px-6 py-8 max-w-sm mx-auto w-full">
+      <div className="relative z-10 flex-1 flex items-center justify-center overflow-hidden px-6">
+        <div ref={contentRef} style={{ transform: `scale(${scale})` }} className="origin-center flex flex-col py-8 max-w-sm w-full">
 
         {/* Logo Section — much bigger and clean */}
         <div className="pt-8 pb-6 flex flex-col items-center">
@@ -472,6 +503,7 @@ export default function LoginPage() {
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
     </main>
