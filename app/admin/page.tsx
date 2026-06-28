@@ -27,6 +27,14 @@ type RecentBooking = {
   session: { start_time: string; class_type: { name: string } }
 }
 
+type PendingRequest = {
+  id: string
+  amount: number
+  created_at: string
+  client: { id: string; full_name: string }
+  package: { id: string; name: string }
+}
+
 export default function AdminDashboardPage() {
   const [firstName, setFirstName] = useState('')
   const [stats, setStats] = useState<Stats>({
@@ -34,6 +42,7 @@ export default function AdminDashboardPage() {
     todayClasses: 0, todayBookings: 0, weekBookings: 0, attendanceRate: 0,
   })
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
+  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
   const [loading, setLoading] = useState(true)
 
   const today = new Date()
@@ -89,6 +98,26 @@ export default function AdminDashboardPage() {
         }
       } catch (err) {
         console.error('Recent bookings request failed:', err)
+      }
+
+      // Pending package requests — clients who tapped "Buy Package" and
+      // messaged on WhatsApp, but the admin hasn't confirmed payment yet.
+      // This makes that otherwise-invisible activity visible on the dashboard.
+      try {
+        const pendingRes = await supabase
+          .from('payments')
+          .select('id, amount, created_at, client:users!client_id(id, full_name), package:packages!package_id(id, name)')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (pendingRes.error) {
+          console.error('Pending requests query failed:', pendingRes.error)
+        } else if (pendingRes.data) {
+          setPendingRequests(pendingRes.data as unknown as PendingRequest[])
+        }
+      } catch (err) {
+        console.error('Pending requests request failed:', err)
       }
 
       // No matter what succeeded or failed above, stop showing the
@@ -163,6 +192,43 @@ export default function AdminDashboardPage() {
             <p className="text-xs text-muted-foreground">Bookings this week</p>
           </div>
         </div>
+
+        {/* Package Requests — pending Buy Package taps awaiting confirmation */}
+        {!loading && pendingRequests.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Package className="w-4 h-4 text-[#E86500]" /> Package Requests
+              </h3>
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#E86500]/10 text-[#E86500]">
+                {pendingRequests.length} pending
+              </span>
+            </div>
+            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+              {pendingRequests.map((r, i) => {
+                const name = r.client?.full_name || '—'
+                const pkgName = r.package?.name || '—'
+                return (
+                  <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i < pendingRequests.length - 1 ? 'border-b border-border' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#E86500]/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#E86500]">{name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground">{pkgName} · {(r.amount || 0).toLocaleString()} EGP</p>
+                    </div>
+                    {r.client?.id && (
+                      <Link href={`/admin/clients?clientId=${r.client.id}${r.package?.id ? `&packageId=${r.package.id}` : ''}`}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#006D77] text-white shrink-0">
+                        Confirm
+                      </Link>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Recent Bookings */}
         <div>
