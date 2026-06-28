@@ -1,333 +1,241 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock, UserCheck, TrendingUp, Package } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
+import { getCurrentUser } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
-type Client = {
+type Stats = {
+  totalClients: number
+  pendingApprovals: number
+  activePackages: number
+  totalRevenue: number
+  todayClasses: number
+  todayBookings: number
+  weekBookings: number
+  attendanceRate: number
+}
+
+type RecentBooking = {
   id: string
-  full_name: string
-  phone: string
-  email: string
   status: string
   created_at: string
+  client: { full_name: string }
+  session: { start_time: string; class_type: { name: string } }
 }
 
-type PackageOption = {
-  id: string
-  name: string
-  session_count: number
-  validity_days: number
-  price: number
-}
-
-type ClientPackageInfo = {
-  id: string
-  status: string
-  sessions_remaining: number
-  freeze_start: string | null
-}
-
-const filters = ['All', 'Approved', 'Pending']
-
-export default function AdminClientsPage() {
-  const [clients, setClients] = useState<Client[]>([])
-  const [packages, setPackages] = useState<PackageOption[]>([])
+export default function AdminDashboardPage() {
+  const [firstName, setFirstName] = useState('')
+  const [stats, setStats] = useState<Stats>({
+    totalClients: 0, pendingApprovals: 0, activePackages: 0, totalRevenue: 0,
+    todayClasses: 0, todayBookings: 0, weekBookings: 0, attendanceRate: 0,
+  })
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [clientPkg, setClientPkg] = useState<ClientPackageInfo | null>(null)
-  const [showAddPkg, setShowAddPkg] = useState(false)
-  const [selectedPkgId, setSelectedPkgId] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState('')
 
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 3000)
-  }
+  const today = new Date()
+  const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const todayStart = new Date(today); todayStart.setHours(0, 0, 0, 0)
+  const todayEnd = new Date(today); todayEnd.setHours(23, 59, 59, 999)
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - 7)
 
   useEffect(() => {
-    const fetchData = async () => {
-      const [clientsRes, pkgsRes] = await Promise.all([
-        supabase.from('users').select('*').order('created_at', { ascending: false }),
-        supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
+    getCurrentUser().then(u => { if (u?.full_name) setFirstName(u.full_name.split(' ')[0]) })
+
+    const fetchStats = async () => {
+      // Simple queries first (no nested joins)
+      const [clientsRes, packagesRes, revenueRes, todayClassesRes] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'approved').eq('role', 'client'),
+        supabase.from('client_packages').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+        supabase.from('payments').select('amount').eq('status', 'paid'),
+        supabase.from('class_sessions').select('*', { count: 'exact', head: true })
+          .eq('is_cancelled', false)
+          .gte('start_time', todayStart.toISOString())
+          .lte('start_time', todayEnd.toISOString()),
       ])
-      if (clientsRes.data) setClients(clientsRes.data as Client[])
-      if (pkgsRes.data) {
-        setPackages(pkgsRes.data as PackageOption[])
-        if (pkgsRes.data[0]) setSelectedPkgId(pkgsRes.data[0].id)
+
+      // Pending approvals via RPC
+      const { data: pendingData } = await supabase.rpc('get_pending_users')
+      const pendingCount = pendingData?.length || 0
+
+      // Booking counts
+      const [weekBookingsRes, attendedRes, totalMarkedRes] = await Promise.all([
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('created_at', weekStart.toISOString()),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'attended'),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).in('status', ['attended', 'no_show']),
+      ])
+
+      // Recent bookings — simplified (no deep nesting)
+      const { data: recentRaw } = await supabase
+        .from('bookings')
+        .select('id, status, created_at, client_id, session_id')
+        .in('status', ['confirmed', 'attended'])
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      // Fetch names separately to avoid 400
+      if (recentRaw?.length) {
+        const clientIds = [...new Set(recentRaw.map(b => b.client_id))]
+        const sessionIds = [...new Set(recentRaw.map(b => b.session_id))]
+
+        const [{ data: clientsData }, { data: sessionsData }] = await Promise.all([
+          supabase.from('users').select('id, full_name').in('id', clientIds),
+          supabase.from('class_sessions').select('id, start_time, class_type:class_types(name)').in('id', sessionIds),
+        ])
+
+        const clientMap: Record<string, string> = {}
+        clientsData?.forEach(c => { clientMap[c.id] = c.full_name })
+        const sessionMap: Record<string, any> = {}
+        sessionsData?.forEach(s => { sessionMap[s.id] = s })
+
+        setRecentBookings(recentRaw.map(b => ({
+          id: b.id,
+          status: b.status,
+          created_at: b.created_at,
+          client: { full_name: clientMap[b.client_id] || '—' },
+          session: sessionMap[b.session_id] || null,
+        })) as RecentBooking[])
       }
+
+      const revenue = revenueRes.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
+      const attended = attendedRes.count || 0
+      const totalMarked = totalMarkedRes.count || 1
+      const attendanceRate = Math.round((attended / totalMarked) * 100)
+
+      setStats({
+        totalClients: clientsRes.count || 0,
+        pendingApprovals: pendingCount,
+        activePackages: packagesRes.count || 0,
+        totalRevenue: revenue,
+        todayClasses: todayClassesRes.count || 0,
+        todayBookings: 0,
+        weekBookings: weekBookingsRes.count || 0,
+        attendanceRate,
+      })
       setLoading(false)
     }
-    fetchData()
+    fetchStats()
   }, [])
 
-  const openClient = async (client: Client) => {
-    setSelectedClient(client)
-    setClientPkg(null)
-    const { data } = await supabase
-      .from('client_packages')
-      .select('id, status, sessions_remaining, freeze_start')
-      .eq('client_id', client.id)
-      .in('status', ['active', 'frozen'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (data) setClientPkg(data as ClientPackageInfo)
-  }
-
-  const handleAddPkg = async () => {
-    if (!selectedClient || !selectedPkgId) return
-    setSaving(true)
-    const pkg = packages.find(p => p.id === selectedPkgId)
-    if (!pkg) { setSaving(false); return }
-
-    const expiry = new Date()
-    expiry.setDate(expiry.getDate() + pkg.validity_days)
-
-    const { error } = await supabase.from('client_packages').insert({
-      client_id: selectedClient.id,
-      package_id: selectedPkgId,
-      sessions_remaining: pkg.session_count,
-      sessions_total: pkg.session_count,
-      expiry_date: expiry.toISOString(),
-      status: 'active',
-    })
-
-    if (!error) {
-      // Log payment
-      await supabase.from('payments').insert({
-        client_id: selectedClient.id,
-        package_id: selectedPkgId,
-        amount: pkg.price,
-        method: 'manual',
-        status: 'paid',
-      })
-
-      // Notify client their package is active
-      fetch('/api/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          client_id: selectedClient.id,
-          title: '🎉 Package Activated!',
-          body: `Your ${pkg.name} (${pkg.session_count} sessions) is now active. Start booking your classes!`,
-          type: 'package_activated',
-        }),
-      }).catch(() => {})
-
-      showToast(`✓ ${pkg.name} added for ${selectedClient.full_name}`)
-      setShowAddPkg(false)
-      // Refresh package info
-      const { data } = await supabase.from('client_packages').select('id, status, sessions_remaining, freeze_start')
-        .eq('client_id', selectedClient.id).in('status', ['active', 'frozen']).limit(1).maybeSingle()
-      if (data) setClientPkg(data as ClientPackageInfo)
-    }
-    setSaving(false)
-  }
-
-  const handleFreeze = async () => {
-    if (!clientPkg) return
-    setSaving(true)
-    if (clientPkg.status === 'frozen') {
-      // Unfreeze
-      const frozenDays = clientPkg.freeze_start
-        ? Math.ceil((Date.now() - new Date(clientPkg.freeze_start).getTime()) / 86400000)
-        : 0
-      const { data: cp } = await supabase.from('client_packages').select('expiry_date').eq('id', clientPkg.id).single()
-      const newExpiry = cp ? new Date(cp.expiry_date) : new Date()
-      newExpiry.setDate(newExpiry.getDate() + frozenDays)
-
-      await supabase.from('client_packages').update({
-        status: 'active', freeze_start: null, expiry_date: newExpiry.toISOString(),
-      }).eq('id', clientPkg.id)
-
-      setClientPkg({ ...clientPkg, status: 'active', freeze_start: null })
-      showToast('Package unfrozen ✓')
-    } else {
-      // Freeze
-      await supabase.from('client_packages').update({
-        status: 'frozen', freeze_start: new Date().toISOString(),
-      }).eq('id', clientPkg.id)
-
-      setClientPkg({ ...clientPkg, status: 'frozen', freeze_start: new Date().toISOString() })
-      showToast('Package frozen ❄️')
-    }
-    setSaving(false)
-  }
-
-  const filtered = clients.filter(c => {
-    const matchesSearch = (c.full_name || '').toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)
-    const matchesFilter = activeFilter === 'All' ? true : activeFilter === 'Approved' ? c.status === 'approved' : c.status === 'pending'
-    return matchesSearch && matchesFilter
-  })
+  const statCards = [
+    { icon: Users,       label: 'Total Clients',   value: stats.totalClients,              color: 'text-[#006D77]', border: 'border-l-[#006D77]' },
+    { icon: Package,     label: 'Active Packages',  value: stats.activePackages,            color: 'text-[#E86500]', border: 'border-l-[#E86500]' },
+    { icon: DollarSign,  label: 'Total Revenue',    value: `${stats.totalRevenue.toLocaleString()} EGP`, color: 'text-[#006D77]', border: 'border-l-[#006D77]' },
+    { icon: TrendingUp,  label: 'Attendance Rate',  value: stats.attendanceRate > 0 ? `${stats.attendanceRate}%` : '—', color: 'text-[#E86500]', border: 'border-l-[#E86500]' },
+  ]
 
   return (
     <main className="bg-background min-h-screen pb-24">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-4 left-4 right-4 z-[200] bg-[#006D77] text-white text-sm font-medium px-4 py-3 rounded-2xl shadow-lg text-center">
-          {toast}
+      {/* Top Bar */}
+      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">Hi {firstName || 'Enjy'} 👋 — {todayStr}</p>
+          </div>
+          <UserMenu variant="admin" />
         </div>
-      )}
+      </div>
 
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 space-y-3">
-        <h1 className="text-xl font-bold text-foreground">Clients</h1>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search by name or phone..." value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
-        </div>
-        <div className="flex gap-2">
-          {filters.map(f => (
-            <button key={f} onClick={() => setActiveFilter(f)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${activeFilter === f ? 'bg-[#006D77] text-white' : 'bg-white border border-border text-foreground'}`}>
-              {f}
-            </button>
+      <div className="px-4 pt-4 space-y-5">
+
+        {/* Pending Approvals Banner */}
+        {stats.pendingApprovals > 0 && (
+          <Link href="/admin/approvals">
+            <div className="bg-gradient-to-r from-[#E86500] to-[#E86500]/80 rounded-2xl p-4 flex items-center justify-between shadow-md shadow-[#E86500]/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                  <UserCheck className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{stats.pendingApprovals} Pending Approval{stats.pendingApprovals > 1 ? 's' : ''}</p>
+                  <p className="text-white/80 text-xs">Tap to review new requests</p>
+                </div>
+              </div>
+              <span className="text-white text-xl font-bold">→</span>
+            </div>
+          </Link>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {statCards.map(s => (
+            <div key={s.label} className={`bg-white border border-border ${s.border} border-l-4 rounded-2xl p-4 shadow-sm`}>
+              <s.icon className={`w-5 h-5 mb-2 ${s.color}`} />
+              <p className="text-xl font-bold text-foreground">{loading ? '—' : s.value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
+            </div>
           ))}
         </div>
-      </div>
 
-      <div className="px-4 pt-4 space-y-2">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+        {/* Today */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-sm text-center">
+            <Calendar className="w-5 h-5 text-[#006D77] mx-auto mb-1" />
+            <p className="text-2xl font-bold text-foreground">{loading ? '—' : stats.todayClasses}</p>
+            <p className="text-xs text-muted-foreground">Classes today</p>
           </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center py-12">
-            <Users className="w-10 h-10 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No clients found</p>
-          </div>
-        ) : filtered.map(client => (
-          <button key={client.id} onClick={() => openClient(client)}
-            className="w-full text-left bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-[#006D77]">
-                  {(client.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-foreground text-sm">{client.full_name || '—'}</h4>
-                <p className="text-xs text-muted-foreground">{client.phone}</p>
-              </div>
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                client.status === 'approved' ? 'bg-[#4CAF50]/10 text-[#4CAF50]'
-                : client.status === 'pending' ? 'bg-[#FF9800]/10 text-[#FF9800]'
-                : 'bg-gray-100 text-gray-400'
-              }`}>{client.status}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* Client Detail Sheet */}
-      {selectedClient && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => { setSelectedClient(null); setShowAddPkg(false) }}>
-          <div className="bg-background w-full rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center">
-                    <span className="font-bold text-[#006D77]">
-                      {(selectedClient.full_name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-foreground">{selectedClient.full_name}</h2>
-                    <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
-                  </div>
-                </div>
-                <button onClick={() => { setSelectedClient(null); setShowAddPkg(false) }}
-                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Info */}
-              <div className="bg-white border border-border rounded-2xl p-4 mb-4 space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  <span className="text-sm font-medium text-foreground capitalize">{selectedClient.status}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Joined</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {new Date(selectedClient.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-                {clientPkg && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Active Package</span>
-                    <span className={`text-sm font-medium ${clientPkg.status === 'frozen' ? 'text-[#E86500]' : 'text-[#4CAF50]'}`}>
-                      {clientPkg.sessions_remaining} sessions {clientPkg.status === 'frozen' ? '❄️ Frozen' : 'remaining'}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Add Package section */}
-              {showAddPkg ? (
-                <div className="bg-white border border-[#006D77] rounded-2xl p-4 mb-4 space-y-3">
-                  <p className="text-sm font-semibold text-foreground">Select Package</p>
-                  {packages.map(pkg => (
-                    <button key={pkg.id} onClick={() => setSelectedPkgId(pkg.id)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-all ${selectedPkgId === pkg.id ? 'border-[#006D77] bg-[#006D77]/5' : 'border-border'}`}>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-foreground">{pkg.name}</p>
-                        <p className="text-xs text-muted-foreground">{pkg.session_count} sessions · {pkg.validity_days} days</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#006D77]">{pkg.price} EGP</span>
-                        {selectedPkgId === pkg.id && <Check className="w-4 h-4 text-[#006D77]" />}
-                      </div>
-                    </button>
-                  ))}
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={() => setShowAddPkg(false)}
-                      className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
-                      Cancel
-                    </button>
-                    <button onClick={handleAddPkg} disabled={saving}
-                      className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Confirm</>}
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => setShowAddPkg(!showAddPkg)}
-                  className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
-                  <Plus className="w-5 h-5 text-[#006D77]" />
-                  <span className="text-[10px] font-medium text-foreground">Add Pkg</span>
-                </button>
-                <button onClick={handleFreeze} disabled={!clientPkg || saving}
-                  className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors disabled:opacity-40">
-                  {saving ? <Loader2 className="w-5 h-5 text-[#E86500] animate-spin" />
-                    : <Snowflake className="w-5 h-5 text-[#E86500]" />}
-                  <span className="text-[10px] font-medium text-foreground">
-                    {clientPkg?.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                  </span>
-                </button>
-                <a href={`https://wa.me/${(selectedClient.phone || '').replace(/[^0-9]/g, '')}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
-                  <MessageCircle className="w-5 h-5 text-[#4CAF50]" />
-                  <span className="text-[10px] font-medium text-foreground">WhatsApp</span>
-                </a>
-              </div>
-            </div>
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-sm text-center">
+            <CheckCircle className="w-5 h-5 text-[#E86500] mx-auto mb-1" />
+            <p className="text-2xl font-bold text-foreground">{loading ? '—' : stats.weekBookings}</p>
+            <p className="text-xs text-muted-foreground">Bookings this week</p>
           </div>
         </div>
-      )}
 
-      <AdminBottomNav activePage="clients" />
+        {/* Recent Bookings */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+              <Clock className="w-4 h-4 text-[#006D77]" /> Recent Bookings
+            </h3>
+          </div>
+          {loading ? (
+            <div className="bg-white border border-border rounded-2xl p-4 animate-pulse h-32" />
+          ) : recentBookings.length === 0 ? (
+            <div className="bg-white border border-border rounded-2xl p-6 text-center">
+              <p className="text-sm text-muted-foreground">No bookings yet</p>
+            </div>
+          ) : (
+            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+              {recentBookings.map((b, i) => {
+                const name = (b.client as any)?.full_name || '—'
+                const className = (b.session as any)?.class_type?.name || '—'
+                const time = b.session ? new Date((b.session as any).start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'
+                return (
+                  <div key={b.id} className={`flex items-center gap-3 px-4 py-3 ${i < recentBookings.length - 1 ? 'border-b border-border' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#E0EEF0] flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#006D77]">{name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                      <p className="text-xs text-muted-foreground">{className} · {time}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      b.status === 'attended' ? 'bg-[#4CAF50]/10 text-[#4CAF50]' : 'bg-[#E0EEF0] text-[#006D77]'
+                    }`}>{b.status}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Alerts */}
+        {!loading && stats.activePackages === 0 && stats.totalClients > 0 && (
+          <div className="bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-2xl p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-[#FF9800] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">No Active Packages</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Add packages to clients from the Clients page</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <AdminBottomNav activePage="dashboard" />
     </main>
   )
 }
