@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -32,6 +32,8 @@ export default function MyPackagePage() {
   const [pkg, setPkg] = useState<ClientPackage | null>(null)
   const [history, setHistory] = useState<BookingHistory[]>([])
   const [freezing, setFreezing] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,6 +96,31 @@ export default function MyPackagePage() {
       }
     } catch { /* silent */ }
     setFreezing(false)
+  }
+
+  const handleCancelPackage = async () => {
+    if (!pkg) return
+    setCancelling(true)
+    try {
+      // Expire the package
+      await supabase.from('client_packages').update({ status: 'expired' }).eq('id', pkg.id)
+
+      // Mark the most recent paid payment as refunded
+      const user = await import('@/lib/auth').then(m => m.getCurrentUser())
+      if (user) {
+        const { data: paidPmt } = await supabase.from('payments')
+          .select('id').eq('client_id', user.id).eq('status', 'paid')
+          .order('paid_at', { ascending: false }).limit(1).maybeSingle()
+        if (paidPmt) {
+          await supabase.from('payments').update({ status: 'refunded' }).eq('id', paidPmt.id)
+        }
+      }
+      setPkg(null)
+    } catch (err) {
+      console.error('Cancel package failed:', err)
+    }
+    setCancelling(false)
+    setShowCancelConfirm(false)
   }
 
   const daysLeft = pkg ? Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0
@@ -172,11 +199,11 @@ export default function MyPackagePage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleFreeze}
                 disabled={freezing}
-                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-colors disabled:opacity-60 ${
+                className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-60 ${
                   pkg.status === 'frozen'
                     ? 'bg-[#006D77] text-white hover:bg-[#004E5C]'
                     : 'border-2 border-[#006D77] text-[#006D77] hover:bg-[#006D77]/5'
@@ -186,10 +213,16 @@ export default function MyPackagePage() {
                 {pkg.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
               </button>
               <Link href="/packages"
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#006D77] text-white font-medium hover:bg-[#004E5C] transition-colors">
+                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
                 <RefreshCw className="w-4 h-4" />
                 Renew
               </Link>
+              <button
+                onClick={() => setShowCancelConfirm(true)}
+                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-[#E53935]/40 text-[#E53935] font-medium text-sm hover:bg-[#E53935]/5 transition-colors">
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
             </div>
 
             {/* Session History */}
@@ -236,6 +269,32 @@ export default function MyPackagePage() {
       </div>
 
       <BottomNav />
+
+      {/* Cancel Package Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setShowCancelConfirm(false)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full bg-[#E53935]/10 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-6 h-6 text-[#E53935]" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground text-center mb-2">Cancel Package?</h3>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              This will cancel your active package and mark your payment as refunded. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCancelConfirm(false)}
+                className="flex-1 py-3 border border-border rounded-xl text-sm font-medium text-foreground">
+                Keep Package
+              </button>
+              <button onClick={handleCancelPackage} disabled={cancelling}
+                className="flex-1 py-3 bg-[#E53935] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
+                {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Yes, Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
