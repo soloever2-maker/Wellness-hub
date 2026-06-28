@@ -15,7 +15,7 @@ import {
   getCredentialsViaBiometric,
 } from '@/lib/biometric'
 
-type Mode = 'login' | 'register' | 'pending'
+type Mode = 'login' | 'register' | 'pending' | 'forgot'
 
 // Floating brand elements (lotus + swirls)
 function FloatingParticles() {
@@ -329,6 +329,10 @@ export default function LoginPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <button type="button" onClick={() => { setMode('forgot'); setError('') }}
+                    className="text-xs text-[#006D77] font-medium mt-1.5 block">
+                    Forgot Password?
+                  </button>
                 </div>
                 <button type="submit" disabled={loading}
                   className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-md disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
@@ -339,6 +343,54 @@ export default function LoginPage() {
               <p className="text-sm text-muted-foreground text-center mt-4">
                 Don&apos;t have an account?{' '}
                 <button onClick={() => { setMode('register'); setError('') }} className="text-[#E86500] font-semibold">Request Access</button>
+              </p>
+            </>
+          )}
+
+          {mode === 'forgot' && (
+            <>
+              <h2 className="text-xl font-bold text-foreground text-center mb-1">Reset Password</h2>
+              <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
+                Enter your phone number and we&apos;ll send Enjy a request to reset it for you.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input type="tel" required value={form.phone}
+                      onChange={e => setForm({ ...form, phone: e.target.value })}
+                      placeholder="01XXXXXXXXX"
+                      className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                  </div>
+                </div>
+
+                <a
+                  href={form.phone.trim()
+                    ? `https://wa.me/201063751653?text=${encodeURIComponent(`Hi Enjy, I forgot my password.\n\nMy phone number: ${form.phone.trim()}\n\nCould you please reset it for me?`)}`
+                    : undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={e => { if (!form.phone.trim()) e.preventDefault() }}
+                  aria-disabled={!form.phone.trim()}
+                  className={`w-full py-3.5 font-semibold rounded-xl shadow-md flex items-center justify-center gap-2 mt-1 transition-colors ${
+                    form.phone.trim()
+                      ? 'bg-[#4CAF50] text-white hover:bg-[#3d8b40]'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  }`}
+                >
+                  Send Request via WhatsApp
+                </a>
+
+                <p className="text-xs text-center text-muted-foreground leading-relaxed">
+                  Enjy will reply with a new password as soon as possible.
+                </p>
+              </div>
+
+              <p className="text-sm text-muted-foreground text-center mt-4">
+                Remembered it?{' '}
+                <button onClick={() => { setMode('login'); setError('') }} className="text-[#E86500] font-semibold">Back to Sign In</button>
               </p>
             </>
           )}
