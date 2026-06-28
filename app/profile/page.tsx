@@ -136,22 +136,40 @@ export default function ProfilePage() {
     }
   }
 
+  // Resize image → base64 (max 200×200, JPEG 80%)
+  const resizeToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new window.Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const MAX = 200
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1)
+        const canvas = document.createElement('canvas')
+        canvas.width  = Math.round(img.width  * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(url)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      img.onerror = reject
+      img.src = url
+    })
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !profile.userId) return
     setAvatarUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const path = `${profile.userId}/avatar.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('avatars')
-        .upload(path, file, { upsert: true, contentType: file.type })
-      if (!upErr) {
-        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-        await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.userId)
-        setAvatarUrl(publicUrl)
-      }
-    } catch {}
+      const base64 = await resizeToBase64(file)
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: base64 })
+        .eq('id', profile.userId)
+      if (!error) setAvatarUrl(base64)
+      else console.error('Avatar save error:', error)
+    } catch (err) {
+      console.error('Avatar upload error:', err)
+    }
     setAvatarUploading(false)
   }
 
