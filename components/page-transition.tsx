@@ -16,7 +16,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
 
     setShow(true)
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => setShow(false), 600)
+    timerRef.current = setTimeout(() => setShow(false), 800)
 
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [pathname])
@@ -25,18 +25,32 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     <>
       {children}
 
-      {/* Transition overlay */}
+      {/* Full-screen transition overlay */}
       <div
-        className={`fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-400 ${
           show ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
-        style={{ background: 'linear-gradient(160deg, rgba(250,250,247,0.96) 0%, rgba(224,238,240,0.96) 50%, rgba(255,217,184,0.96) 100%)' }}
+        style={{
+          background: 'linear-gradient(160deg, rgba(250,250,247,0.97) 0%, rgba(224,238,240,0.97) 50%, rgba(255,217,184,0.97) 100%)',
+        }}
       >
-        <div className={`flex flex-col items-center gap-2 transition-all duration-500 ${
-          show ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
-        }`}>
-          <div className={show ? 'animate-leaf-sway' : ''} style={{ mixBlendMode: 'multiply' }}>
-            <Image src="/icon.png" alt="" width={64} height={64} className="object-contain" />
+        <div
+          className={`flex flex-col items-center gap-4 transition-all duration-500 ${
+            show ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
+          }`}
+        >
+          {/* Logo */}
+          <div className={show ? 'animate-pulse' : ''} style={{ mixBlendMode: 'multiply', animationDuration: '1.5s' }}>
+            <Image src="/icon.png" alt="" width={80} height={80} className="object-contain" priority />
+          </div>
+
+          {/* Loading bar */}
+          <div className="w-32 h-1 bg-[#006D77]/10 rounded-full overflow-hidden">
+            <div
+              className={`h-full bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-full transition-all ease-out ${
+                show ? 'w-full duration-700' : 'w-0 duration-0'
+              }`}
+            />
           </div>
         </div>
       </div>
