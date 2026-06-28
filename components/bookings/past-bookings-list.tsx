@@ -32,10 +32,10 @@ export function PastBookingsList() {
 
       const { data } = await supabase
         .from('bookings')
-        .select('id, status, session:class_sessions(start_time, duration_minutes, class_type:class_types(name))')
+        .select('id, status, session:class_sessions(start_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['attended', 'no_show', 'cancelled'])
-        .order('created_at', { ascending: false })
+        .order('booked_at', { ascending: false })
         .limit(20)
 
       if (data) setBookings(data.filter(b => b.session) as unknown as PastBooking[])
