@@ -109,7 +109,7 @@ export default function AdminClientsPage() {
       client_id: selectedClient.id,
       package_id: selectedPkgId,
       amount: pkg.price,
-      gateway: 'manual',
+      gateway: 'cash',
       status: 'paid',
       paid_at: new Date().toISOString(),
     })
