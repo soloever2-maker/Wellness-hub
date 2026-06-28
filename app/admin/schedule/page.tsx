@@ -207,8 +207,8 @@ export default function AdminSchedulePage() {
 
       {/* Add Session Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setShowAddModal(false)}>
-          <div className="bg-white w-full rounded-t-3xl p-6 space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white w-full rounded-t-3xl px-6 pt-6 pb-28 space-y-4 shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-foreground">Add Class</h3>
               <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
