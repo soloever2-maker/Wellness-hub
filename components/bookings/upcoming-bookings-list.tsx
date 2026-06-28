@@ -13,7 +13,7 @@ type Booking = {
     id: string
     start_time: string
     end_time: string
-    class_type: { name: string; color: string }
+    class_type: { name: string }
   }
 }
 
@@ -29,7 +29,7 @@ export function UpcomingBookingsList() {
 
       const { data } = await supabase
         .from('bookings')
-        .select('id, status, session:class_sessions(id, start_time, duration_minutes, class_type:class_types(name, color))')
+        .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .eq('status', 'confirmed')
         .gte('session.start_time', new Date().toISOString())
