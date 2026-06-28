@@ -1,28 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
-// صفحات الـ back handler مش بيتدخل فيها
 const SKIP_PAGES = ['/login', '/select-role']
-
-// الصفحات الجذر — باك منهم = logout dialog
 const ROOT_PAGES = ['/', '/admin']
 
-// خريطة كل صفحة وأبوها
 const PARENT_MAP: Record<string, string> = {
-  // ── Client pages ──────────────────────────
+  // ── Client ─────────────────────
   '/schedule':      '/',
   '/packages':      '/',
   '/bookings':      '/',
   '/profile':       '/',
   '/my-package':    '/',
   '/notifications': '/',
-  '/class':         '/schedule',   // /class?id=xxx → schedule → home
-
-  // ── Admin pages ───────────────────────────
+  '/class':         '/schedule',
+  // ── Admin ──────────────────────
   '/admin/clients':         '/admin',
   '/admin/attendance':      '/admin',
   '/admin/schedule':        '/admin',
@@ -36,48 +31,59 @@ const PARENT_MAP: Record<string, string> = {
   '/admin/bookings':        '/admin',
 }
 
-function getParent(pathname: string): string {
-  // إزالة الـ query string عشان نطابق صح
-  const base = pathname.split('?')[0]
-
-  // لو موجود في الـ map يرجع أبوه
+function getParent(path: string): string {
+  const base = path.split('?')[0]
   if (PARENT_MAP[base]) return PARENT_MAP[base]
-
-  // fallback: أي صفحة أدمن مش في الـ map → admin home
   if (base.startsWith('/admin/')) return '/admin'
-
-  // أي صفحة تانية → client home
   return '/'
 }
 
 export function BackHandler() {
-  const router   = useRouter()
-  const pathname = usePathname()
-  const [showLogout,  setShowLogout]  = useState(false)
-  const [loggingOut, setLoggingOut]   = useState(false)
+  const router      = useRouter()
+  const pathname    = usePathname()
 
+  // ← ref عشان الـ listener يشوف دايماً الـ pathname الحالي
+  // من غير ما نحتاج نمسحه ونضيفه مع كل تغيير
+  const pathnameRef = useRef(pathname)
+  const [showLogout, setShowLogout] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  // نحدّث الـ ref كل ما الـ pathname يتغير
+  useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
+
+  // ندفع dummy state كل ما الصفحة تتغير
   useEffect(() => {
     if (SKIP_PAGES.includes(pathname)) return
+    window.history.pushState(null, '')
+  }, [pathname])
 
-    // ندفع entry وهمية عشان زرار الـ back يلاقي حاجة يـ"يرجع" منها
-    window.history.pushState({ backHandled: true }, '')
-
+  // ← الـ listener بيتسجل مرة واحدة بس عند mount
+  // وبيفضل شغّال على طول بدون ما يتمسح ويتضاف تاني
+  useEffect(() => {
     const handlePopState = () => {
-      // نعيد الـ trap فوراً
-      window.history.pushState({ backHandled: true }, '')
+      const current = pathnameRef.current
 
-      if (ROOT_PAGES.includes(pathname)) {
-        // على الجذر → اسأل logout
+      // صفحة login → مش بنتدخل
+      if (SKIP_PAGES.includes(current)) return
+
+      // نعيد الـ trap فوراً
+      window.history.pushState(null, '')
+
+      if (ROOT_PAGES.includes(current)) {
+        // على الجذر → logout dialog
         setShowLogout(true)
       } else {
         // روح الأب
-        router.replace(getParent(pathname))
+        router.replace(getParent(current))
       }
     }
 
     window.addEventListener('popstate', handlePopState)
+    // بيتمسح بس لما الـ component يتشال من الـ DOM كلياً (مش مع كل pathname change)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [pathname, router])
+  }, [router]) // ← مش فيه pathname هنا عشان كده
 
   const handleLogout = async () => {
     setLoggingOut(true)
