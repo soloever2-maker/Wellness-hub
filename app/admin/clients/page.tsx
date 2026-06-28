@@ -2,12 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
 
 type Client = {
   id: string
+  auth_id: string
   full_name: string
   phone: string
   email: string
@@ -57,6 +58,10 @@ function AdminClientsPageInner() {
   const [selectedPkgId, setSelectedPkgId] = useState('')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
+  const [showResetPwd, setShowResetPwd] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
+  const [resettingPwd, setResettingPwd] = useState(false)
+  const [lastResetPwd, setLastResetPwd] = useState('')
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -251,6 +256,56 @@ function AdminClientsPageInner() {
     setSaving(false)
   }
 
+  const generatePassword = () => {
+    // Readable random password — no ambiguous chars (0/O, 1/l/I)
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+    let pwd = ''
+    for (let i = 0; i < 8; i++) pwd += chars[Math.floor(Math.random() * chars.length)]
+    setNewPassword(pwd)
+  }
+
+  const openResetPwd = () => {
+    setShowResetPwd(true)
+    setShowAddPkg(false)
+    setLastResetPwd('')
+    generatePassword()
+  }
+
+  const handleResetPassword = async () => {
+    if (!selectedClient || !newPassword) return
+    if (newPassword.length < 6) {
+      showToast('⚠️ Password must be at least 6 characters')
+      return
+    }
+    if (!confirm(`Reset password for ${selectedClient.full_name}? They'll need the new password to sign in.`)) return
+
+    setResettingPwd(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({
+          client_auth_id: selectedClient.auth_id,
+          new_password: newPassword,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Reset failed')
+
+      setLastResetPwd(newPassword)
+      showToast('✓ Password reset successfully')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Reset failed'
+      showToast(`⚠️ ${msg}`)
+    } finally {
+      setResettingPwd(false)
+    }
+  }
+
   const handleFreeze = async () => {
     if (!clientPkg) return
     setSaving(true)
@@ -349,7 +404,7 @@ function AdminClientsPageInner() {
 
       {/* Client Detail Sheet */}
       {selectedClient && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => { setSelectedClient(null); setShowAddPkg(false) }}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => { setSelectedClient(null); setShowAddPkg(false); setShowResetPwd(false); setLastResetPwd('') }}>
           <div className="bg-background w-full rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-5">
@@ -364,7 +419,7 @@ function AdminClientsPageInner() {
                     <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
                   </div>
                 </div>
-                <button onClick={() => { setSelectedClient(null); setShowAddPkg(false) }}
+                <button onClick={() => { setSelectedClient(null); setShowAddPkg(false); setShowResetPwd(false); setLastResetPwd('') }}
                   className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                   <X className="w-4 h-4" />
                 </button>
@@ -422,9 +477,67 @@ function AdminClientsPageInner() {
                 </div>
               ) : null}
 
+              {/* Reset Password section */}
+              {showResetPwd ? (
+                <div className="bg-white border border-[#006D77] rounded-2xl p-4 mb-4 space-y-3">
+                  <p className="text-sm font-semibold text-foreground">Reset Password</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Set a new password for {selectedClient.full_name}, then send it to them on WhatsApp.
+                  </p>
+
+                  {lastResetPwd ? (
+                    <>
+                      <div className="bg-[#4CAF50]/10 border border-[#4CAF50]/30 rounded-xl p-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] text-muted-foreground mb-0.5">New password</p>
+                          <p className="text-sm font-bold text-foreground tracking-wide">{lastResetPwd}</p>
+                        </div>
+                        <button onClick={() => { navigator.clipboard.writeText(lastResetPwd); showToast('Copied ✓') }}
+                          className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center shrink-0">
+                          <Copy className="w-3.5 h-3.5 text-foreground" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => { setShowResetPwd(false); setLastResetPwd('') }}
+                          className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
+                          Done
+                        </button>
+                        <a href={`https://wa.me/${(selectedClient.phone || '').replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi ${selectedClient.full_name}, your password has been reset.\n\nNew password: ${lastResetPwd}\n\nPlease use it to sign in — you can change it anytime from your profile.`)}`}
+                          target="_blank" rel="noopener noreferrer"
+                          className="flex-1 py-2.5 bg-[#4CAF50] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5">
+                          <MessageCircle className="w-4 h-4" /> Send on WhatsApp
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <input type="text" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                          placeholder="New password"
+                          className="w-full bg-background border border-border rounded-xl pl-4 pr-10 py-3 text-sm font-medium tracking-wide focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                        <button type="button" onClick={generatePassword} title="Generate new"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-[#006D77]">
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => setShowResetPwd(false)}
+                          className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
+                          Cancel
+                        </button>
+                        <button onClick={handleResetPassword} disabled={resettingPwd || newPassword.length < 6}
+                          className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
+                          {resettingPwd ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Confirm Reset</>}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
               {/* Action Buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                <button onClick={() => setShowAddPkg(!showAddPkg)}
+              <div className="grid grid-cols-5 gap-2">
+                <button onClick={() => { setShowAddPkg(!showAddPkg); setShowResetPwd(false) }}
                   className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
                   <Plus className="w-5 h-5 text-[#006D77]" />
                   <span className="text-[10px] font-medium text-foreground">Add Pkg</span>
@@ -442,6 +555,11 @@ function AdminClientsPageInner() {
                   <Trash2 className="w-5 h-5 text-[#E53935]" />
                   <span className="text-[10px] font-medium text-[#E53935]">Remove Pkg</span>
                 </button>
+                <button onClick={openResetPwd}
+                  className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
+                  <KeyRound className="w-5 h-5 text-[#006D77]" />
+                  <span className="text-[10px] font-medium text-foreground">Reset Pwd</span>
+                </button>
                 <a href={`https://wa.me/${(selectedClient.phone || '').replace(/[^0-9]/g, '')}`}
                   target="_blank" rel="noopener noreferrer"
                   className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
@@ -449,6 +567,7 @@ function AdminClientsPageInner() {
                   <span className="text-[10px] font-medium text-foreground">WhatsApp</span>
                 </a>
               </div>
+
 
               {/* Payments History */}
               {clientPayments.length > 0 && (
