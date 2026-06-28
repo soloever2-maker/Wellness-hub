@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw } from 'lucide-react'
+import { ConfirmModal } from '@/components/confirm-modal'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
 
@@ -54,6 +55,9 @@ function AdminClientsPageInner() {
   const [clientPkg, setClientPkg] = useState<ClientPackageInfo | null>(null)
   const [clientPayments, setClientPayments] = useState<PaymentRecord[]>([])
   const [refundingId, setRefundingId] = useState<string | null>(null)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [confirmRefundId, setConfirmRefundId] = useState<string | null>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showAddPkg, setShowAddPkg] = useState(false)
   const [selectedPkgId, setSelectedPkgId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -126,7 +130,7 @@ function AdminClientsPageInner() {
 
   const handleRemovePkg = async () => {
     if (!clientPkg) return
-    if (!confirm('Remove this package? This cannot be undone.')) return
+    setShowRemoveConfirm(false)
     setSaving(true)
     await supabase.from('client_packages')
       .update({ status: 'expired' })
@@ -137,7 +141,7 @@ function AdminClientsPageInner() {
   }
 
   const handleRefundPayment = async (paymentId: string) => {
-    if (!confirm('Mark this payment as refunded?')) return
+    setConfirmRefundId(null)
     setRefundingId(paymentId)
     const { error } = await supabase.from('payments')
       .update({ status: 'refunded' })
@@ -277,8 +281,7 @@ function AdminClientsPageInner() {
       showToast('⚠️ Password must be at least 6 characters')
       return
     }
-    if (!confirm(`Reset password for ${selectedClient.full_name}? They'll need the new password to sign in.`)) return
-
+    setShowResetConfirm(false)
     setResettingPwd(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -525,7 +528,7 @@ function AdminClientsPageInner() {
                           className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
                           Cancel
                         </button>
-                        <button onClick={handleResetPassword} disabled={resettingPwd || newPassword.length < 6}
+                        <button onClick={() => setShowResetConfirm(true)} disabled={resettingPwd || newPassword.length < 6}
                           className="flex-1 py-2.5 bg-[#006D77] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-60">
                           {resettingPwd ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4" /> Confirm Reset</>}
                         </button>
@@ -550,7 +553,7 @@ function AdminClientsPageInner() {
                     {clientPkg?.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                   </span>
                 </button>
-                <button onClick={handleRemovePkg} disabled={!clientPkg || saving}
+                <button onClick={() => setShowRemoveConfirm(true)} disabled={!clientPkg || saving}
                   className="flex flex-col items-center gap-1.5 py-3 bg-white border border-[#E53935]/30 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40">
                   <Trash2 className="w-5 h-5 text-[#E53935]" />
                   <span className="text-[10px] font-medium text-[#E53935]">Remove Pkg</span>
@@ -600,7 +603,7 @@ function AdminClientsPageInner() {
                           </span>
                           {p.status === 'paid' && (
                             <button
-                              onClick={() => handleRefundPayment(p.id)}
+                              onClick={() => setConfirmRefundId(p.id)}
                               disabled={refundingId === p.id}
                               className="w-7 h-7 rounded-full bg-[#E53935]/10 flex items-center justify-center hover:bg-[#E53935]/20 transition-colors disabled:opacity-50 shrink-0"
                               title="Mark as refunded"
@@ -622,6 +625,38 @@ function AdminClientsPageInner() {
       )}
 
       <AdminBottomNav activePage="clients" />
+
+      <ConfirmModal
+        open={showRemoveConfirm}
+        title="Remove Package?"
+        message="This will expire the client's active package. This cannot be undone."
+        confirmLabel="Remove"
+        destructive
+        loading={saving}
+        onCancel={() => setShowRemoveConfirm(false)}
+        onConfirm={handleRemovePkg}
+      />
+
+      <ConfirmModal
+        open={!!confirmRefundId}
+        title="Refund Payment?"
+        message="This will mark the payment as refunded."
+        confirmLabel="Yes, Refund"
+        destructive
+        loading={!!refundingId}
+        onCancel={() => setConfirmRefundId(null)}
+        onConfirm={() => confirmRefundId && handleRefundPayment(confirmRefundId)}
+      />
+
+      <ConfirmModal
+        open={showResetConfirm}
+        title="Reset Password?"
+        message={selectedClient ? `Reset password for ${selectedClient.full_name}? They'll need the new password to sign in.` : ''}
+        confirmLabel="Reset Password"
+        onCancel={() => setShowResetConfirm(false)}
+        onConfirm={handleResetPassword}
+        loading={resettingPwd}
+      />
     </main>
   )
 }
