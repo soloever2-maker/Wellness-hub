@@ -404,8 +404,8 @@ export default function ProfilePage() {
 
         {/* Biometric Setup Modal */}
         {showBiometricSetup && (
-          <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
-            <div className="bg-white rounded-t-3xl w-full max-w-sm p-6 shadow-xl max-h-[90vh] overflow-y-auto pb-safe">
+          <div className="fixed inset-0 bg-black/40 z-[150] flex items-end justify-center">
+            <div className="bg-white rounded-t-3xl w-full max-w-sm px-6 pt-6 pb-28 shadow-xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-foreground">Enable Biometrics</h3>
                 <button onClick={() => setShowBiometricSetup(false)} className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
