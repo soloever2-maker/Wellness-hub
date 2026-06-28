@@ -37,6 +37,20 @@ type ExpiringPkg = {
   client: { full_name: string }
 }
 
+type TodaySession = {
+  id: string
+  start_time: string
+  end_time: string
+  max_capacity: number
+  booked_count: number
+  class_type: { name: string }
+}
+
+const CLASS_EMOJI: Record<string, string> = {
+  'Power Yoga': '🔥', 'Mat Pilates': '💪', 'Gentle Yoga & Recovery': '🧘',
+  'Belly Rhythmic Dancing': '💃', 'Aqua Aerobics': '🌊',
+}
+
 type BookingRow = {
   id: string; status: string; booked_at: string
   client:  { full_name: string }
@@ -107,6 +121,7 @@ export default function AdminDashboardPage() {
   const [pendingReqs, setPendingReqs]     = useState<PendingRequest[]>([])
   const [recentBooks, setRecentBooks]     = useState<RecentBooking[]>([])
   const [expiring, setExpiring]           = useState<ExpiringPkg[]>([])
+  const [todaySessions, setTodaySessions] = useState<TodaySession[]>([])
 
   // ── Bookings tab state ──────────────────────────────────────
   const [bMonth, setBMonth]               = useState(new Date())
@@ -181,6 +196,19 @@ export default function AdminDashboardPage() {
           .gt('expiry_date', new Date().toISOString())
           .order('expiry_date')
         if (data) setExpiring(data as unknown as ExpiringPkg[])
+      } catch {}
+
+      // 6. Today's sessions (agenda)
+      try {
+        const dayStart = new Date(); dayStart.setHours(0,0,0,0)
+        const dayEnd = new Date(); dayEnd.setHours(23,59,59,999)
+        const { data } = await supabase.from('class_sessions')
+          .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name)')
+          .eq('is_cancelled', false)
+          .gte('start_time', dayStart.toISOString())
+          .lte('start_time', dayEnd.toISOString())
+          .order('start_time')
+        if (data) setTodaySessions(data as unknown as TodaySession[])
       } catch {}
 
       setStatsLoading(false)
@@ -398,6 +426,51 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-muted-foreground">Bookings this week</p>
             </div>
           </div>
+
+          {/* Today's Agenda */}
+          {!statsLoading && todaySessions.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[#006D77]" />
+                  <h3 className="text-sm font-semibold text-foreground">Today&apos;s Agenda</h3>
+                </div>
+                <Link href="/admin/attendance" className="text-xs font-medium text-[#006D77]">
+                  Mark Attendance →
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {todaySessions.map(s => {
+                  const name = (s.class_type as any)?.name || 'Class'
+                  const emoji = CLASS_EMOJI[name] || '🧘'
+                  const time = new Date(s.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                  const endTime = new Date(s.end_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+                  const spotsLeft = s.max_capacity - s.booked_count
+                  const isFull = spotsLeft <= 0
+                  const isPast = new Date(s.end_time) < new Date()
+                  return (
+                    <Link key={s.id} href="/admin/attendance" className="block">
+                      <div className={`bg-white border border-border rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow ${isPast ? 'opacity-50' : ''}`}>
+                        <span className="text-2xl">{emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground text-sm">{name}</p>
+                          <p className="text-xs text-muted-foreground">{time} – {endTime}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-foreground">{s.booked_count}/{s.max_capacity}</p>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            isFull ? 'bg-[#E53935]/10 text-[#E53935]' : isPast ? 'bg-gray-100 text-gray-400' : 'bg-[#E0EEF0] text-[#006D77]'
+                          }`}>
+                            {isPast ? 'Done' : isFull ? 'Full' : `${spotsLeft} spots`}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Expiring soon */}
           {!statsLoading && expiring.length > 0 && (
