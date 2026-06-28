@@ -1,209 +1,332 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock, UserCheck, TrendingUp, Package, ChevronLeft, ChevronRight, BarChart2, CreditCard } from 'lucide-react'
-import { AdminBottomNav } from '@/components/admin-bottom-nav'
-import { UserMenu } from '@/components/user-menu'
-import { getCurrentUser } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
+import {
+  Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock,
+  UserCheck, TrendingUp, Package, ChevronLeft, ChevronRight,
+  BarChart2, CreditCard, Zap, AlertCircle, RefreshCw
+} from 'lucide-react'
+import { AdminBottomNav }  from '@/components/admin-bottom-nav'
+import { UserMenu }        from '@/components/user-menu'
+import { getCurrentUser }  from '@/lib/auth'
+import { supabase }        from '@/lib/supabase'
+import Link                from 'next/link'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Stats = {
   totalClients: number; pendingApprovals: number; activePackages: number
-  totalRevenue: number; todayClasses: number; weekBookings: number; attendanceRate: number
+  totalRevenue: number; todayClasses: number; weekBookings: number
+  attended: number; totalMarked: number
 }
-type RecentBooking = {
-  id: string; status: string; booked_at: string
-  client: { full_name: string }
-  session: { start_time: string; class_type: { name: string } }
-}
+
 type PendingRequest = {
   id: string; amount: number; created_at: string
-  client: { id: string; full_name: string }
+  client:  { id: string; full_name: string }
   package: { id: string; name: string }
 }
-type BookingRow = {
+
+type RecentBooking = {
   id: string; status: string; booked_at: string
-  client: { full_name: string }
+  client:  { full_name: string }
   session: { start_time: string; class_type: { name: string } } | null
 }
-type PaymentRow = {
-  id: string; amount: number; paid_at: string; status: string
+
+type ExpiringPkg = {
+  id: string; expiry_date: string; sessions_remaining: number
   client: { full_name: string }
+}
+
+type BookingRow = {
+  id: string; status: string; booked_at: string
+  client:  { full_name: string }
+  session: { start_time: string; class_type: { name: string } } | null
+}
+
+type PaymentRow = {
+  id: string; amount: number; status: string
+  paid_at: string | null; created_at: string
+  client:  { full_name: string }
   package: { name: string }
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  confirmed: 'bg-[#006D77]/10 text-[#006D77]',
-  attended:  'bg-[#4CAF50]/10 text-[#4CAF50]',
-  no_show:   'bg-[#E53935]/10 text-[#E53935]',
-  cancelled: 'bg-gray-100 text-gray-500',
-  waiting:   'bg-[#FF9800]/10 text-[#FF9800]',
-}
-
-function monthRange(d: Date) {
-  const start = new Date(d.getFullYear(), d.getMonth(), 1)
-  const end   = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-  return { start: start.toISOString(), end: end.toISOString() }
-}
-function fmtMonth(d: Date) {
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-}
-function fmtDate(s: string) {
-  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-function fmtDateTime(s: string) {
-  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-}
-function initials(name: string) {
-  return (name || '?').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 }
 
 type Tab = 'overview' | 'bookings' | 'revenue'
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const STATUS_COLOR: Record<string, string> = {
+  confirmed: 'bg-[#006D77]/10 text-[#006D77]',
+  attended:  'bg-[#4CAF50]/10 text-[#4CAF50]',
+  no_show:   'bg-[#E53935]/10 text-[#E53935]',
+  cancelled: 'bg-gray-100      text-gray-400',
+  waiting:   'bg-[#FF9800]/10 text-[#FF9800]',
+}
+
+function initials(name = '') {
+  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
+
+function fmtDate(s: string) {
+  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function fmtDateTime(s: string) {
+  return new Date(s).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
+}
+
+function fmtMonth(d: Date) {
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function monthBounds(d: Date) {
+  const start = new Date(d.getFullYear(), d.getMonth(), 1)
+  const end   = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+function daysLeft(iso: string) {
+  const diff = new Date(iso).getTime() - Date.now()
+  return Math.max(0, Math.ceil(diff / 86_400_000))
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function AdminDashboardPage() {
-  const [firstName, setFirstName]     = useState('')
-  const [loading, setLoading]         = useState(true)
-  const [activeTab, setActiveTab]     = useState<Tab>('overview')
 
-  // Overview data
-  const [stats, setStats]                   = useState<Stats>({ totalClients:0, pendingApprovals:0, activePackages:0, totalRevenue:0, todayClasses:0, weekBookings:0, attendanceRate:0 })
-  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([])
+  // ── Shared state ────────────────────────────────────────────
+  const [firstName, setFirstName] = useState('')
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const today = new Date()
 
-  // Bookings tab data
-  const [bMonth, setBMonth]             = useState(new Date())
-  const [classTypes, setClassTypes]     = useState<string[]>([])
-  const [classFilter, setClassFilter]   = useState('All')
-  const [allBookings, setAllBookings]   = useState<BookingRow[]>([])
-  const [bLoading, setBLoading]         = useState(false)
+  // ── Overview state ──────────────────────────────────────────
+  const [statsLoading, setStatsLoading]   = useState(true)
+  const [stats, setStats]                 = useState<Stats>({ totalClients:0, pendingApprovals:0, activePackages:0, totalRevenue:0, todayClasses:0, weekBookings:0, attended:0, totalMarked:0 })
+  const [monthRevOvr, setMonthRevOvr]     = useState(0)   // revenue this month (for overview card)
+  const [pendingReqs, setPendingReqs]     = useState<PendingRequest[]>([])
+  const [recentBooks, setRecentBooks]     = useState<RecentBooking[]>([])
+  const [expiring, setExpiring]           = useState<ExpiringPkg[]>([])
 
-  // Revenue tab data
-  const [rMonth, setRMonth]             = useState(new Date())
-  const [payments, setPayments]         = useState<PaymentRow[]>([])
-  const [rLoading, setRLoading]         = useState(false)
+  // ── Bookings tab state ──────────────────────────────────────
+  const [bMonth, setBMonth]               = useState(new Date())
+  const [bLoading, setBLoading]           = useState(false)
+  const [allBookings, setAllBookings]     = useState<BookingRow[]>([])
+  const [classTypes, setClassTypes]       = useState<string[]>([])
+  const [classFilter, setClassFilter]     = useState('All')
 
-  const today    = new Date()
-  const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  // ── Revenue tab state ───────────────────────────────────────
+  const [rMonth, setRMonth]               = useState(new Date())
+  const [rLoading, setRLoading]           = useState(false)
+  const [payments, setPayments]           = useState<PaymentRow[]>([])
 
-  // ── Overview fetch ────────────────────────────────────────────
+  const todayStr = today.toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+
+  // ── Overview fetch ───────────────────────────────────────────
   useEffect(() => {
-    getCurrentUser().then(u => { if (u?.full_name) setFirstName(u.full_name.split(' ')[0]) })
-    const fetchOverview = async () => {
+    getCurrentUser().then(u => {
+      if (u?.full_name) setFirstName(u.full_name.split(' ')[0])
+    })
+
+    const run = async () => {
+      setStatsLoading(true)
+
+      // 1. RPC stats
       try {
-        const statsResult = await supabase.rpc('get_dashboard_stats')
-        if (statsResult.data) {
-          const d = statsResult.data as Record<string, number>
-          const attended = d.attended || 0, totalMarked = d.totalMarked || 0
-          setStats({ totalClients: d.totalClients||0, pendingApprovals: d.pendingApprovals||0, activePackages: d.activePackages||0, totalRevenue: d.totalRevenue||0, todayClasses: d.todayClasses||0, weekBookings: d.weekBookings||0, attendanceRate: totalMarked > 0 ? Math.round((attended/totalMarked)*100) : 0 })
-        }
+        const { data } = await supabase.rpc('get_dashboard_stats')
+        if (data) setStats(data as Stats)
       } catch {}
+
+      // 2. Monthly revenue for current month (overview card)
       try {
-        const { data } = await supabase.from('bookings')
-          .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
-          .in('status', ['confirmed','attended']).order('booked_at', { ascending: false }).limit(5)
-        if (data) setRecentBookings(data as unknown as RecentBooking[])
+        const { start, end } = monthBounds(new Date())
+        const { data } = await supabase.from('payments')
+          .select('amount')
+          .eq('status', 'paid')
+          .gte('paid_at', start)
+          .lt('paid_at', end)
+        if (data) setMonthRevOvr(data.reduce((s, r) => s + Number(r.amount), 0))
       } catch {}
+
+      // 3. Pending package requests
       try {
         const { data } = await supabase.from('payments')
           .select('id, amount, created_at, client:users!client_id(id, full_name), package:packages!package_id(id, name)')
-          .eq('status','pending').order('created_at', { ascending: false }).limit(10)
-        if (data) setPendingRequests(data as unknown as PendingRequest[])
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        if (data) setPendingReqs(data as unknown as PendingRequest[])
       } catch {}
-      setLoading(false)
+
+      // 4. Recent bookings (last 5)
+      try {
+        const { data } = await supabase.from('bookings')
+          .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+          .in('status', ['confirmed', 'attended'])
+          .order('booked_at', { ascending: false })
+          .limit(5)
+        if (data) setRecentBooks(data as unknown as RecentBooking[])
+      } catch {}
+
+      // 5. Expiring packages within 7 days
+      try {
+        const in7 = new Date()
+        in7.setDate(in7.getDate() + 7)
+        const { data } = await supabase.from('client_packages')
+          .select('id, expiry_date, sessions_remaining, client:users!client_id(full_name)')
+          .eq('status', 'active')
+          .lte('expiry_date', in7.toISOString())
+          .gt('expiry_date', new Date().toISOString())
+          .order('expiry_date')
+        if (data) setExpiring(data as unknown as ExpiringPkg[])
+      } catch {}
+
+      setStatsLoading(false)
     }
-    fetchOverview()
+
+    run()
   }, [])
 
-  // ── Bookings tab fetch ────────────────────────────────────────
+  // ── Bookings fetch ───────────────────────────────────────────
   const fetchBookings = useCallback(async () => {
     setBLoading(true)
-    const { start, end } = monthRange(bMonth)
-    const { data } = await supabase.from('bookings')
-      .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
-      .gte('booked_at', start).lt('booked_at', end)
-      .order('booked_at', { ascending: false })
-    if (data) {
-      setAllBookings(data as unknown as BookingRow[])
+    try {
+      const { start, end } = monthBounds(bMonth)
+      const { data, error } = await supabase.from('bookings')
+        .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+        .gte('booked_at', start)
+        .lt('booked_at', end)
+        .order('booked_at', { ascending: false })
+
+      if (error) throw error
+      const rows = (data ?? []) as unknown as BookingRow[]
+      setAllBookings(rows)
+
+      // Unique class types from results (client-side — never filter on joined columns)
       const types = Array.from(new Set(
-        data.map((b: any) => b.session?.class_type?.name).filter(Boolean)
+        rows.map(b => b.session?.class_type?.name).filter(Boolean)
       )) as string[]
       setClassTypes(types)
+      setClassFilter('All')
+    } catch (err) {
+      console.error('Bookings fetch error:', err)
     }
     setBLoading(false)
   }, [bMonth])
 
   useEffect(() => { if (activeTab === 'bookings') fetchBookings() }, [activeTab, fetchBookings])
 
-  // ── Revenue tab fetch ─────────────────────────────────────────
+  // ── Revenue fetch ────────────────────────────────────────────
   const fetchRevenue = useCallback(async () => {
     setRLoading(true)
-    const { start, end } = monthRange(rMonth)
-    const { data } = await supabase.from('payments')
-      .select('id, amount, status, paid_at, client:users!client_id(full_name), package:packages!package_id(name)')
-      .eq('status','paid').gte('paid_at', start).lt('paid_at', end)
-      .order('paid_at', { ascending: false })
-    if (data) setPayments(data as unknown as PaymentRow[])
+    try {
+      const { start, end } = monthBounds(rMonth)
+      const { data, error } = await supabase.from('payments')
+        .select('id, amount, status, paid_at, created_at, client:users!client_id(full_name), package:packages!package_id(name)')
+        .eq('status', 'paid')
+        .gte('paid_at', start)
+        .lt('paid_at', end)
+        .order('paid_at', { ascending: false })
+
+      if (error) throw error
+      setPayments((data ?? []) as unknown as PaymentRow[])
+    } catch (err) {
+      console.error('Revenue fetch error:', err)
+    }
     setRLoading(false)
   }, [rMonth])
 
   useEffect(() => { if (activeTab === 'revenue') fetchRevenue() }, [activeTab, fetchRevenue])
 
-  // ── Derived data ─────────────────────────────────────────────
+  // ── Derived / computed ───────────────────────────────────────
+
+  const attendanceRate = stats.totalMarked > 0
+    ? Math.round((stats.attended / stats.totalMarked) * 100)
+    : null
+
+  // Bookings filtered by class type (client-side only)
   const filteredBookings = classFilter === 'All'
     ? allBookings
-    : allBookings.filter(b => (b.session as any)?.class_type?.name === classFilter)
+    : allBookings.filter(b => b.session?.class_type?.name === classFilter)
 
+  // Class popularity (from current month bookings)
   const classCounts = allBookings.reduce((acc, b) => {
-    const name = (b.session as any)?.class_type?.name
+    const name = b.session?.class_type?.name
     if (name) acc[name] = (acc[name] || 0) + 1
     return acc
   }, {} as Record<string, number>)
+  const popularClasses = Object.entries(classCounts).sort((a, b) => b[1] - a[1])
 
-  const popularClasses = Object.entries(classCounts).sort((a,b) => b[1]-a[1])
-  const monthRevenue   = payments.reduce((s, p) => s + Number(p.amount), 0)
+  // Booking status breakdown
+  const bookingBreakdown = ['confirmed','attended','no_show','cancelled'].map(s => ({
+    status: s,
+    count:  allBookings.filter(b => b.status === s).length,
+  }))
 
-  const statCards = [
-    { icon: Users,      label: 'Total Clients',  value: stats.totalClients,                                           color: 'text-[#006D77]', border: 'border-l-[#006D77]' },
-    { icon: Package,    label: 'Active Packages', value: stats.activePackages,                                         color: 'text-[#E86500]', border: 'border-l-[#E86500]' },
-    { icon: DollarSign, label: 'Total Revenue',   value: `${stats.totalRevenue.toLocaleString()} EGP`,                color: 'text-[#006D77]', border: 'border-l-[#006D77]' },
-    { icon: TrendingUp, label: 'Attendance Rate', value: stats.attendanceRate > 0 ? `${stats.attendanceRate}%` : '—', color: 'text-[#E86500]', border: 'border-l-[#E86500]' },
+  // Revenue by package (group client-side)
+  const revByPkg = payments.reduce((acc, p) => {
+    const name = (p.package as any)?.name || 'Unknown'
+    acc[name] = (acc[name] || 0) + Number(p.amount)
+    return acc
+  }, {} as Record<string, number>)
+  const revByPkgEntries = Object.entries(revByPkg).sort((a, b) => b[1] - a[1])
+
+  const monthTotal = payments.reduce((s, p) => s + Number(p.amount), 0)
+  const avgRevPerClient = stats.totalClients > 0
+    ? Math.round(monthTotal / stats.totalClients)
+    : 0
+
+  const isCurrentMonth = (d: Date) =>
+    d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth()
+
+  // ── Month navigation helpers ─────────────────────────────────
+  const prevBMonth = () => setBMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
+  const nextBMonth = () => setBMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
+  const prevRMonth = () => setRMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
+  const nextRMonth = () => setRMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
+
+  const tabs = [
+    { key: 'overview' as Tab, label: 'Overview',  Icon: CheckCircle },
+    { key: 'bookings' as Tab, label: 'Bookings',  Icon: BarChart2   },
+    { key: 'revenue'  as Tab, label: 'Revenue',   Icon: CreditCard  },
   ]
 
-  const tabs: { key: Tab; label: string; icon: typeof BarChart2 }[] = [
-    { key: 'overview', label: 'Overview', icon: CheckCircle },
-    { key: 'bookings', label: 'Bookings', icon: BarChart2   },
-    { key: 'revenue',  label: 'Revenue',  icon: CreditCard  },
-  ]
-
+  // ── Render ────────────────────────────────────────────────────
   return (
     <main className="bg-background min-h-screen pb-24">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4">
-        <div className="flex items-center justify-between mb-3">
+
+      {/* ── Sticky header + tab bar ── */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 space-y-3">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Hi {firstName || 'Enjy'} 👋 — {todayStr}</p>
+            <h1 className="text-xl font-bold text-foreground leading-none">Dashboard</h1>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Hi {firstName || 'Enjy'} 👋 — {todayStr}</p>
           </div>
           <UserMenu variant="admin" />
         </div>
-        {/* Tabs */}
-        <div className="flex gap-1 bg-muted/40 p-1 rounded-xl">
-          {tabs.map(t => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === t.key ? 'bg-white text-[#006D77] shadow-sm' : 'text-muted-foreground'}`}>
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
+        <div className="flex gap-1 bg-muted/50 p-1 rounded-xl">
+          {tabs.map(({ key, label, Icon }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === key ? 'bg-white text-[#006D77] shadow-sm' : 'text-muted-foreground'
+              }`}>
+              <Icon className="w-3.5 h-3.5" />
+              {label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
+      <div className="px-4 pt-4 space-y-4">
 
-        {/* ══ OVERVIEW TAB ══════════════════════════════════════ */}
+        {/* ════════════════════════════════════════════════════════
+            OVERVIEW TAB
+        ════════════════════════════════════════════════════════ */}
         {activeTab === 'overview' && (<>
 
+          {/* Pending approvals banner */}
           {stats.pendingApprovals > 0 && (
             <Link href="/admin/approvals">
               <div className="bg-gradient-to-r from-[#E86500] to-[#E86500]/80 rounded-2xl p-4 flex items-center justify-between shadow-md shadow-[#E86500]/20">
@@ -213,162 +336,252 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <p className="text-white font-bold text-sm">{stats.pendingApprovals} Pending Approval{stats.pendingApprovals > 1 ? 's' : ''}</p>
-                    <p className="text-white/80 text-xs">Tap to review new requests</p>
+                    <p className="text-white/80 text-xs">Tap to review</p>
                   </div>
                 </div>
-                <span className="text-white text-xl font-bold">→</span>
+                <span className="text-white text-lg">→</span>
               </div>
             </Link>
           )}
 
+          {/* Stat cards — 2×2 grid */}
           <div className="grid grid-cols-2 gap-3">
-            {statCards.map(s => (
-              <div key={s.label} className={`bg-white border border-border ${s.border} border-l-4 rounded-2xl p-4 shadow-sm`}>
-                <s.icon className={`w-5 h-5 mb-2 ${s.color}`} />
-                <p className="text-xl font-bold text-foreground">{loading ? '—' : s.value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
-              </div>
-            ))}
+
+            {/* Total Clients */}
+            <div className="bg-white border border-border border-l-4 border-l-[#006D77] rounded-2xl p-4 shadow-sm">
+              <Users className="w-4 h-4 text-[#006D77] mb-2" />
+              <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.totalClients}</p>
+              <p className="text-xs text-muted-foreground">Total Clients</p>
+            </div>
+
+            {/* Active Packages */}
+            <div className="bg-white border border-border border-l-4 border-l-[#E86500] rounded-2xl p-4 shadow-sm">
+              <Package className="w-4 h-4 text-[#E86500] mb-2" />
+              <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.activePackages}</p>
+              <p className="text-xs text-muted-foreground">Active Packages</p>
+            </div>
+
+            {/* This month revenue */}
+            <div className="bg-white border border-border border-l-4 border-l-[#006D77] rounded-2xl p-4 shadow-sm">
+              <DollarSign className="w-4 h-4 text-[#006D77] mb-2" />
+              <p className="text-2xl font-bold text-foreground leading-tight">
+                {statsLoading ? '—' : `${monthRevOvr.toLocaleString()}`}
+              </p>
+              <p className="text-xs text-muted-foreground">Revenue this month</p>
+              {!statsLoading && stats.totalRevenue > 0 && (
+                <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  {stats.totalRevenue.toLocaleString()} EGP all-time
+                </p>
+              )}
+            </div>
+
+            {/* Attendance Rate */}
+            <div className="bg-white border border-border border-l-4 border-l-[#E86500] rounded-2xl p-4 shadow-sm">
+              <TrendingUp className="w-4 h-4 text-[#E86500] mb-2" />
+              <p className="text-2xl font-bold text-foreground">
+                {statsLoading ? '—' : attendanceRate !== null ? `${attendanceRate}%` : '—'}
+              </p>
+              <p className="text-xs text-muted-foreground">Attendance Rate</p>
+            </div>
           </div>
 
+          {/* Classes today / Bookings this week */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-white border border-border rounded-2xl p-4 shadow-sm text-center">
-              <Calendar className="w-5 h-5 text-[#006D77] mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{loading ? '—' : stats.todayClasses}</p>
+              <Calendar className="w-5 h-5 text-[#006D77] mx-auto mb-1.5" />
+              <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.todayClasses}</p>
               <p className="text-xs text-muted-foreground">Classes today</p>
             </div>
             <div className="bg-white border border-border rounded-2xl p-4 shadow-sm text-center">
-              <CheckCircle className="w-5 h-5 text-[#E86500] mx-auto mb-1" />
-              <p className="text-2xl font-bold text-foreground">{loading ? '—' : stats.weekBookings}</p>
+              <CheckCircle className="w-5 h-5 text-[#E86500] mx-auto mb-1.5" />
+              <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.weekBookings}</p>
               <p className="text-xs text-muted-foreground">Bookings this week</p>
             </div>
           </div>
 
-          {!loading && pendingRequests.length > 0 && (
+          {/* Expiring soon */}
+          {!statsLoading && expiring.length > 0 && (
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Package className="w-4 h-4 text-[#E86500]" /> Package Requests
-                </h3>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[#E86500]/10 text-[#E86500]">{pendingRequests.length} pending</span>
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-[#FF9800]" />
+                <h3 className="text-sm font-semibold text-foreground">Expiring Soon</h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#FF9800]/10 text-[#FF9800] font-medium">{expiring.length}</span>
               </div>
-              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-                {pendingRequests.map((r, i) => (
-                  <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i < pendingRequests.length-1 ? 'border-b border-border' : ''}`}>
-                    <div className="w-8 h-8 rounded-full bg-[#E86500]/10 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-[#E86500]">{initials(r.client?.full_name)}</span>
+              <div className="bg-white border border-[#FF9800]/20 rounded-2xl overflow-hidden shadow-sm">
+                {expiring.map((e, i) => (
+                  <div key={e.id} className={`flex items-center gap-3 px-4 py-3 ${i < expiring.length - 1 ? 'border-b border-border' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#FF9800]/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#FF9800]">{initials((e.client as any)?.full_name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{r.client?.full_name || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{r.package?.name} · {(r.amount||0).toLocaleString()} EGP</p>
+                      <p className="text-sm font-medium text-foreground truncate">{(e.client as any)?.full_name || '—'}</p>
+                      <p className="text-xs text-muted-foreground">{e.sessions_remaining} sessions left</p>
                     </div>
-                    {r.client?.id && (
-                      <Link href={`/admin/clients?clientId=${r.client.id}${r.package?.id ? `&packageId=${r.package.id}` : ''}`}
-                        className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#006D77] text-white shrink-0">
-                        Confirm
-                      </Link>
-                    )}
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                      daysLeft(e.expiry_date) <= 2 ? 'bg-[#E53935]/10 text-[#E53935]' : 'bg-[#FF9800]/10 text-[#FF9800]'
+                    }`}>
+                      {daysLeft(e.expiry_date)}d left
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Package Requests */}
+          {!statsLoading && pendingReqs.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#E86500]" />
+                  <h3 className="text-sm font-semibold text-foreground">Package Requests</h3>
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#E86500]/10 text-[#E86500] font-medium">{pendingReqs.length}</span>
+              </div>
+              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+                {pendingReqs.map((r, i) => (
+                  <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i < pendingReqs.length - 1 ? 'border-b border-border' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-[#E86500]/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#E86500]">{initials(r.client?.full_name)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{r.client?.full_name || '—'}</p>
+                      <p className="text-xs text-muted-foreground">{r.package?.name} · {Number(r.amount).toLocaleString()} EGP</p>
+                    </div>
+                    <Link
+                      href={`/admin/clients?clientId=${r.client?.id}&packageId=${r.package?.id}`}
+                      className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#006D77] text-white">
+                      Confirm
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Bookings */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
-              <Clock className="w-4 h-4 text-[#006D77]" /> Recent Bookings
-            </h3>
-            {loading ? (
-              <div className="bg-white border border-border rounded-2xl p-4 animate-pulse h-32" />
-            ) : recentBookings.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-6 text-center">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="w-4 h-4 text-[#006D77]" />
+              <h3 className="text-sm font-semibold text-foreground">Recent Bookings</h3>
+            </div>
+            {statsLoading ? (
+              <div className="bg-white border border-border rounded-2xl h-28 animate-pulse" />
+            ) : recentBooks.length === 0 ? (
+              <div className="bg-white border border-border rounded-2xl p-8 text-center">
                 <p className="text-sm text-muted-foreground">No bookings yet</p>
               </div>
             ) : (
               <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-                {recentBookings.map((b, i) => (
-                  <div key={b.id} className={`flex items-center gap-3 px-4 py-3 ${i < recentBookings.length-1 ? 'border-b border-border' : ''}`}>
+                {recentBooks.map((b, i) => (
+                  <div key={b.id} className={`flex items-center gap-3 px-4 py-3 ${i < recentBooks.length - 1 ? 'border-b border-border' : ''}`}>
                     <div className="w-8 h-8 rounded-full bg-[#E0EEF0] flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-[#006D77]">{initials((b.client as any)?.full_name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{(b.client as any)?.full_name || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{(b.session as any)?.class_type?.name} · {b.session ? fmtDateTime((b.session as any).start_time) : '—'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {b.session?.class_type?.name || '—'} · {b.session ? fmtDateTime(b.session.start_time) : '—'}
+                      </p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[b.status] || 'bg-gray-100 text-gray-500'}`}>{b.status}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLOR[b.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {b.status}
+                    </span>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {!loading && stats.activePackages === 0 && stats.totalClients > 0 && (
+          {/* No active packages warning */}
+          {!statsLoading && stats.activePackages === 0 && stats.totalClients > 0 && (
             <div className="bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-2xl p-4 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-[#FF9800] shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-foreground">No Active Packages</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Add packages to clients from the Clients page</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Go to Clients to add a package</p>
               </div>
             </div>
           )}
         </>)}
 
-        {/* ══ BOOKINGS TAB ══════════════════════════════════════ */}
+        {/* ════════════════════════════════════════════════════════
+            BOOKINGS TAB
+        ════════════════════════════════════════════════════════ */}
         {activeTab === 'bookings' && (<>
 
-          {/* Month Selector */}
+          {/* Month selector */}
           <div className="flex items-center justify-between bg-white border border-border rounded-2xl px-4 py-3 shadow-sm">
-            <button onClick={() => setBMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1))}
+            <button onClick={prevBMonth}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-semibold text-foreground">{fmtMonth(bMonth)}</span>
-            <button onClick={() => setBMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1))}
-              disabled={bMonth >= new Date(today.getFullYear(), today.getMonth(), 1)}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">{fmtMonth(bMonth)}</span>
+              {!isCurrentMonth(bMonth) && (
+                <button onClick={() => { setBMonth(new Date()); setClassFilter('All') }}
+                  className="text-[10px] text-[#006D77] border border-[#006D77]/30 px-2 py-0.5 rounded-full">
+                  Today
+                </button>
+              )}
+            </div>
+            <button onClick={nextBMonth}
+              disabled={isCurrentMonth(bMonth)}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center disabled:opacity-30">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {bLoading ? (
-            <div className="bg-white border border-border rounded-2xl p-4 animate-pulse h-40" />
+            <div className="space-y-3">
+              {[1,2,3].map(k => <div key={k} className="bg-white border border-border rounded-2xl h-20 animate-pulse" />)}
+            </div>
           ) : (<>
 
-            {/* Summary row */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white border border-border rounded-2xl p-3 text-center shadow-sm">
-                <p className="text-xl font-bold text-[#006D77]">{allBookings.length}</p>
-                <p className="text-[10px] text-muted-foreground">Total</p>
-              </div>
-              <div className="bg-white border border-border rounded-2xl p-3 text-center shadow-sm">
-                <p className="text-xl font-bold text-[#4CAF50]">{allBookings.filter(b => b.status === 'attended').length}</p>
-                <p className="text-[10px] text-muted-foreground">Attended</p>
-              </div>
-              <div className="bg-white border border-border rounded-2xl p-3 text-center shadow-sm">
-                <p className="text-xl font-bold text-[#E53935]">{allBookings.filter(b => b.status === 'no_show').length}</p>
-                <p className="text-[10px] text-muted-foreground">No Show</p>
-              </div>
+            {/* Status breakdown row */}
+            <div className="grid grid-cols-4 gap-2">
+              {bookingBreakdown.map(({ status, count }) => (
+                <div key={status} className="bg-white border border-border rounded-xl p-2.5 text-center shadow-sm">
+                  <p className={`text-lg font-bold ${
+                    status === 'attended'  ? 'text-[#4CAF50]' :
+                    status === 'no_show'   ? 'text-[#E53935]' :
+                    status === 'confirmed' ? 'text-[#006D77]' : 'text-gray-400'
+                  }`}>{count}</p>
+                  <p className="text-[9px] text-muted-foreground capitalize leading-tight mt-0.5">
+                    {status.replace('_', ' ')}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            {/* Popular Classes */}
+            {/* Popular classes */}
             {popularClasses.length > 0 && (
               <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
-                <p className="text-xs font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-3.5 h-3.5 text-[#E86500]" /> Most Popular Classes
-                </p>
-                <div className="space-y-2">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-[#E86500]" /> Most Popular Classes
+                  </p>
+                  <span className="text-[10px] text-muted-foreground">{allBookings.length} total bookings</span>
+                </div>
+                <div className="space-y-2.5">
                   {popularClasses.map(([name, count], idx) => {
                     const max = popularClasses[0][1]
+                    const pct = Math.round((count / allBookings.length) * 100)
                     return (
-                      <div key={name} className="flex items-center gap-3">
-                        <span className={`text-xs font-bold w-4 ${idx === 0 ? 'text-[#E86500]' : 'text-muted-foreground'}`}>{idx+1}</span>
-                        <div className="flex-1">
+                      <div key={name} className="flex items-center gap-2.5">
+                        <span className={`text-xs font-bold w-4 shrink-0 ${idx === 0 ? 'text-[#E86500]' : 'text-muted-foreground'}`}>
+                          {idx + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-medium text-foreground">{name}</span>
-                            <span className="text-xs text-muted-foreground">{count} bookings</span>
+                            <span className="text-xs font-medium text-foreground truncate">{name}</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0 ml-2">{count} · {pct}%</span>
                           </div>
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-[#006D77] rounded-full" style={{ width: `${(count/max)*100}%` }} />
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-[#006D77] to-[#E86500]"
+                              style={{ width: `${(count / max) * 100}%` }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -378,37 +591,49 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            {/* Class Type Filter */}
-            {classTypes.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {/* Class type filter pills */}
+            {classTypes.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-0.5">
                 {['All', ...classTypes].map(ct => (
                   <button key={ct} onClick={() => setClassFilter(ct)}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${classFilter === ct ? 'bg-[#006D77] text-white' : 'bg-white border border-border text-foreground'}`}>
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      classFilter === ct
+                        ? 'bg-[#006D77] text-white'
+                        : 'bg-white border border-border text-foreground'
+                    }`}>
                     {ct}
+                    {ct !== 'All' && (
+                      <span className="ml-1 text-[10px] opacity-60">
+                        {allBookings.filter(b => b.session?.class_type?.name === ct).length}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Bookings List */}
+            {/* Bookings list */}
             {filteredBookings.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-8 text-center">
+              <div className="bg-white border border-border rounded-2xl p-10 text-center">
+                <Calendar className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No bookings for this period</p>
               </div>
             ) : (
               <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
                 {filteredBookings.map((b, i) => (
-                  <div key={b.id} className={`flex items-center gap-3 px-4 py-3 ${i < filteredBookings.length-1 ? 'border-b border-border' : ''}`}>
+                  <div key={b.id} className={`flex items-center gap-3 px-4 py-3 ${i < filteredBookings.length - 1 ? 'border-b border-border' : ''}`}>
                     <div className="w-8 h-8 rounded-full bg-[#E0EEF0] flex items-center justify-center shrink-0">
                       <span className="text-xs font-bold text-[#006D77]">{initials((b.client as any)?.full_name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{(b.client as any)?.full_name || '—'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {(b.session as any)?.class_type?.name || '—'} · {fmtDate(b.booked_at)}
+                        {b.session?.class_type?.name || '—'} · {fmtDate(b.booked_at)}
                       </p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLORS[b.status] || 'bg-gray-100 text-gray-500'}`}>{b.status}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLOR[b.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {b.status}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -416,59 +641,113 @@ export default function AdminDashboardPage() {
           </>)}
         </>)}
 
-        {/* ══ REVENUE TAB ═══════════════════════════════════════ */}
+        {/* ════════════════════════════════════════════════════════
+            REVENUE TAB
+        ════════════════════════════════════════════════════════ */}
         {activeTab === 'revenue' && (<>
 
-          {/* Month Selector */}
+          {/* Month selector */}
           <div className="flex items-center justify-between bg-white border border-border rounded-2xl px-4 py-3 shadow-sm">
-            <button onClick={() => setRMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1))}
+            <button onClick={prevRMonth}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-sm font-semibold text-foreground">{fmtMonth(rMonth)}</span>
-            <button onClick={() => setRMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1))}
-              disabled={rMonth >= new Date(today.getFullYear(), today.getMonth(), 1)}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-foreground">{fmtMonth(rMonth)}</span>
+              {!isCurrentMonth(rMonth) && (
+                <button onClick={() => setRMonth(new Date())}
+                  className="text-[10px] text-[#006D77] border border-[#006D77]/30 px-2 py-0.5 rounded-full">
+                  Today
+                </button>
+              )}
+            </div>
+            <button onClick={nextRMonth}
+              disabled={isCurrentMonth(rMonth)}
               className="w-8 h-8 rounded-full bg-muted flex items-center justify-center disabled:opacity-30">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
 
           {rLoading ? (
-            <div className="bg-white border border-border rounded-2xl p-4 animate-pulse h-40" />
+            <div className="space-y-3">
+              {[1,2].map(k => <div key={k} className="bg-white border border-border rounded-2xl h-24 animate-pulse" />)}
+            </div>
           ) : (<>
 
-            {/* Revenue Hero */}
-            <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-5 text-white shadow-lg">
-              <p className="text-xs font-medium text-white/70 mb-1">Total Revenue — {fmtMonth(rMonth)}</p>
-              <p className="text-4xl font-bold">{monthRevenue.toLocaleString()}</p>
-              <p className="text-sm text-white/70 mt-0.5">EGP from {payments.length} payment{payments.length !== 1 ? 's' : ''}</p>
+            {/* Revenue hero */}
+            <div className="bg-gradient-to-r from-[#004E5C] via-[#006D77] to-[#E86500] rounded-2xl p-5 text-white shadow-lg">
+              <p className="text-xs text-white/60 mb-1">Revenue — {fmtMonth(rMonth)}</p>
+              <p className="text-4xl font-bold tracking-tight">{monthTotal.toLocaleString()}</p>
+              <p className="text-sm text-white/70 mt-0.5">EGP · {payments.length} payment{payments.length !== 1 ? 's' : ''}</p>
+              {stats.totalClients > 0 && (
+                <p className="text-[11px] text-white/50 mt-2">
+                  Avg per client: {avgRevPerClient.toLocaleString()} EGP
+                </p>
+              )}
             </div>
 
-            {/* Payments List */}
+            {/* Revenue by package */}
+            {revByPkgEntries.length > 0 && (
+              <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
+                <p className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-3">
+                  <Package className="w-3.5 h-3.5 text-[#006D77]" /> Revenue by Package
+                </p>
+                <div className="space-y-2.5">
+                  {revByPkgEntries.map(([name, amount]) => {
+                    const pct = monthTotal > 0 ? Math.round((amount / monthTotal) * 100) : 0
+                    return (
+                      <div key={name}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-foreground truncate max-w-[60%]">{name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0 ml-2">{amount.toLocaleString()} EGP · {pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#006D77]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Payments list */}
             {payments.length === 0 ? (
-              <div className="bg-white border border-border rounded-2xl p-8 text-center">
-                <p className="text-sm text-muted-foreground">No payments recorded for this month</p>
+              <div className="bg-white border border-border rounded-2xl p-10 text-center">
+                <DollarSign className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No payments this month</p>
               </div>
             ) : (
-              <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-                {payments.map((p, i) => (
-                  <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${i < payments.length-1 ? 'border-b border-border' : ''}`}>
-                    <div className="w-8 h-8 rounded-full bg-[#E0EEF0] flex items-center justify-center shrink-0">
-                      <DollarSign className="w-4 h-4 text-[#006D77]" />
+              <>
+                <p className="text-xs font-semibold text-foreground px-1 -mb-2">All Payments</p>
+                <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+                  {payments.map((p, i) => (
+                    <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${i < payments.length - 1 ? 'border-b border-border' : ''}`}>
+                      <div className="w-8 h-8 rounded-full bg-[#E0EEF0] flex items-center justify-center shrink-0">
+                        <DollarSign className="w-4 h-4 text-[#006D77]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{(p.client as any)?.full_name || '—'}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(p.package as any)?.name || '—'} · {fmtDate(p.paid_at ?? p.created_at)}
+                        </p>
+                      </div>
+                      <span className="text-sm font-bold text-[#006D77] shrink-0">
+                        {Number(p.amount).toLocaleString()} EGP
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{(p.client as any)?.full_name || '—'}</p>
-                      <p className="text-xs text-muted-foreground">{(p.package as any)?.name || '—'} · {p.paid_at ? fmtDate(p.paid_at) : '—'}</p>
-                    </div>
-                    <span className="text-sm font-bold text-[#006D77] shrink-0">{Number(p.amount).toLocaleString()} EGP</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </>
             )}
           </>)}
         </>)}
 
       </div>
+
       <AdminBottomNav activePage="dashboard" />
     </main>
   )
