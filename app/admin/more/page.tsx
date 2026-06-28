@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -121,6 +121,10 @@ export default function AdminMorePage() {
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {[
               {
+                icon: Dumbbell, label: 'Class Types', desc: 'Add or remove class types',
+                href: '/admin/classes', value: '',
+              },
+              {
                 icon: Package, label: 'Package Editor', desc: 'Edit prices, names, validity',
                 href: '/admin/packages-editor',
                 value: loading ? '—' : `${stats.packagesCount} packages`,
@@ -219,8 +223,8 @@ export default function AdminMorePage() {
 
       {/* Setting Edit Modal */}
       {editSetting && (
-        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={() => setEditSetting(null)}>
-          <div className="bg-white w-full rounded-t-3xl px-6 pt-6 pb-28 shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end" onClick={() => setEditSetting(null)}>
+          <div className="bg-white w-full rounded-t-3xl p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-bold text-foreground">{settingLabel[editSetting].label}</h3>
               <button onClick={() => setEditSetting(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
