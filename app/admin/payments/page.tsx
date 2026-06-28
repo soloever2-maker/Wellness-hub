@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { CreditCard, ArrowLeft, RotateCcw, Loader2 } from 'lucide-react'
+import { ConfirmModal } from '@/components/confirm-modal'
 import Link from 'next/link'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -25,6 +26,7 @@ export default function AdminPaymentsPage() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [total, setTotal] = useState(0)
   const [refundingId, setRefundingId] = useState<string | null>(null)
+  const [confirmRefundId, setConfirmRefundId] = useState<string | null>(null)
 
   useEffect(() => {
     supabase
@@ -42,7 +44,7 @@ export default function AdminPaymentsPage() {
   }, [])
 
   const handleRefund = async (paymentId: string) => {
-    if (!confirm('Mark this payment as refunded?')) return
+    setConfirmRefundId(null)
     setRefundingId(paymentId)
     const { error } = await supabase.from('payments')
       .update({ status: 'refunded' })
@@ -119,7 +121,7 @@ export default function AdminPaymentsPage() {
                   }`}>{p.status}</span>
                   {p.status === 'paid' && (
                     <button
-                      onClick={() => handleRefund(p.id)}
+                      onClick={() => setConfirmRefundId(p.id)}
                       disabled={refundingId === p.id}
                       className="flex items-center gap-1 text-xs font-medium text-[#E53935] border border-[#E53935]/30 px-2.5 py-1 rounded-full hover:bg-[#E53935]/5 transition-colors disabled:opacity-50"
                     >
@@ -137,6 +139,17 @@ export default function AdminPaymentsPage() {
       </div>
 
       <AdminBottomNav activePage="more" />
+
+      <ConfirmModal
+        open={!!confirmRefundId}
+        title="Refund Payment?"
+        message="This will mark the payment as refunded. This action cannot be undone."
+        confirmLabel="Yes, Refund"
+        destructive
+        loading={!!refundingId}
+        onCancel={() => setConfirmRefundId(null)}
+        onConfirm={() => confirmRefundId && handleRefund(confirmRefundId)}
+      />
     </main>
   )
 }
