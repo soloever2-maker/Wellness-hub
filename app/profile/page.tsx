@@ -32,7 +32,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [profile, setProfile] = useState({ name: '', phone: '', email: '', userId: '' })
+  const [profile, setProfile]           = useState({ name: '', phone: '', email: '', userId: '' })
+  const [avatarUrl, setAvatarUrl]         = useState('')
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const [editForm, setEditForm] = useState(profile)
   // Push notifications state
   const [pushSupported, setPushSupported] = useState(false)
@@ -73,6 +75,7 @@ export default function ProfilePage() {
         }
         setProfile(userData)
         setEditForm(userData)
+        if ((user as any).avatar_url) setAvatarUrl((user as any).avatar_url)
 
         // Load saved reminder preferences
         if (user.preferences) {
@@ -133,6 +136,25 @@ export default function ProfilePage() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile.userId) return
+    setAvatarUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${profile.userId}/avatar.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (!upErr) {
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+        await supabase.from('users').update({ avatar_url: publicUrl }).eq('id', profile.userId)
+        setAvatarUrl(publicUrl)
+      }
+    } catch {}
+    setAvatarUploading(false)
+  }
+
   const initials = profile.name
     ? profile.name.split(' ').map((n: string) => n[0]).join('')
     : '?'
@@ -158,9 +180,32 @@ export default function ProfilePage() {
     <main className="bg-background min-h-screen pb-24">
       {/* Profile Header */}
       <div className="px-4 pt-8 pb-6 flex flex-col items-center">
-        <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-4">
-          <span className="text-2xl font-bold text-[#006D77]">{initials}</span>
-        </div>
+        {/* Tappable Avatar */}
+        <label className="relative w-20 h-20 cursor-pointer mb-4 block">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarUpload}
+            disabled={avatarUploading}
+          />
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-[#006D77]/20 shadow">
+            {avatarUrl ? (
+              <Image src={avatarUrl} alt={profile.name} width={80} height={80} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center"
+                style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              </div>
+            )}
+          </div>
+          {/* Camera overlay */}
+          <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#006D77] border-2 border-white flex items-center justify-center shadow">
+            {avatarUploading
+              ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <Camera className="w-3.5 h-3.5 text-white" />}
+          </div>
+        </label>
         <h2 className="text-xl font-bold text-foreground">{profile.name}</h2>
         <p className="text-sm text-muted-foreground mt-1">{profile.phone}</p>
         <button
@@ -404,8 +449,8 @@ export default function ProfilePage() {
 
         {/* Biometric Setup Modal */}
         {showBiometricSetup && (
-          <div className="fixed inset-0 bg-black/40 z-[150] flex items-end justify-center">
-            <div className="bg-white rounded-t-3xl w-full max-w-sm px-6 pt-6 pb-28 shadow-xl max-h-[85vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-6 shadow-xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-foreground">Enable Biometrics</h3>
                 <button onClick={() => setShowBiometricSetup(false)} className="w-8 h-8 rounded-full bg-background flex items-center justify-center">
