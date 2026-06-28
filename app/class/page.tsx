@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -44,8 +44,13 @@ function ClassPageInner() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
 
+  // نحفظ الـ sessionId عند الـ mount بس
+  // عشان لو الـ URL اتغير من برا (BackHandler مثلاً) الـ effect ما يـredirect-ش
+  const mountedSessionId = useRef(sessionId)
+
   useEffect(() => {
-    if (!sessionId) { router.replace('/schedule'); return }
+    const id = mountedSessionId.current
+    if (!id) { router.replace('/schedule'); return }
 
     const fetchAll = async () => {
       const user = await getCurrentUser()
@@ -55,7 +60,7 @@ function ClassPageInner() {
       const { data: s } = await supabase
         .from('class_sessions')
         .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name, description)')
-        .eq('id', sessionId)
+        .eq('id', id)
         .single()
 
       if (!s) { router.replace('/schedule'); return }
@@ -66,7 +71,7 @@ function ClassPageInner() {
       const { data: existing } = await supabase
         .from('bookings')
         .select('id')
-        .eq('session_id', sessionId)
+        .eq('session_id', id)
         .eq('client_id', user.id)
         .eq('status', 'confirmed')
         .maybeSingle()
@@ -91,7 +96,8 @@ function ClassPageInner() {
       setLoading(false)
     }
     fetchAll()
-  }, [sessionId, router])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally on mount only — sessionId won't change while on page
 
   const handleBook = async () => {
     if (!session || !selectedPackageId || !userId) return
