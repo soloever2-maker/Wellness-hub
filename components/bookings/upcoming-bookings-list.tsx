@@ -37,10 +37,10 @@ export function UpcomingBookingsList() {
       // Filter upcoming sessions client-side (PostgREST can't filter on embedded resource columns)
       const now = new Date().toISOString()
       if (data) setBookings(
-        data
+        (data
           .filter(b => b.session && (b.session as any).start_time >= now)
           .sort((a, b) => new Date((a.session as any).start_time).getTime() - new Date((b.session as any).start_time).getTime())
-        as unknown as Booking[]
+        ) as unknown as Booking[]
       )
       setLoading(false)
     }
