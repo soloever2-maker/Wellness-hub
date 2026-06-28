@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, Snowflake, RefreshCw, Check, X, Calendar, Package, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +15,10 @@ type ClientPackage = {
   status: string
   freeze_start: string | null
   package: { name: string }
+}
+
+type AvailablePkg = {
+  id: string; name: string; session_count: number; validity_days: number; price: number
 }
 
 type BookingHistory = {
@@ -34,6 +38,10 @@ export default function MyPackagePage() {
   const [freezing, setFreezing] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [showChangePkg, setShowChangePkg]   = useState(false)
+  const [availablePkgs, setAvailablePkgs]   = useState<AvailablePkg[]>([])
+  const [requesting, setRequesting]         = useState(false)
+  const [changeRequested, setChangeRequested] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,6 +131,43 @@ export default function MyPackagePage() {
     setShowCancelConfirm(false)
   }
 
+  const openChangePkg = async () => {
+    setShowChangePkg(true)
+    if (availablePkgs.length > 0) return
+    const { data } = await supabase
+      .from('packages')
+      .select('id, name, session_count, validity_days, price')
+      .eq('is_active', true)
+      .order('session_count')
+    if (data) setAvailablePkgs(data)
+  }
+
+  const handleChangeRequest = async (newPkg: AvailablePkg) => {
+    if (!pkg) return
+    setRequesting(true)
+    const user = await getCurrentUser()
+    if (!user) { setRequesting(false); return }
+
+    // Pending payment for new package
+    await supabase.from('payments').insert({
+      client_id: user.id,
+      package_id: newPkg.id,
+      amount: newPkg.price,
+      gateway: 'cash',
+      status: 'pending',
+    })
+
+    // WhatsApp notification to Enjy
+    const msg = `Hi Enjy! 🔄
+I'd like to change my "${pkg.package?.name}" to the "${newPkg.name}" package (${newPkg.price.toLocaleString()} EGP).
+Please confirm when possible!`
+    window.open(`https://wa.me/201063751653?text=${encodeURIComponent(msg)}`, '_blank')
+
+    setRequesting(false)
+    setChangeRequested(true)
+    setShowChangePkg(false)
+  }
+
   const daysLeft = pkg ? Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0
   const sessionsUsed = pkg ? pkg.sessions_total - pkg.sessions_remaining : 0
   const progress = pkg ? (pkg.sessions_remaining / pkg.sessions_total) * 100 : 0
@@ -198,12 +243,12 @@ export default function MyPackagePage() {
               ))}
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-2">
+            {/* Action Buttons — 2×2 */}
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={handleFreeze}
                 disabled={freezing}
-                className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-60 ${
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-60 ${
                   pkg.status === 'frozen'
                     ? 'bg-[#006D77] text-white hover:bg-[#004E5C]'
                     : 'border-2 border-[#006D77] text-[#006D77] hover:bg-[#006D77]/5'
@@ -212,14 +257,23 @@ export default function MyPackagePage() {
                 {freezing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Snowflake className="w-4 h-4" />}
                 {pkg.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
               </button>
+
               <Link href="/packages"
-                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
+                className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
                 <RefreshCw className="w-4 h-4" />
-                Renew
+                Renew Same
               </Link>
+
+              <button
+                onClick={openChangePkg}
+                className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-[#E86500] text-[#E86500] font-medium text-sm hover:bg-[#E86500]/5 transition-colors">
+                <ArrowLeftRight className="w-4 h-4" />
+                {changeRequested ? 'Requested ✓' : 'Change Pkg'}
+              </button>
+
               <button
                 onClick={() => setShowCancelConfirm(true)}
-                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-[#E53935]/40 text-[#E53935] font-medium text-sm hover:bg-[#E53935]/5 transition-colors">
+                className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-[#E53935]/40 text-[#E53935] font-medium text-sm hover:bg-[#E53935]/5 transition-colors">
                 <X className="w-4 h-4" />
                 Cancel
               </button>
@@ -269,6 +323,64 @@ export default function MyPackagePage() {
       </div>
 
       <BottomNav />
+
+      {/* Change Package Bottom Sheet */}
+      {showChangePkg && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={() => setShowChangePkg(false)}>
+          <div className="bg-white rounded-t-3xl w-full max-w-sm max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-border" />
+            </div>
+            <div className="px-6 pb-8">
+              <h3 className="text-lg font-bold text-foreground mb-1">Change Package</h3>
+              <p className="text-sm text-muted-foreground mb-5">Select a package to switch to</p>
+
+              {/* Current Package */}
+              <div className="bg-[#E0EEF0] border border-[#006D77]/20 rounded-2xl p-4 mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-[#006D77] uppercase tracking-wide">Current</p>
+                  <span className="text-xs px-2 py-0.5 bg-[#006D77]/10 text-[#006D77] rounded-full font-medium">Active</span>
+                </div>
+                <p className="font-bold text-foreground">{pkg.package?.name}</p>
+                <p className="text-sm text-muted-foreground">{pkg.sessions_remaining} sessions left</p>
+              </div>
+
+              {/* Available Packages */}
+              {availablePkgs.length === 0 ? (
+                <div className="flex justify-center py-6">
+                  <Loader2 className="w-6 h-6 animate-spin text-[#006D77]" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {availablePkgs
+                    .filter(p => p.name !== pkg.package?.name)
+                    .map(p => (
+                    <div key={p.id} className="bg-white border border-border rounded-2xl p-4 flex items-center gap-4 shadow-sm">
+                      <div className="flex-1">
+                        <p className="font-bold text-foreground">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{p.session_count} sessions · {p.validity_days} days</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-[#006D77]">{p.price.toLocaleString()} EGP</p>
+                        <button
+                          onClick={() => handleChangeRequest(p)}
+                          disabled={requesting}
+                          className="mt-1.5 text-xs font-semibold px-3 py-1.5 bg-[#E86500] text-white rounded-full disabled:opacity-50 flex items-center gap-1">
+                          {requesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowLeftRight className="w-3 h-3" />}
+                          Switch
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cancel Package Confirmation Modal */}
       {showCancelConfirm && (
