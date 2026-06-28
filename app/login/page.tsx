@@ -130,22 +130,23 @@ export default function LoginPage() {
     if (!el) return
 
     const fitToScreen = () => {
-      const availableHeight = window.visualViewport?.height ?? window.innerHeight
+      // window.innerHeight فقط — مش visualViewport
+      // عشان الـ keyboard لما يظهر ميصغّرش المحتوى
+      const availableHeight = window.innerHeight
       const naturalHeight = el.scrollHeight
       const nextScale = naturalHeight > availableHeight ? availableHeight / naturalHeight : 1
-      setScale(Math.max(nextScale, 0.6))
+      setScale(Math.max(nextScale, 0.65))
     }
 
     fitToScreen()
     const resizeObserver = new ResizeObserver(fitToScreen)
     resizeObserver.observe(el)
     window.addEventListener('resize', fitToScreen)
-    window.visualViewport?.addEventListener('resize', fitToScreen)
+    // ← مش بنسمع لـ visualViewport.resize عشان الـ keyboard ميأثرش على الـ scale
 
     return () => {
       resizeObserver.disconnect()
       window.removeEventListener('resize', fitToScreen)
-      window.visualViewport?.removeEventListener('resize', fitToScreen)
     }
   }, [])
 
