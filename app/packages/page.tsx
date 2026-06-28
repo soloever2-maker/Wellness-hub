@@ -41,13 +41,14 @@ export default function PackagesPage() {
       if (!user) return
 
       // Create a pending payment record
-      await supabase.from('payments').insert({
+      const { error: paymentError } = await supabase.from('payments').insert({
         client_id: user.id,
         package_id: pkg.id,
         amount: pkg.price,
-        gateway: 'whatsapp',
+        gateway: 'cash',
         status: 'pending',
       })
+      if (paymentError) console.error('Pending payment insert failed:', paymentError)
 
       setSuccess(true)
       setBuying(null)
