@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2 } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
 
@@ -98,11 +98,37 @@ function AdminClientsPageInner() {
     if (data) setClientPkg(data as ClientPackageInfo)
   }
 
+  const handleRemovePkg = async () => {
+    if (!clientPkg) return
+    if (!confirm('Remove this package? This cannot be undone.')) return
+    setSaving(true)
+    await supabase.from('client_packages')
+      .update({ status: 'expired' })
+      .eq('id', clientPkg.id)
+    setClientPkg(null)
+    showToast('Package removed ✓')
+    setSaving(false)
+  }
+
   const handleAddPkg = async () => {
     if (!selectedClient || !selectedPkgId) return
     setSaving(true)
     const pkg = packages.find(p => p.id === selectedPkgId)
     if (!pkg) { setSaving(false); return }
+
+    // Deactivate any existing active/frozen package first (avoids unique constraint)
+    if (clientPkg) {
+      const { error: expireError } = await supabase
+        .from('client_packages')
+        .update({ status: 'expired' })
+        .eq('client_id', selectedClient.id)
+        .in('status', ['active', 'frozen'])
+      if (expireError) {
+        showToast(`⚠️ Could not replace old package: ${expireError.message}`)
+        setSaving(false)
+        return
+      }
+    }
 
     const expiry = new Date()
     expiry.setDate(expiry.getDate() + pkg.validity_days)
@@ -118,7 +144,7 @@ function AdminClientsPageInner() {
 
     if (error) {
       console.error('client_packages insert failed:', error)
-      showToast(`⚠️ Could not add package: ${error.message}`)
+      showToast(`\u26a0\ufe0f Could not add package: ${error.message}`)
       setSaving(false)
       return
     }
@@ -355,7 +381,7 @@ function AdminClientsPageInner() {
               ) : null}
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <button onClick={() => setShowAddPkg(!showAddPkg)}
                   className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors">
                   <Plus className="w-5 h-5 text-[#006D77]" />
@@ -368,6 +394,11 @@ function AdminClientsPageInner() {
                   <span className="text-[10px] font-medium text-foreground">
                     {clientPkg?.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                   </span>
+                </button>
+                <button onClick={handleRemovePkg} disabled={!clientPkg || saving}
+                  className="flex flex-col items-center gap-1.5 py-3 bg-white border border-[#E53935]/30 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40">
+                  <Trash2 className="w-5 h-5 text-[#E53935]" />
+                  <span className="text-[10px] font-medium text-[#E53935]">Remove Pkg</span>
                 </button>
                 <a href={`https://wa.me/${(selectedClient.phone || '').replace(/[^0-9]/g, '')}`}
                   target="_blank" rel="noopener noreferrer"
