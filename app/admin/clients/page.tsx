@@ -106,6 +106,19 @@ export default function AdminClientsPage() {
         method: 'manual',
         status: 'paid',
       })
+
+      // Notify client their package is active
+      fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: selectedClient.id,
+          title: '🎉 Package Activated!',
+          body: `Your ${pkg.name} (${pkg.session_count} sessions) is now active. Start booking your classes!`,
+          type: 'package_activated',
+        }),
+      }).catch(() => {})
+
       showToast(`✓ ${pkg.name} added for ${selectedClient.full_name}`)
       setShowAddPkg(false)
       // Refresh package info
