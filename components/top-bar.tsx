@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { UserMenu } from './user-menu'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -34,13 +33,7 @@ export function TopBar() {
         {/* Avatar */}
         <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 border-2 border-[#006D77]/15 shadow-sm">
           {avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt={firstName}
-              width={44}
-              height={44}
-              className="w-full h-full object-cover"
-            />
+            <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center"
               style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
