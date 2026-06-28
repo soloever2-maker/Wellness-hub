@@ -20,8 +20,9 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string;
   reminder_2h:   { icon: Clock,         color: 'text-[#E86500]', bg: 'bg-[#FFD9B8]/40',   label: '2h Reminder' },
   broadcast:     { icon: Bell,          color: 'text-[#006D77]', bg: 'bg-[#E0EEF0]',      label: 'Message from Enjy' },
   booking:       { icon: CheckCircle,   color: 'text-[#4CAF50]', bg: 'bg-[#4CAF50]/10',   label: 'Booking' },
-  package:       { icon: Package,       color: 'text-[#E86500]', bg: 'bg-[#FFD9B8]/40',   label: 'Package' },
-  class_reminder:{ icon: Calendar,      color: 'text-[#006D77]', bg: 'bg-[#E0EEF0]',      label: 'Class Reminder' },
+  package:           { icon: Package,  color: 'text-[#E86500]', bg: 'bg-[#FFD9B8]/40', label: 'Package' },
+  package_activated: { icon: Package,  color: 'text-[#E86500]', bg: 'bg-[#FFD9B8]/40', label: '🎉 Package Activated' },
+  class_reminder:    { icon: Calendar, color: 'text-[#006D77]', bg: 'bg-[#E0EEF0]',    label: 'Class Reminder' },
 }
 
 function timeAgo(dateStr: string) {
