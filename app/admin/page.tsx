@@ -38,51 +38,62 @@ export default function AdminDashboardPage() {
 
   const today = new Date()
   const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-  const todayStart = new Date(today); todayStart.setHours(0, 0, 0, 0)
-  const todayEnd = new Date(today); todayEnd.setHours(23, 59, 59, 999)
-  const weekStart = new Date(today); weekStart.setDate(today.getDate() - 7)
 
   useEffect(() => {
     getCurrentUser().then(u => { if (u?.full_name) setFirstName(u.full_name.split(' ')[0]) })
 
     const fetchStats = async () => {
-      const [
-        clientsRes, pendingRes, packagesRes, revenueRes,
-        todayClassesRes, todayBookingsRes, weekBookingsRes,
-        attendedRes, totalMarkedRes, recentRes
-      ] = await Promise.all([
-        supabase.from('users').select('id', { count: 'exact' }).eq('status', 'approved').eq('role', 'client'),
-        supabase.from('users').select('id', { count: 'exact' }).eq('status', 'pending'),
-        supabase.from('client_packages').select('id', { count: 'exact' }).eq('status', 'active'),
-        supabase.from('payments').select('amount').eq('status', 'paid'),
-        supabase.from('class_sessions').select('id', { count: 'exact' }).eq('is_cancelled', false).gte('start_time', todayStart.toISOString()).lte('start_time', todayEnd.toISOString()),
-        supabase.from('bookings').select('id', { count: 'exact' }).eq('status', 'confirmed').gte('created_at', todayStart.toISOString()),
-        supabase.from('bookings').select('id', { count: 'exact' }).gte('created_at', weekStart.toISOString()),
-        supabase.from('bookings').select('id', { count: 'exact' }).eq('status', 'attended'),
-        supabase.from('bookings').select('id', { count: 'exact' }).in('status', ['attended', 'no_show']),
-        supabase.from('bookings').select('id, status, created_at, client:users(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+      try {
+        // Use the existing get_dashboard_stats RPC for the core counters —
+        // it already works server-side (one round trip, no FK/embed issues).
+        const statsResult = await supabase.rpc('get_dashboard_stats')
+
+        if (statsResult.error) {
+          console.error('get_dashboard_stats failed:', statsResult.error)
+        } else if (statsResult.data) {
+          const d = statsResult.data as Record<string, number>
+          const attended = d.attended || 0
+          const totalMarked = d.totalMarked || 0
+          setStats({
+            totalClients: d.totalClients || 0,
+            pendingApprovals: d.pendingApprovals || 0,
+            activePackages: d.activePackages || 0,
+            totalRevenue: d.totalRevenue || 0,
+            todayClasses: d.todayClasses || 0,
+            todayBookings: 0,
+            weekBookings: d.weekBookings || 0,
+            attendanceRate: totalMarked > 0 ? Math.round((attended / totalMarked) * 100) : 0,
+          })
+        }
+      } catch (err) {
+        // Network-level failure (CORS block, timeout, project unreachable, etc.)
+        // Don't let this kill the whole page — just log it and move on.
+        console.error('Dashboard stats request failed:', err)
+      }
+
+      // Recent bookings is a separate, independent request — if its embedded
+      // join (bookings -> users / class_sessions -> class_types) is broken
+      // or fails, it should not block the stat cards above from rendering.
+      try {
+        const recentRes = await supabase
+          .from('bookings')
+          .select('id, status, created_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
           .in('status', ['confirmed', 'attended'])
           .order('created_at', { ascending: false })
-          .limit(5),
-      ])
+          .limit(5)
 
-      const revenue = revenueRes.data?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0
-      const attended = attendedRes.count || 0
-      const totalMarked = totalMarkedRes.count || 1
-      const attendanceRate = Math.round((attended / totalMarked) * 100)
+        if (recentRes.error) {
+          console.error('Recent bookings query failed:', recentRes.error)
+        } else if (recentRes.data) {
+          setRecentBookings(recentRes.data as unknown as RecentBooking[])
+        }
+      } catch (err) {
+        console.error('Recent bookings request failed:', err)
+      }
 
-      setStats({
-        totalClients: clientsRes.count || 0,
-        pendingApprovals: pendingRes.count || 0,
-        activePackages: packagesRes.count || 0,
-        totalRevenue: revenue,
-        todayClasses: todayClassesRes.count || 0,
-        todayBookings: todayBookingsRes.count || 0,
-        weekBookings: weekBookingsRes.count || 0,
-        attendanceRate,
-      })
-
-      if (recentRes.data) setRecentBookings(recentRes.data as unknown as RecentBooking[])
+      // No matter what succeeded or failed above, stop showing the
+      // skeleton/loading state — getting stuck on "—" forever is worse
+      // than showing partial/zero data.
       setLoading(false)
     }
     fetchStats()
