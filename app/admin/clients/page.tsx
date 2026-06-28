@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2 } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
 
@@ -30,6 +30,15 @@ type ClientPackageInfo = {
   freeze_start: string | null
 }
 
+type PaymentRecord = {
+  id: string
+  amount: number
+  status: string
+  paid_at: string | null
+  created_at: string
+  package: { name: string }
+}
+
 const filters = ['All', 'Approved', 'Pending']
 
 function AdminClientsPageInner() {
@@ -42,6 +51,8 @@ function AdminClientsPageInner() {
   const [activeFilter, setActiveFilter] = useState('All')
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientPkg, setClientPkg] = useState<ClientPackageInfo | null>(null)
+  const [clientPayments, setClientPayments] = useState<PaymentRecord[]>([])
+  const [refundingId, setRefundingId] = useState<string | null>(null)
   const [showAddPkg, setShowAddPkg] = useState(false)
   const [selectedPkgId, setSelectedPkgId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -87,15 +98,25 @@ function AdminClientsPageInner() {
   const openClient = async (client: Client) => {
     setSelectedClient(client)
     setClientPkg(null)
-    const { data } = await supabase
-      .from('client_packages')
-      .select('id, status, sessions_remaining, freeze_start')
-      .eq('client_id', client.id)
-      .in('status', ['active', 'frozen'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    if (data) setClientPkg(data as ClientPackageInfo)
+    setClientPayments([])
+
+    const [pkgRes, pmtRes] = await Promise.all([
+      supabase.from('client_packages')
+        .select('id, status, sessions_remaining, freeze_start')
+        .eq('client_id', client.id)
+        .in('status', ['active', 'frozen'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from('payments')
+        .select('id, amount, status, paid_at, created_at, package:packages!package_id(name)')
+        .eq('client_id', client.id)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ])
+
+    if (pkgRes.data) setClientPkg(pkgRes.data as ClientPackageInfo)
+    if (pmtRes.data) setClientPayments(pmtRes.data as unknown as PaymentRecord[])
   }
 
   const handleRemovePkg = async () => {
@@ -108,6 +129,21 @@ function AdminClientsPageInner() {
     setClientPkg(null)
     showToast('Package removed ✓')
     setSaving(false)
+  }
+
+  const handleRefundPayment = async (paymentId: string) => {
+    if (!confirm('Mark this payment as refunded?')) return
+    setRefundingId(paymentId)
+    const { error } = await supabase.from('payments')
+      .update({ status: 'refunded' })
+      .eq('id', paymentId)
+    if (error) {
+      showToast(`⚠️ Refund failed: ${error.message}`)
+    } else {
+      setClientPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: 'refunded' } : p))
+      showToast('Payment marked as refunded ✓')
+    }
+    setRefundingId(null)
   }
 
   const handleAddPkg = async () => {
@@ -203,9 +239,15 @@ function AdminClientsPageInner() {
     )
     setShowAddPkg(false)
     // Refresh package info
-    const { data } = await supabase.from('client_packages').select('id, status, sessions_remaining, freeze_start')
-      .eq('client_id', selectedClient.id).in('status', ['active', 'frozen']).limit(1).maybeSingle()
-    if (data) setClientPkg(data as ClientPackageInfo)
+    const [pkgRes2, pmtRes2] = await Promise.all([
+      supabase.from('client_packages').select('id, status, sessions_remaining, freeze_start')
+        .eq('client_id', selectedClient.id).in('status', ['active', 'frozen']).limit(1).maybeSingle(),
+      supabase.from('payments')
+        .select('id, amount, status, paid_at, created_at, package:packages!package_id(name)')
+        .eq('client_id', selectedClient.id).order('created_at', { ascending: false }).limit(10),
+    ])
+    if (pkgRes2.data) setClientPkg(pkgRes2.data as ClientPackageInfo)
+    if (pmtRes2.data) setClientPayments(pmtRes2.data as unknown as PaymentRecord[])
     setSaving(false)
   }
 
@@ -407,6 +449,54 @@ function AdminClientsPageInner() {
                   <span className="text-[10px] font-medium text-foreground">WhatsApp</span>
                 </a>
               </div>
+
+              {/* Payments History */}
+              {clientPayments.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-2 mb-2">
+                    <CreditCard className="w-3.5 h-3.5 text-[#006D77]" /> Payment History
+                  </p>
+                  <div className="bg-white border border-border rounded-2xl overflow-hidden">
+                    {clientPayments.map((p, i) => {
+                      const statusColor =
+                        p.status === 'paid'     ? 'text-[#4CAF50] bg-[#4CAF50]/10' :
+                        p.status === 'refunded' ? 'text-[#E53935] bg-[#E53935]/10' :
+                                                  'text-[#FF9800] bg-[#FF9800]/10'
+                      const date = p.paid_at || p.created_at
+                      return (
+                        <div key={p.id} className={`flex items-center gap-3 px-4 py-3 ${i < clientPayments.length - 1 ? 'border-b border-border' : ''}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {(p.package as any)?.name || '—'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+                          </div>
+                          <span className="text-sm font-bold text-foreground shrink-0">
+                            {Number(p.amount).toLocaleString()} EGP
+                          </span>
+                          <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
+                            {p.status}
+                          </span>
+                          {p.status === 'paid' && (
+                            <button
+                              onClick={() => handleRefundPayment(p.id)}
+                              disabled={refundingId === p.id}
+                              className="w-7 h-7 rounded-full bg-[#E53935]/10 flex items-center justify-center hover:bg-[#E53935]/20 transition-colors disabled:opacity-50 shrink-0"
+                              title="Mark as refunded"
+                            >
+                              {refundingId === p.id
+                                ? <Loader2 className="w-3.5 h-3.5 text-[#E53935] animate-spin" />
+                                : <RotateCcw className="w-3.5 h-3.5 text-[#E53935]" />}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
