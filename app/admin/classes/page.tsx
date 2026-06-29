@@ -1,316 +1,352 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Plus, Trash2, Loader2, AlertCircle, ArrowLeft, Edit2, Check, X } from 'lucide-react'
-import { AdminBottomNav } from '@/components/admin-bottom-nav'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
+import { getCurrentUser } from '@/lib/auth'
+import { playSingingBowl } from '@/lib/sounds'
 
-type ClassType = {
+type Session = {
   id: string
-  name: string
-  description: string | null
-  emoji?: string | null
+  start_time: string
+  end_time: string
+  max_capacity: number
+  booked_count: number
+  class_type: { name: string; description: string }
 }
 
-const EMOJIS = ['🧘', '🔥', '💪', '💃', '🌊', '🏃', '🤸', '🎯', '⭐', '🌸', '🏋️', '🎽']
+type ClientPackage = {
+  id: string
+  sessions_remaining: number
+  expiry_date: string
+  package: { name: string }
+}
 
-export default function AdminClassesPage() {
-  const [classTypes, setClassTypes] = useState<ClassType[]>([])
+type BookingStatus = 'idle' | 'loading' | 'success' | 'already_booked' | 'no_package' | 'full' | 'error' | 'waitlisted'
+
+const CLASS_IMAGES: Record<string, string> = {
+  'Power Yoga':             '/images/classes/yoga.jpg',
+  'Mat Pilates':            '/images/classes/stretching.jpg',
+  'Gentle Yoga & Recovery': '/images/classes/meditation.jpg',
+  'Belly Rhythmic Dancing': '/images/classes/sidebend.jpg',
+  'Aqua Aerobics':          '/images/venue/outdoor.jpg',
+}
+const FALLBACK_IMG = '/images/classes/yoga.jpg'
+
+function ClassPageInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const sessionId = searchParams.get('id')
+
+  const [session, setSession] = useState<Session | null>(null)
+  const [spotsLeft, setSpotsLeft] = useState(0)
+  const [myPackages, setMyPackages] = useState<ClientPackage[]>([])
+  const [selectedPackageId, setSelectedPackageId] = useState<string>('')
+  const [status, setStatus] = useState<BookingStatus>('idle')
   const [loading, setLoading] = useState(true)
-  const [showAdd, setShowAdd] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newDesc, setNewDesc] = useState('')
-  const [newEmoji, setNewEmoji] = useState('🧘')
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState('')
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editDesc, setEditDesc] = useState('')
+  const [userId, setUserId] = useState<string>('')
+
+  // نحفظ الـ sessionId عند الـ mount بس
+  // عشان لو الـ URL اتغير من برا (BackHandler مثلاً) الـ effect ما يـredirect-ش
+  const mountedSessionId = useRef(sessionId)
 
   useEffect(() => {
-    fetchClasses()
-  }, [])
+    const id = mountedSessionId.current
+    if (!id) { router.replace('/schedule'); return }
 
-  const fetchClasses = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('class_types')
-      .select('id, name, description, emoji')
-      .order('name')
-    if (data) setClassTypes(data as ClassType[])
-    setLoading(false)
+    const fetchAll = async () => {
+      const user = await getCurrentUser()
+      if (!user) { router.replace('/login'); return }
+      setUserId(user.id)
+
+      const { data: s } = await supabase
+        .from('class_sessions')
+        .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name, description)')
+        .eq('id', id)
+        .single()
+
+      if (!s) { router.replace('/schedule'); return }
+      setSession(s as unknown as Session)
+      setSpotsLeft(s.max_capacity - s.booked_count)
+
+      // Already booked?
+      const { data: existing } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('session_id', id)
+        .eq('client_id', user.id)
+        .eq('status', 'confirmed')
+        .maybeSingle()
+
+      if (existing) { setStatus('already_booked'); setLoading(false); return }
+
+      // Active packages
+      const { data: pkgs } = await supabase
+        .from('client_packages')
+        .select('id, sessions_remaining, expiry_date, package:packages(name)')
+        .eq('client_id', user.id)
+        .eq('status', 'active')
+        .gt('sessions_remaining', 0)
+        .gte('expiry_date', new Date().toISOString())
+        .order('expiry_date')
+
+      if (pkgs?.length) {
+        setMyPackages(pkgs as unknown as ClientPackage[])
+        setSelectedPackageId(pkgs[0].id)
+      }
+
+      setLoading(false)
+    }
+    fetchAll()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentionally on mount only — sessionId won't change while on page
+
+  const handleBook = async () => {
+    if (!session || !selectedPackageId || !userId) return
+    setStatus('loading')
+    try {
+      const { error } = await supabase.from('bookings').insert({
+        session_id: session.id,
+        client_id: userId,
+        client_package_id: selectedPackageId,
+        status: 'confirmed',
+      })
+      if (error) throw error
+
+      // Update booked_count + decrement sessions_remaining
+      await supabase.from('class_sessions')
+        .update({ booked_count: session.booked_count + 1 })
+        .eq('id', session.id)
+
+      const pkg = myPackages.find(p => p.id === selectedPackageId)
+      if (pkg) {
+        const newRemaining = pkg.sessions_remaining - 1
+        await supabase.from('client_packages')
+          .update({ sessions_remaining: newRemaining })
+          .eq('id', selectedPackageId)
+
+        // Low balance notification — last session remaining
+        if (newRemaining === 1) {
+          fetch('/api/push/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              client_id: userId,
+              title: '⚠️ Last Session!',
+              body: 'You have 1 session left in your package. Tap to renew before it runs out!',
+              type: 'low_balance',
+            }),
+          }).catch(() => {})
+        }
+      }
+
+      playSingingBowl(0.5)
+      setStatus('success')
+    } catch {
+      setStatus('error')
+    }
   }
 
-  const handleAdd = async () => {
-    if (!newName.trim()) return
-    setSaving(true)
-    setSaveError('')
-    const { error } = await supabase.from('class_types').insert({
-      name: newName.trim(),
-      description: newDesc.trim() || null,
-      emoji: newEmoji,
-    })
-    if (error) {
-      setSaveError(error.message)
-    } else {
-      setNewName(''); setNewDesc(''); setNewEmoji('🧘')
-      setShowAdd(false)
-      await fetchClasses()
+  const handleJoinWaitlist = async () => {
+    if (!session || !userId) return
+    setStatus('loading')
+    try {
+      await supabase.from('waitlist').insert({
+        session_id: session.id,
+        client_id: userId,
+        status: 'waiting',
+      })
+      setStatus('waitlisted')
+    } catch {
+      setStatus('error')
     }
-    setSaving(false)
   }
 
-  const handleDelete = async (id: string) => {
-    setDeletingId(id)
-    setDeleteError('')
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-10 h-10 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+    </div>
+  )
 
-    // Check for upcoming sessions
-    const { count } = await supabase
-      .from('class_sessions')
-      .select('id', { count: 'exact', head: true })
-      .eq('class_type_id', id)
-      .gte('start_time', new Date().toISOString())
+  if (!session) return null
 
-    if ((count ?? 0) > 0) {
-      setDeleteError(`Can't delete — ${count} upcoming session${count! > 1 ? 's' : ''} using this class`)
-      setDeletingId(null)
-      setConfirmDeleteId(null)
-      return
-    }
-
-    const { error } = await supabase.from('class_types').delete().eq('id', id)
-    if (error) {
-      setDeleteError(error.message)
-    } else {
-      setClassTypes(prev => prev.filter(c => c.id !== id))
-    }
-    setDeletingId(null)
-    setConfirmDeleteId(null)
-  }
-
-  const handleEdit = async (id: string) => {
-    if (!editName.trim()) return
-    setSaving(true)
-    const { error } = await supabase.from('class_types')
-      .update({ name: editName.trim(), description: editDesc.trim() || null })
-      .eq('id', id)
-    if (!error) {
-      setClassTypes(prev => prev.map(c =>
-        c.id === id ? { ...c, name: editName.trim(), description: editDesc.trim() || null } : c
-      ))
-      setEditingId(null)
-    }
-    setSaving(false)
-  }
+  const startTime = new Date(session.start_time)
+  const endTime = new Date(session.end_time)
+  const timeStr = `${startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} – ${endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
+  const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const className = (session.class_type as any)?.name || 'Class'
+  const description = (session.class_type as any)?.description || ''
+  const isFull = spotsLeft <= 0
 
   return (
-    <main className="bg-background min-h-screen pb-24">
-
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/more"
-            className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center">
-            <ArrowLeft className="w-4 h-4" />
-          </Link>
-          <div className="flex-1">
-            <h1 className="text-lg font-bold text-foreground">Class Types</h1>
-            <p className="text-xs text-muted-foreground">{classTypes.length} class{classTypes.length !== 1 ? 'es' : ''}</p>
-          </div>
-          <button onClick={() => { setShowAdd(true); setSaveError('') }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#006D77] text-white text-sm font-semibold rounded-xl hover:bg-[#004E5C] transition-colors">
-            <Plus className="w-4 h-4" />
-            Add New
-          </button>
+    <main className="bg-background min-h-screen pb-32">
+      {/* Hero Image Header */}
+      <div className="relative h-56 w-full overflow-hidden">
+        <Image
+          src={CLASS_IMAGES[className] || FALLBACK_IMG}
+          alt={className}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-black/10" />
+        <button onClick={() => router.back()}
+          className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+          <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
+        <div className="absolute bottom-4 left-4">
+          <h1 className="text-2xl font-bold text-white drop-shadow-lg">{className}</h1>
+          <p className="text-white/80 text-sm mt-0.5">with Enjy Gebril</p>
         </div>
       </div>
 
-      {/* Error Banner */}
-      {deleteError && (
-        <div className="mx-4 mt-4 px-4 py-3 bg-[#E53935]/10 border border-[#E53935]/20 rounded-2xl flex items-center gap-3">
-          <AlertCircle className="w-4 h-4 text-[#E53935] shrink-0" />
-          <p className="text-sm text-[#E53935]">{deleteError}</p>
-          <button onClick={() => setDeleteError('')} className="ml-auto">
-            <X className="w-4 h-4 text-[#E53935]" />
-          </button>
-        </div>
-      )}
-
-      <div className="px-4 pt-4 space-y-2">
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-[#006D77]" />
-          </div>
-        ) : classTypes.length === 0 ? (
-          <div className="flex flex-col items-center py-20 text-center">
-            <p className="text-4xl mb-3">🧘</p>
-            <p className="font-semibold text-foreground">No class types yet</p>
-            <p className="text-sm text-muted-foreground mt-1">Add your first class type</p>
-          </div>
-        ) : (
-          classTypes.map(ct => (
-            <div key={ct.id}
-              className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-
-              {editingId === ct.id ? (
-                /* Edit mode */
-                <div className="p-4 space-y-3">
-                  <input
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 font-semibold"
-                    placeholder="Class name"
-                    autoFocus
-                  />
-                  <input
-                    value={editDesc}
-                    onChange={e => setEditDesc(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                    placeholder="Description (optional)"
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <button onClick={() => setEditingId(null)}
-                      className="px-4 py-2 border border-border rounded-xl text-sm text-foreground">
-                      Cancel
-                    </button>
-                    <button onClick={() => handleEdit(ct.id)} disabled={saving || !editName.trim()}
-                      className="px-4 py-2 bg-[#006D77] text-white rounded-xl text-sm font-semibold flex items-center gap-2 disabled:opacity-50">
-                      {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : confirmDeleteId === ct.id ? (
-                /* Delete confirm */
-                <div className="p-4">
-                  <p className="text-sm font-semibold text-foreground mb-1">Delete "{ct.name}"?</p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Past sessions will keep their data. Future sessions must be removed first.
-                  </p>
-                  <div className="flex gap-2">
-                    <button onClick={() => setConfirmDeleteId(null)}
-                      className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleDelete(ct.id)}
-                      disabled={deletingId === ct.id}
-                      className="flex-1 py-2.5 bg-[#E53935] text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60">
-                      {deletingId === ct.id
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Trash2 className="w-4 h-4" />}
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Normal view */
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  <span className="text-2xl shrink-0">{ct.emoji || '🧘'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-foreground">{ct.name}</p>
-                    {ct.description && (
-                      <p className="text-xs text-muted-foreground truncate">{ct.description}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => { setEditingId(ct.id); setEditName(ct.name); setEditDesc(ct.description || '') }}
-                      className="w-8 h-8 rounded-xl bg-[#006D77]/10 flex items-center justify-center hover:bg-[#006D77]/20 transition-colors">
-                      <Edit2 className="w-3.5 h-3.5 text-[#006D77]" />
-                    </button>
-                    <button
-                      onClick={() => { setConfirmDeleteId(ct.id); setDeleteError('') }}
-                      className="w-8 h-8 rounded-xl bg-[#E53935]/10 flex items-center justify-center hover:bg-[#E53935]/20 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5 text-[#E53935]" />
-                    </button>
-                  </div>
-                </div>
-              )}
+      <div className="px-4 pt-6 space-y-5">
+        <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+          {[
+            { icon: Calendar, label: 'Date',  value: dateStr },
+            { icon: Clock,    label: 'Time',  value: timeStr },
+            { icon: Users,    label: 'Spots', value: isFull ? 'Class is full' : `${spotsLeft} of ${session.max_capacity} available` },
+          ].map((item, i) => (
+            <div key={i} className={`flex items-center gap-3 px-4 py-3.5 ${i < 2 ? 'border-b border-border' : ''}`}>
+              <div className="w-8 h-8 rounded-lg bg-[#E0EEF0] flex items-center justify-center">
+                <item.icon className="w-4 h-4 text-[#006D77]" />
+              </div>
+              <span className="text-xs text-muted-foreground w-12">{item.label}</span>
+              <span className={`text-sm font-medium flex-1 ${item.label === 'Spots' && isFull ? 'text-red-500' : 'text-foreground'}`}>
+                {item.value}
+              </span>
             </div>
-          ))
+          ))}
+        </div>
+
+        {description && (
+          <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-foreground mb-2">About this class</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+          </div>
+        )}
+
+        {status === 'idle' && !isFull && myPackages.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4 text-[#006D77]" /> Use Package
+            </h3>
+            <div className="space-y-2">
+              {myPackages.map(pkg => (
+                <button key={pkg.id} onClick={() => setSelectedPackageId(pkg.id)}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                    selectedPackageId === pkg.id ? 'border-[#006D77] bg-[#006D77]/5' : 'border-border bg-white'
+                  }`}>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-foreground">{(pkg.package as any)?.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {pkg.sessions_remaining} sessions left · expires {new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                    selectedPackageId === pkg.id ? 'border-[#006D77] bg-[#006D77]' : 'border-border'
+                  }`}>
+                    {selectedPackageId === pkg.id && <div className="w-2 h-2 rounded-full bg-white" />}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
 
-      <AdminBottomNav activePage="more" />
-
-      {/* Add Class Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
-          onClick={() => setShowAdd(false)}>
-          <div className="bg-white rounded-t-3xl w-full max-w-sm px-6 pt-6 pb-10 shadow-2xl"
-            onClick={e => e.stopPropagation()}>
-
-            {/* Handle */}
-            <div className="flex justify-center mb-4">
-              <div className="w-10 h-1 rounded-full bg-border" />
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-4">
+        {status === 'already_booked' && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-[#4CAF50]">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">You&apos;re booked!</span>
             </div>
-
-            <h3 className="text-lg font-bold text-foreground mb-5">Add New Class Type</h3>
-
-            {/* Emoji picker */}
-            <div className="mb-4">
-              <label className="text-xs font-medium text-muted-foreground mb-2 block">Emoji</label>
-              <div className="flex flex-wrap gap-2">
-                {EMOJIS.map(e => (
-                  <button key={e} onClick={() => setNewEmoji(e)}
-                    className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all ${
-                      newEmoji === e
-                        ? 'bg-[#006D77]/10 ring-2 ring-[#006D77] scale-110'
-                        : 'bg-muted hover:bg-muted/80'
-                    }`}>
-                    {e}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Name */}
-            <div className="mb-3">
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Class Name <span className="text-[#E53935]">*</span>
-              </label>
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Power Yoga, Mat Pilates..."
-                autoFocus
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-              />
-            </div>
-
-            {/* Description */}
-            <div className="mb-5">
-              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
-                Description <span className="text-muted-foreground/60">(optional)</span>
-              </label>
-              <input
-                value={newDesc}
-                onChange={e => setNewDesc(e.target.value)}
-                placeholder="Brief description of the class"
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-              />
-            </div>
-
-            {saveError && (
-              <p className="text-xs text-[#E53935] mb-3 text-center">{saveError}</p>
-            )}
-
-            <button
-              onClick={handleAdd}
-              disabled={saving || !newName.trim()}
-              className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 hover:bg-[#004E5C] transition-colors shadow-md">
-              {saving
-                ? <Loader2 className="w-5 h-5 animate-spin" />
-                : <><Plus className="w-5 h-5" /> Add Class Type</>}
-            </button>
+            <Link href="/bookings" className="w-full py-3 border border-[#006D77] text-[#006D77] font-semibold rounded-xl text-center">
+              View My Bookings
+            </Link>
           </div>
-        </div>
-      )}
+        )}
+        {status === 'success' && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-[#4CAF50]">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-bold">Booking confirmed! 🎉</span>
+            </div>
+            <Link href="/bookings" className="w-full py-3 bg-[#006D77] text-white font-semibold rounded-xl text-center">
+              View My Bookings
+            </Link>
+          </div>
+        )}
+        {status === 'idle' && !isFull && myPackages.length === 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-[#E86500] justify-center">
+              <AlertCircle className="w-5 h-5" />
+              <span className="text-sm font-medium">You need a package to book</span>
+            </div>
+            <Link href="/packages" className="block w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl text-center">
+              Browse Packages
+            </Link>
+          </div>
+        )}
+        {/* Waitlisted */}
+        {status === 'waitlisted' && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-[#006D77]">
+              <CheckCircle className="w-5 h-5" />
+              <span className="font-semibold">Added to waitlist!</span>
+            </div>
+            <p className="text-xs text-center text-muted-foreground">
+              You'll get a notification if a spot opens up 🎉
+            </p>
+          </div>
+        )}
+        {/* Full — Join Waitlist */}
+        {isFull && status !== 'already_booked' && status !== 'success' && status !== 'waitlisted' && (
+          <button onClick={handleJoinWaitlist} disabled={status === 'loading'}
+            className="w-full py-3.5 border-2 border-[#E86500] text-[#E86500] font-semibold rounded-xl hover:bg-[#E86500]/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            {status === 'loading'
+              ? <Loader2 className="w-5 h-5 animate-spin" />
+              : 'Join Waitlist'
+            }
+          </button>
+        )}
+        {status === 'idle' && !isFull && myPackages.length > 0 && (
+          <button onClick={handleBook} disabled={!selectedPackageId}
+            className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-xl hover:bg-[#004E5C] transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-[#006D77]/20">
+            Confirm Booking
+          </button>
+        )}
+        {status === 'loading' && (
+          <div className="flex items-center justify-center gap-2 py-3">
+            <Loader2 className="w-5 h-5 animate-spin text-[#006D77]" />
+            <span className="text-sm text-muted-foreground">Booking your spot...</span>
+          </div>
+        )}
+        {status === 'error' && (
+          <div className="space-y-2">
+            <p className="text-center text-sm text-red-500">Something went wrong. Try again.</p>
+            <button onClick={() => setStatus('idle')}
+              className="w-full py-3 border border-border rounded-xl text-sm font-medium">Try Again</button>
+          </div>
+        )}
+      </div>
     </main>
+  )
+}
+
+export default function ClassPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-4 border-[#006D77] border-t-transparent animate-spin" />
+      </div>
+    }>
+      <ClassPageInner />
+    </Suspense>
   )
 }
