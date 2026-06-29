@@ -34,7 +34,7 @@ export function PastBookingsList() {
         .select('id, status, session:class_sessions(start_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['attended', 'no_show', 'cancelled'])
-        .order('booked_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(20)
 
       if (data) setBookings(data.filter(b => b.session) as unknown as PastBooking[])
