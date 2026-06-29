@@ -68,26 +68,23 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     )
 
-    // 3. Handle back/forward button (popstate) — re-check session
-    const handlePopState = () => { checkSession() }
-
-    // 4. Handle page restored from bfcache (back button on mobile)
+    // 3. Handle page restored from bfcache (back button on mobile)
     const handlePageShow = (e: PageTransitionEvent) => {
       if (e.persisted) { checkSession() }
     }
 
-    // 5. Handle visibility change (tab switch / app resume)
+    // 4. Handle visibility change (tab switch / app resume)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') { checkSession() }
     }
 
-    window.addEventListener('popstate', handlePopState)
+    // NOTE: popstate is handled by BackHandler — no listener here
+    // to avoid race-condition (setAuthorized(false) flash + double nav)
     window.addEventListener('pageshow', handlePageShow)
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       subscription.unsubscribe()
-      window.removeEventListener('popstate', handlePopState)
       window.removeEventListener('pageshow', handlePageShow)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
