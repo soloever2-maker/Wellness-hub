@@ -5,6 +5,7 @@ import './globals.css'
 import { PWAInit } from '@/components/pwa-init'
 import { AuthGuard } from '@/components/auth-guard'
 import { PageTransition } from '@/components/page-transition'
+import { BackHandler } from '@/components/back-handler'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <PageTransition>
             {children}
           </PageTransition>
+          <BackHandler />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </AuthGuard>
       </body>
