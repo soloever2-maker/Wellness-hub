@@ -47,6 +47,7 @@ function AdminClientsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [clients, setClients] = useState<Client[]>([])
+  const [pkgByClient, setPkgByClient] = useState<Record<string, ClientPackageInfo>>({})
   const [packages, setPackages] = useState<PackageOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -77,12 +78,27 @@ function AdminClientsPageInner() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [clientsRes, pkgsRes] = await Promise.all([
+      const [clientsRes, pkgsRes, clientPkgsRes] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
+        supabase.from('client_packages')
+          .select('id, client_id, status, sessions_remaining, freeze_start')
+          .in('status', ['active', 'frozen']),
       ])
       const loadedClients = (clientsRes.data as Client[]) || []
       if (clientsRes.data) setClients(loadedClients)
+
+      if (clientPkgsRes.data) {
+        const map: Record<string, ClientPackageInfo> = {}
+        for (const row of clientPkgsRes.data as (ClientPackageInfo & { client_id: string })[]) {
+          // a client should have at most one active/frozen package, but
+          // if duplicates ever exist, keep the most recent (rows already
+          // come back newest-first isn't guaranteed here, so just keep first seen)
+          if (!map[row.client_id]) map[row.client_id] = row
+        }
+        setPkgByClient(map)
+      }
+
       let firstPkgId = ''
       if (pkgsRes.data) {
         setPackages(pkgsRes.data as PackageOption[])
@@ -132,13 +148,18 @@ function AdminClientsPageInner() {
   }
 
   const handleRemovePkg = async () => {
-    if (!clientPkg) return
+    if (!clientPkg || !selectedClient) return
     setShowRemoveConfirm(false)
     setSaving(true)
     await supabase.from('client_packages')
       .update({ status: 'expired' })
       .eq('id', clientPkg.id)
     setClientPkg(null)
+    setPkgByClient(prev => {
+      const next = { ...prev }
+      delete next[selectedClient.id]
+      return next
+    })
     showToast('Package removed ✓')
     setSaving(false)
   }
@@ -276,7 +297,10 @@ function AdminClientsPageInner() {
         .select('id, amount, status, paid_at, created_at, package:packages!package_id(name)')
         .eq('client_id', selectedClient.id).order('created_at', { ascending: false }).limit(10),
     ])
-    if (pkgRes2.data) setClientPkg(pkgRes2.data as ClientPackageInfo)
+    if (pkgRes2.data) {
+      setClientPkg(pkgRes2.data as ClientPackageInfo)
+      setPkgByClient(prev => ({ ...prev, [selectedClient.id]: pkgRes2.data as ClientPackageInfo }))
+    }
     if (pmtRes2.data) setClientPayments(pmtRes2.data as unknown as PaymentRecord[])
     setSaving(false)
   }
@@ -331,7 +355,7 @@ function AdminClientsPageInner() {
   }
 
   const handleFreeze = async () => {
-    if (!clientPkg) return
+    if (!clientPkg || !selectedClient) return
     setSaving(true)
     if (clientPkg.status === 'frozen') {
       // Unfreeze
@@ -346,7 +370,9 @@ function AdminClientsPageInner() {
         status: 'active', freeze_start: null, expiry_date: newExpiry.toISOString(),
       }).eq('id', clientPkg.id)
 
-      setClientPkg({ ...clientPkg, status: 'active', freeze_start: null })
+      const updated = { ...clientPkg, status: 'active', freeze_start: null }
+      setClientPkg(updated)
+      setPkgByClient(prev => ({ ...prev, [selectedClient.id]: updated }))
       showToast('Package unfrozen ✓')
     } else {
       // Freeze
@@ -354,7 +380,9 @@ function AdminClientsPageInner() {
         status: 'frozen', freeze_start: new Date().toISOString(),
       }).eq('id', clientPkg.id)
 
-      setClientPkg({ ...clientPkg, status: 'frozen', freeze_start: new Date().toISOString() })
+      const updated = { ...clientPkg, status: 'frozen', freeze_start: new Date().toISOString() }
+      setClientPkg(updated)
+      setPkgByClient(prev => ({ ...prev, [selectedClient.id]: updated }))
       showToast('Package frozen ❄️')
     }
     setSaving(false)
@@ -403,7 +431,9 @@ function AdminClientsPageInner() {
             <Users className="w-10 h-10 text-muted-foreground/30 mb-2" />
             <p className="text-sm text-muted-foreground">No clients found</p>
           </div>
-        ) : filtered.map(client => (
+        ) : filtered.map(client => {
+          const pkg = pkgByClient[client.id]
+          return (
           <button key={client.id} onClick={() => openClient(client)}
             className="w-full text-left bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-3">
@@ -416,14 +446,28 @@ function AdminClientsPageInner() {
                 <h4 className="font-semibold text-foreground text-sm">{client.full_name || '—'}</h4>
                 <p className="text-xs text-muted-foreground">{client.phone}</p>
               </div>
-              <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                client.status === 'approved' ? 'bg-[#4CAF50]/10 text-[#4CAF50]'
-                : client.status === 'pending' ? 'bg-[#FF9800]/10 text-[#FF9800]'
-                : 'bg-gray-100 text-gray-400'
-              }`}>{client.status}</span>
+              <div className="flex flex-col items-end gap-1.5">
+                <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                  client.status === 'approved' ? 'bg-[#4CAF50]/10 text-[#4CAF50]'
+                  : client.status === 'pending' ? 'bg-[#FF9800]/10 text-[#FF9800]'
+                  : 'bg-gray-100 text-gray-400'
+                }`}>{client.status}</span>
+                {pkg ? (
+                  <span className={`flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                    pkg.status === 'frozen' ? 'bg-[#5C6B6E]/10 text-[#5C6B6E]' : 'bg-[#006D77]/10 text-[#006D77]'
+                  }`}>
+                    {pkg.status === 'frozen' ? <Snowflake className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
+                    {pkg.status === 'frozen' ? 'Frozen' : `${pkg.sessions_remaining} left`}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">
+                    <Package className="w-2.5 h-2.5" /> No package
+                  </span>
+                )}
+              </div>
             </div>
           </button>
-        ))}
+        )})}
       </div>
 
       {/* Client Detail Sheet */}
