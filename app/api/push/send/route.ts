@@ -15,7 +15,7 @@ webPush.setVapidDetails(
 
 export async function POST(request: Request) {
   try {
-    const { client_id, title, body, type = 'alert' } = await request.json()
+    const { client_id, title, body, type = 'alert', url } = await request.json()
 
     // Get push subscriptions
     const { data: subs } = await supabase
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       try {
         await webPush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify({ title, body, icon: '/icon-192x192.png', badge: '/icon-96x96.png', tag: `${type}_${Date.now()}`, data: { type } })
+          JSON.stringify({ title, body, icon: '/icon-192x192.png', badge: '/icon-96x96.png', tag: `${type}_${Date.now()}`, data: { type, url: url || '/notifications' } })
         )
         sent = true
       } catch (err: any) {
