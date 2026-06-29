@@ -1,12 +1,12 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, Calendar, BookOpen, User, Package } from 'lucide-react'
+import { Home, Calendar, Compass, BookOpen, User } from 'lucide-react'
 
 const NAV_ITEMS = [
   { icon: Home,     label: 'Home',     id: 'home',     href: '/'         },
   { icon: Calendar, label: 'Schedule', id: 'schedule', href: '/schedule' },
-  { icon: Package,  label: 'Packages', id: 'packages', href: '/packages' },
+  { icon: Compass,  label: 'Explore',  id: 'explore',  href: '/explore'  },
   { icon: BookOpen, label: 'Bookings', id: 'bookings', href: '/bookings' },
   { icon: User,     label: 'Profile',  id: 'profile',  href: '/profile'  },
 ]
