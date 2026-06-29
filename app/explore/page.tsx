@@ -9,6 +9,7 @@ import {
   MapPin, Calendar, Users, Sparkles, CheckCircle,
 } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
+import { TopBar } from '@/components/top-bar'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -86,6 +87,9 @@ export default function ExplorePage() {
 
   return (
     <main className="bg-background min-h-screen pb-28">
+
+      {/* TopBar */}
+      <TopBar />
 
       {/* Hero */}
       <div className="relative h-72 w-full overflow-hidden">
