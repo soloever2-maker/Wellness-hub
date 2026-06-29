@@ -106,15 +106,20 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   if (event.action === 'dismiss') return
 
+  // Use URL from notification data (e.g. /schedule for package activation)
+  const targetUrl = (event.notification.data && event.notification.data.url)
+    ? event.notification.data.url
+    : '/notifications'
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
       const appClient = clients.find(c => c.url.includes(self.location.origin))
       if (appClient) {
         appClient.focus()
-        appClient.postMessage({ type: 'NAVIGATE', url: '/notifications' })
+        appClient.postMessage({ type: 'NAVIGATE', url: targetUrl })
         return
       }
-      return self.clients.openWindow('/notifications')
+      return self.clients.openWindow(targetUrl)
     })
   )
 })
