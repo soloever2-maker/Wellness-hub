@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft, Calendar, Star, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
+import { TopBar } from '@/components/top-bar'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -131,7 +132,8 @@ export default function PackagesPage() {
 
   return (
     <main className="bg-background min-h-screen pb-24">
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
+      <TopBar />
+      <div className="sticky top-14 z-10 bg-background border-b border-border px-4 py-4 flex items-center gap-3">
         <Link href="/" className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-foreground" />
         </Link>
