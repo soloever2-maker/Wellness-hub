@@ -28,7 +28,7 @@ type PendingRequest = {
 }
 
 type RecentBooking = {
-  id: string; status: string; booked_at: string
+  id: string; status: string; created_at: string
   client:  { full_name: string }
   session: { start_time: string; class_type: { name: string } } | null
 }
@@ -53,7 +53,7 @@ const CLASS_EMOJI: Record<string, string> = {
 }
 
 type BookingRow = {
-  id: string; status: string; booked_at: string
+  id: string; status: string; created_at: string
   client:  { full_name: string }
   session: { start_time: string; class_type: { name: string } } | null
 }
@@ -193,9 +193,9 @@ export default function AdminDashboardPage() {
       // 4. Recent bookings (last 5)
       try {
         const { data } = await supabase.from('bookings')
-          .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+          .select('id, status, created_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
           .in('status', ['confirmed', 'attended'])
-          .order('booked_at', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(5)
         if (data) setRecentBooks(data as unknown as RecentBooking[])
       } catch {}
@@ -238,10 +238,10 @@ export default function AdminDashboardPage() {
     try {
       const { start, end } = monthBounds(bMonth)
       const { data, error } = await supabase.from('bookings')
-        .select('id, status, booked_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
-        .gte('booked_at', start)
-        .lt('booked_at', end)
-        .order('booked_at', { ascending: false })
+        .select('id, status, created_at, client:users!client_id(full_name), session:class_sessions(start_time, class_type:class_types(name))')
+        .gte('created_at', start)
+        .lt('created_at', end)
+        .order('created_at', { ascending: false })
 
       if (error) throw error
       const rows = (data ?? []) as unknown as BookingRow[]
@@ -721,7 +721,7 @@ export default function AdminDashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{(b.client as any)?.full_name || '—'}</p>
                       <p className="text-xs text-muted-foreground">
-                        {b.session?.class_type?.name || '—'} · {fmtDate(b.booked_at)}
+                        {b.session?.class_type?.name || '—'} · {fmtDate(b.created_at)}
                       </p>
                     </div>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${STATUS_COLOR[b.status] ?? 'bg-gray-100 text-gray-500'}`}>
