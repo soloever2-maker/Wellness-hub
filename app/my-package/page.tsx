@@ -199,7 +199,7 @@ export default function MyPackagePage() {
             </div>
 
             {/* Book Now CTA */}
-            {pkg.status === 'active' && pkg.sessions_remaining > 0 && !hasUpcoming && (
+            {pkg.status === 'active' && pkg.sessions_remaining > 0 && (
               <a href="/schedule"
                 className="flex items-center gap-3 p-4 rounded-2xl mb-1 active:scale-[0.97] transition-all"
                 style={{ background: 'linear-gradient(135deg, #006D77, #004E5C)' }}>
