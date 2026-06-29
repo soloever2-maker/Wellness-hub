@@ -96,7 +96,7 @@ export default function ExplorePage() {
         <Image
           src="/images/trainer/enjy-hero.jpg"
           alt="Enjy Gebril"
-          fill className="object-cover object-top" sizes="100vw" priority
+          fill className="object-cover object-[center_35%]" sizes="100vw" priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute bottom-5 left-4">
