@@ -16,41 +16,77 @@ type Package = {
   display_order: number
 }
 
+type PendingRequest = {
+  id: string
+  package_id: string
+  package: { name: string } | null
+}
+
 export default function PackagesPage() {
   const [packages, setPackages] = useState<Package[]>([])
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
+  const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null)
 
   useEffect(() => {
-    supabase
-      .from('packages')
-      .select('*')
-      .eq('is_active', true)
-      .order('display_order')
-      .then(({ data }) => {
-        if (data) setPackages(data)
-        setLoading(false)
-      })
+    const load = async () => {
+      const [pkgsRes, userRes] = await Promise.all([
+        supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
+        getCurrentUser(),
+      ])
+      if (pkgsRes.data) setPackages(pkgsRes.data)
+
+      if (userRes) {
+        const { data: existingPending } = await supabase
+          .from('payments')
+          .select('id, package_id, package:packages(name)')
+          .eq('client_id', userRes.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (existingPending) setPendingRequest(existingPending as unknown as PendingRequest)
+      }
+      setLoading(false)
+    }
+    load()
   }, [])
 
   const handleBuy = async (pkg: Package) => {
+    // Guard against duplicate requests — re-check right before inserting in
+    // case of a race (e.g. two taps before state updates).
+    if (pendingRequest) return
+
     setBuying(pkg.id)
     try {
       const user = await getCurrentUser()
       if (!user) return
 
+      const { data: stillPending } = await supabase
+        .from('payments')
+        .select('id, package_id, package:packages(name)')
+        .eq('client_id', user.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (stillPending) {
+        setPendingRequest(stillPending as unknown as PendingRequest)
+        setBuying(null)
+        return
+      }
+
       // Create a pending payment record
-      const { error: paymentError } = await supabase.from('payments').insert({
+      const { data: inserted, error: paymentError } = await supabase.from('payments').insert({
         client_id: user.id,
         package_id: pkg.id,
         amount: pkg.price,
         gateway: 'cash',
         status: 'pending',
-      })
+      }).select('id, package_id, package:packages(name)').single()
       if (paymentError) console.error('Pending payment insert failed:', paymentError)
+      if (inserted) setPendingRequest(inserted as unknown as PendingRequest)
 
-      setSuccess(true)
       setBuying(null)
 
       // Open WhatsApp to Enjy with package details
@@ -74,11 +110,13 @@ export default function PackagesPage() {
         <h1 className="text-lg font-semibold text-foreground">Packages</h1>
       </div>
 
-      {/* Success banner */}
-      {success && (
-        <div className="mx-4 mt-4 bg-[#4CAF50]/10 border border-[#4CAF50]/20 rounded-2xl p-4 text-center">
-          <p className="text-sm font-medium text-[#4CAF50]">Request sent! Enjy will activate your package after payment ✓</p>
-          <button onClick={() => setSuccess(false)} className="text-xs text-muted-foreground mt-1">Dismiss</button>
+      {/* Pending request banner — shown until admin confirms, prevents duplicate requests */}
+      {pendingRequest && (
+        <div className="mx-4 mt-4 bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-2xl p-4 text-center">
+          <p className="text-sm font-medium text-[#E86500]">
+            Request sent for "{pendingRequest.package?.name || 'your package'}" — waiting for Enjy to confirm payment.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">You can't send another request until this one is confirmed.</p>
         </div>
       )}
 
@@ -118,11 +156,13 @@ export default function PackagesPage() {
 
                 <button
                   onClick={() => handleBuy(pkg)}
-                  disabled={buying === pkg.id}
+                  disabled={buying === pkg.id || !!pendingRequest}
                   className="w-full flex items-center justify-center gap-2 bg-[#006D77] hover:bg-[#004E5C] text-white py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-60"
                 >
                   {buying === pkg.id ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : pendingRequest ? (
+                    'Request Pending'
                   ) : (
                     <><MessageCircle className="w-4 h-4" /> Buy Package</>
                   )}
