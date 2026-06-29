@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
+import { TopBar } from '@/components/top-bar'
 import { supabase } from '@/lib/supabase'
 
 type Session = {
@@ -100,8 +101,9 @@ export default function SchedulePage() {
 
   return (
     <main className="bg-background min-h-screen pb-24">
+      <TopBar />
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
+      <div className="sticky top-14 z-10 bg-background border-b border-border px-4 py-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-foreground">Schedule</h1>
           <div className="flex items-center gap-2">
