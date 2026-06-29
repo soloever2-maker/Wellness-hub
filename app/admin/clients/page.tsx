@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw } from 'lucide-react'
 import { ConfirmModal } from '@/components/confirm-modal'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -54,10 +54,7 @@ function AdminClientsPageInner() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientPkg, setClientPkg] = useState<ClientPackageInfo | null>(null)
   const [clientPayments, setClientPayments] = useState<PaymentRecord[]>([])
-  const [refundingId, setRefundingId]     = useState<string | null>(null)
-  const [showAdjust, setShowAdjust]         = useState(false)
-  const [adjustVal, setAdjustVal]           = useState(0)
-  const [adjustSaving, setAdjustSaving]     = useState(false)
+  const [refundingId, setRefundingId] = useState<string | null>(null)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
   const [confirmRefundId, setConfirmRefundId] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -158,23 +155,6 @@ function AdminClientsPageInner() {
     setRefundingId(null)
   }
 
-  const handleAdjustSessions = async (delta: number) => {
-    if (!clientPkg) return
-    const next = Math.max(0, clientPkg.sessions_remaining + delta)
-    setAdjustSaving(true)
-    const { error } = await supabase
-      .from('client_packages')
-      .update({ sessions_remaining: next })
-      .eq('id', clientPkg.id)
-    if (!error) {
-      setClientPkg({ ...clientPkg, sessions_remaining: next })
-      showToast(`Sessions updated: ${next} ✓`)
-    } else {
-      showToast('⚠️ Update failed: ' + error.message)
-    }
-    setAdjustSaving(false)
-  }
-
   const handleAddPkg = async () => {
     if (!selectedClient || !selectedPkgId) return
     setSaving(true)
@@ -255,9 +235,10 @@ function AdminClientsPageInner() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         client_id: selectedClient.id,
-        title: '🎉 Package Activated!',
-        body: `Your ${pkg.name} (${pkg.session_count} sessions) is now active. Start booking your classes!`,
+        title: '🎉 Package Ready — Book Now!',
+        body: `You have ${pkg.session_count} sessions waiting! Tap here to book your first class 👇`,
         type: 'package_activated',
+        url: '/schedule',
       }),
     }).catch(() => {})
 
@@ -461,39 +442,11 @@ function AdminClientsPageInner() {
                   </span>
                 </div>
                 {clientPkg && (
-                  <div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Sessions Remaining</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-sm font-bold ${clientPkg.status === 'frozen' ? 'text-[#E86500]' : 'text-[#4CAF50]'}`}>
-                          {clientPkg.sessions_remaining} {clientPkg.status === 'frozen' ? '❄️' : ''}
-                        </span>
-                        <button
-                          onClick={() => setShowAdjust(v => !v)}
-                          className="w-6 h-6 rounded-full bg-muted flex items-center justify-center hover:bg-muted/80">
-                          <SlidersHorizontal className="w-3 h-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                    </div>
-                    {showAdjust && (
-                      <div className="mt-2 flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleAdjustSessions(-1)}
-                          disabled={adjustSaving || clientPkg.sessions_remaining <= 0}
-                          className="w-9 h-9 rounded-xl bg-[#E53935]/10 text-[#E53935] flex items-center justify-center disabled:opacity-40 hover:bg-[#E53935]/20">
-                          {adjustSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Minus className="w-4 h-4" />}
-                        </button>
-                        <span className="text-lg font-bold text-foreground w-8 text-center">
-                          {clientPkg.sessions_remaining}
-                        </span>
-                        <button
-                          onClick={() => handleAdjustSessions(+1)}
-                          disabled={adjustSaving}
-                          className="w-9 h-9 rounded-xl bg-[#006D77]/10 text-[#006D77] flex items-center justify-center disabled:opacity-40 hover:bg-[#006D77]/20">
-                          {adjustSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    )}
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Active Package</span>
+                    <span className={`text-sm font-medium ${clientPkg.status === 'frozen' ? 'text-[#E86500]' : 'text-[#4CAF50]'}`}>
+                      {clientPkg.sessions_remaining} sessions {clientPkg.status === 'frozen' ? '❄️ Frozen' : 'remaining'}
+                    </span>
                   </div>
                 )}
               </div>
