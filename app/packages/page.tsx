@@ -27,6 +27,7 @@ export default function PackagesPage() {
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
   const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null)
+  const [activePackageId, setActivePackageId] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -37,15 +38,26 @@ export default function PackagesPage() {
       if (pkgsRes.data) setPackages(pkgsRes.data)
 
       if (userRes) {
-        const { data: existingPending } = await supabase
-          .from('payments')
-          .select('id, package_id, package:packages(name)')
-          .eq('client_id', userRes.id)
-          .eq('status', 'pending')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-        if (existingPending) setPendingRequest(existingPending as unknown as PendingRequest)
+        const [pendingRes, activePkgRes] = await Promise.all([
+          supabase
+            .from('payments')
+            .select('id, package_id, package:packages(name)')
+            .eq('client_id', userRes.id)
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('client_packages')
+            .select('package_id')
+            .eq('client_id', userRes.id)
+            .in('status', ['active', 'frozen'])
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ])
+        if (pendingRes.data) setPendingRequest(pendingRes.data as unknown as PendingRequest)
+        if (activePkgRes.data) setActivePackageId(activePkgRes.data.package_id)
       }
       setLoading(false)
     }
@@ -53,9 +65,11 @@ export default function PackagesPage() {
   }, [])
 
   const handleBuy = async (pkg: Package) => {
-    // Guard against duplicate requests — re-check right before inserting in
-    // case of a race (e.g. two taps before state updates).
+    // Guard 1: already have a request waiting for admin confirmation
     if (pendingRequest) return
+    // Guard 2: this exact package is already their active/frozen package —
+    // they can switch to a different one any time, just not re-request the same one
+    if (pkg.id === activePackageId) return
 
     setBuying(pkg.id)
     try {
@@ -72,6 +86,20 @@ export default function PackagesPage() {
         .maybeSingle()
       if (stillPending) {
         setPendingRequest(stillPending as unknown as PendingRequest)
+        setBuying(null)
+        return
+      }
+
+      const { data: stillActive } = await supabase
+        .from('client_packages')
+        .select('package_id')
+        .eq('client_id', user.id)
+        .in('status', ['active', 'frozen'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (stillActive?.package_id === pkg.id) {
+        setActivePackageId(stillActive.package_id)
         setBuying(null)
         return
       }
@@ -156,11 +184,17 @@ export default function PackagesPage() {
 
                 <button
                   onClick={() => handleBuy(pkg)}
-                  disabled={buying === pkg.id || !!pendingRequest}
-                  className="w-full flex items-center justify-center gap-2 bg-[#006D77] hover:bg-[#004E5C] text-white py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-60"
+                  disabled={buying === pkg.id || !!pendingRequest || pkg.id === activePackageId}
+                  className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-60 ${
+                    pkg.id === activePackageId
+                      ? 'bg-[#4CAF50]/10 text-[#4CAF50] border-2 border-[#4CAF50]/30'
+                      : 'bg-[#006D77] hover:bg-[#004E5C] text-white'
+                  }`}
                 >
                   {buying === pkg.id ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : pkg.id === activePackageId ? (
+                    'Active Package'
                   ) : pendingRequest ? (
                     'Request Pending'
                   ) : (
