@@ -32,7 +32,7 @@ export function UpcomingBookingsList() {
         .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['confirmed', 'pending'])
-        .order('booked_at', { ascending: false })
+        .order('created_at', { ascending: false })
 
       // Filter upcoming sessions client-side (PostgREST can't filter on embedded resource columns)
       const now = new Date().toISOString()
