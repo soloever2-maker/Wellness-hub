@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation'
 import {
   Plus, MapPin, Calendar, Users, Edit2, Trash2,
   Globe, EyeOff, Loader2, Copy, CheckCircle, Bell, ChevronLeft, X, Check,
+  Camera, Image as ImageIcon,
 } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
 
 type Retreat = {
   id: string
@@ -53,6 +55,30 @@ export default function AdminRetreatsPage() {
   const [notifying,    setNotifying]    = useState<string | null>(null)
   const [copiedId,     setCopiedId]     = useState<string | null>(null)
   const [notifyDone,   setNotifyDone]   = useState<string | null>(null)
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingCover(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}.${ext}`
+      const { error } = await supabase.storage
+        .from('retreat-covers')
+        .upload(path, file, { upsert: true })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage
+        .from('retreat-covers')
+        .getPublicUrl(path)
+      setForm(f => ({ ...f, cover_image: publicUrl }))
+    } catch (err) {
+      console.error('Upload failed:', err)
+    } finally {
+      setUploadingCover(false)
+    }
+  }
 
   const fetchRetreats = async () => {
     const { data } = await supabase
@@ -370,15 +396,38 @@ export default function AdminRetreatsPage() {
                 </div>
               </div>
 
-              {/* Cover image URL */}
+              {/* Cover Image Upload */}
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Cover Image URL</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Cover Photo</label>
                 <input
-                  value={form.cover_image}
-                  onChange={e => setForm(f => ({ ...f, cover_image: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full border border-border rounded-xl px-3 py-3 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverUpload}
                 />
+                {form.cover_image ? (
+                  <div className="relative rounded-xl overflow-hidden h-36">
+                    <Image src={form.cover_image} alt="Cover" fill className="object-cover" sizes="500px" />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-2 right-2 px-3 py-1.5 bg-black/60 text-white text-xs font-medium rounded-lg flex items-center gap-1.5"
+                    >
+                      <Camera className="w-3.5 h-3.5" /> Change
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingCover}
+                    className="w-full h-28 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-[#006D77]/40 hover:text-[#006D77] transition-colors"
+                  >
+                    {uploadingCover
+                      ? <Loader2 className="w-6 h-6 animate-spin" />
+                      : <><ImageIcon className="w-6 h-6" /><span className="text-sm font-medium">Upload Cover Photo</span></>
+                    }
+                  </button>
+                )}
               </div>
 
               {/* Status */}
