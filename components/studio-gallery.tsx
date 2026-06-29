@@ -5,16 +5,23 @@ import Image from 'next/image'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 const GALLERY = [
-  { src: '/images/venue/outdoor.jpg',           alt: 'Outdoor rooftop studio',   caption: 'Our Rooftop Studio' },
-  { src: '/images/venue/indoor.jpg',            alt: 'Indoor studio',            caption: 'Indoor Practice Hall' },
-  { src: '/images/classes/yoga.jpg',            alt: 'Yoga class in session',    caption: 'Yoga Flow Sessions' },
-  { src: '/images/classes/meditation.jpg',      alt: 'Meditation practice',      caption: 'Meditation & Mindfulness' },
-  { src: '/images/classes/soundhealing.jpg',    alt: 'Sound healing session',    caption: 'Sound Healing' },
-  { src: '/images/community/group-large.jpg',   alt: 'Our community',           caption: 'Our Community' },
-  { src: '/images/classes/stretching.jpg',      alt: 'Stretching class',         caption: 'Gentle Stretching' },
-  { src: '/images/community/group-small.jpg',   alt: 'Group at studio entrance', caption: 'Align Family' },
-  { src: '/images/venue/class-wide.jpg',        alt: 'Full class wide shot',     caption: 'Sound Bath & Relaxation' },
-  { src: '/images/community/celebration.jpg',   alt: 'Studio celebration',       caption: 'Celebrating Together' },
+  { src: '/images/venue/outdoor.jpg',            alt: 'Outdoor rooftop studio',    caption: 'Our Rooftop Studio' },
+  { src: '/images/venue/indoor.jpg',             alt: 'Indoor studio',             caption: 'Indoor Practice Hall' },
+  { src: '/images/classes/yoga.jpg',             alt: 'Yoga class in session',     caption: 'Yoga Flow Sessions' },
+  { src: '/images/trainer/enjy-stretch.jpg',     alt: 'Enjy demonstrating a pose', caption: 'Enjy in Action' },
+  { src: '/images/classes/meditation.jpg',       alt: 'Meditation practice',       caption: 'Meditation & Mindfulness' },
+  { src: '/images/community/group-large.jpg',    alt: 'Our community',            caption: 'Our Community' },
+  { src: '/images/classes/soundhealing.jpg',     alt: 'Sound healing session',     caption: 'Sound Healing' },
+  { src: '/images/classes/savasana.jpg',         alt: 'Savasana relaxation',       caption: 'Deep Relaxation' },
+  { src: '/images/trainer/enjy-gentle.jpg',      alt: 'Enjy gentle practice',      caption: 'Gentle Practice' },
+  { src: '/images/community/group-small.jpg',    alt: 'Group at studio entrance',  caption: 'Align Family' },
+  { src: '/images/classes/stretching.jpg',       alt: 'Stretching class',          caption: 'Gentle Stretching' },
+  { src: '/images/community/bowls-group.jpg',    alt: 'Sound bowls gathering',     caption: 'Sound Bath Circle' },
+  { src: '/images/classes/sidebend.jpg',         alt: 'Side bend class',           caption: 'Flow & Flexibility' },
+  { src: '/images/venue/class-wide.jpg',         alt: 'Full class wide shot',      caption: 'Sound Bath Session' },
+  { src: '/images/community/group-outdoor.jpg',  alt: 'Large group outdoor',       caption: 'Growing Together' },
+  { src: '/images/community/celebration.jpg',    alt: 'Studio celebration',        caption: 'Celebrating Together' },
+  { src: '/images/trainer/enjy-portrait.jpg',    alt: 'Enjy Gebril portrait',      caption: 'Trainer Enjy Gebril' },
 ]
 
 export function StudioGallery() {
