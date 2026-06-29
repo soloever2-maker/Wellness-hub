@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { ExternalLink } from 'lucide-react'
 
-const ENJY_IMG = 'https://soloever2-maker.github.io/Enjy-FlowWA/about.jpg'
+const ENJY_IMG = '/images/trainer/enjy-teaching.jpg'
 const ENJY_SITE = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
 
 const certs = ['RYT-500 Yoga Alliance', 'YACEP Continuing Education', 'Therapeutic Yoga 860h', 'Yin Yoga 100h']
