@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -146,6 +146,10 @@ export default function AdminMorePage() {
               {
                 icon: Megaphone, label: 'Broadcast', desc: 'Send Push to client groups',
                 href: '/admin/broadcast', value: '',
+              },
+              {
+                icon: MapPin, label: 'Retreats', desc: 'Create & manage retreat announcements',
+                href: '/admin/retreats', value: '',
               },
             ].map((item, i, arr) => (
               <Link key={item.label} href={item.href}
