@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Check, X, Clock, Phone, Mail, RefreshCw } from 'lucide-react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 interface PendingUser {
@@ -15,6 +15,7 @@ interface PendingUser {
 }
 
 export default function AdminApprovalsPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<PendingUser[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
@@ -80,9 +81,15 @@ export default function AdminApprovalsPage() {
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/admin/more" className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
+            <button
+              onClick={() => {
+                if (window.history.length > 1) router.back()
+                else router.push('/admin/more')
+              }}
+              className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center"
+            >
               <ArrowLeft className="w-5 h-5 text-foreground" />
-            </Link>
+            </button>
             <div>
               <h1 className="text-lg font-bold text-foreground">Pending Approvals</h1>
               {!loading && (
