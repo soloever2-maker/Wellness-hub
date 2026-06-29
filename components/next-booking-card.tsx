@@ -97,20 +97,32 @@ export function NextBookingCard() {
   if (hasPkg) {
     return (
       <Link href="/schedule" className="block active:scale-[0.97] transition-all">
-        <div className="rounded-2xl p-4 flex items-center gap-4"
-          style={{ background: 'linear-gradient(135deg, #006D77 0%, #004E5C 100%)' }}>
-          <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
-            <Calendar className="w-6 h-6 text-white" />
+        {/* Glowing animated border */}
+        <div className="relative rounded-2xl p-[2px] overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, #006D77, #E86500, #006D77)' }}>
+          {/* Animated shimmer ring */}
+          <div className="absolute inset-0 rounded-2xl animate-pulse opacity-60"
+            style={{ background: 'linear-gradient(135deg, #006D77, #E86500, #006D77)' }} />
+          {/* Inner card */}
+          <div className="relative rounded-[14px] p-4 flex items-center gap-4"
+            style={{ background: 'linear-gradient(135deg, #005a63 0%, #003d44 100%)' }}>
+            {/* Pulsing icon */}
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 rounded-2xl bg-white/20 animate-ping" />
+              <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center relative">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-white font-bold text-base leading-tight">
+                Book your first class! 🧘
+              </p>
+              <p className="text-white/70 text-sm mt-0.5">
+                Your sessions are waiting — tap here
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
           </div>
-          <div className="flex-1">
-            <p className="text-white font-bold text-base leading-tight">
-              Book your first class! 🧘
-            </p>
-            <p className="text-white/70 text-sm mt-0.5">
-              Your sessions are waiting — tap here
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
         </div>
       </Link>
     )
