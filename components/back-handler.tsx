@@ -15,33 +15,36 @@ export function BackHandler() {
   const [showLogout, setShowLogout] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
-  // Keep ref always current — useLayoutEffect runs before paint
+  // Keep ref always current
   useLayoutEffect(() => { pathRef.current = pathname }, [pathname])
 
-  // Push a trap entry every time pathname changes
-  // We use { __trap: true } so we can identify our own states
+  // Push a trap entry every time pathname changes.
+  // Small delay lets Next.js finish its own history state update first.
   useEffect(() => {
     if (SKIP.includes(pathname)) return
-    // Avoid pushing duplicate traps
-    if (!window.history.state?.__trap) {
-      window.history.pushState(
-        { __trap: true },
-        '',
-        window.location.pathname + window.location.search
-      )
-    }
+
+    const id = requestAnimationFrame(() => {
+      if (!window.history.state?.__trap) {
+        window.history.pushState(
+          { __trap: true },
+          '',
+          window.location.pathname + window.location.search
+        )
+      }
+    })
+    return () => cancelAnimationFrame(id)
   }, [pathname])
 
-  // Single persistent listener
+  // Single persistent popstate listener
   useEffect(() => {
-    const handle = (e: PopStateEvent) => {
+    const handle = () => {
       if (busyRef.current) return
       const cur = pathRef.current
       if (SKIP.includes(cur)) return
 
       busyRef.current = true
 
-      // Re-push trap immediately so next back press is also caught
+      // Re-push trap so next back press is also caught
       window.history.pushState(
         { __trap: true },
         '',
@@ -49,19 +52,20 @@ export function BackHandler() {
       )
 
       if (ROOTS.includes(cur)) {
+        // On root → show logout dialog
         setShowLogout(true)
         busyRef.current = false
       } else {
-        // Go home — hard navigation avoids Next.js page-effect interference
+        // On sub-page → navigate home (hard nav resets everything cleanly)
         const target = cur.startsWith('/admin') ? '/admin' : '/'
         window.location.replace(target)
-        setTimeout(() => { busyRef.current = false }, 600)
+        // busyRef stays true — page will unload and remount
       }
     }
 
     window.addEventListener('popstate', handle)
     return () => window.removeEventListener('popstate', handle)
-  }, []) // mount once only
+  }, [])
 
   const handleLogout = async () => {
     setLoggingOut(true)
