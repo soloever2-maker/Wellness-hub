@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/schedule/page.tsx
+// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -69,7 +75,7 @@ export default function SchedulePage() {
 
       const { data } = await supabase
         .from('class_sessions')
-        .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name)')
+        .select('id, start_time, end_time, max_capacity, booked_count, instructor_name, class_type:class_types(name)')
         .eq('is_cancelled', false)
         .gte('start_time', start.toISOString())
         .lte('start_time', end.toISOString())
@@ -177,7 +183,7 @@ export default function SchedulePage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-foreground text-sm">{name}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{time} · 60 min</p>
-                    <p className="text-xs text-muted-foreground">Enjy Gebril</p>
+                    <p className="text-xs text-muted-foreground">{(s as any).instructor_name || 'Enjy Gebril'}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
