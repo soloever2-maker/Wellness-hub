@@ -30,12 +30,17 @@ export function UpcomingBookingsList() {
       const user = await getCurrentUser()
       if (!user) { setLoading(false); return }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('bookings')
         .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['confirmed', 'pending'])
         .order('created_at', { ascending: false })
+
+      // TEMP DEBUG — remove once issue is found
+      console.log('[UpcomingBookings] user.id:', user.id)
+      console.log('[UpcomingBookings] error:', error)
+      console.log('[UpcomingBookings] raw data:', JSON.stringify(data, null, 2))
 
       // Keep sessions visible until grace period after end_time passes
       // (so the client can still self check-in shortly after class ends)
@@ -43,10 +48,20 @@ export function UpcomingBookingsList() {
       if (data) setBookings(
         (data
           .filter(b => {
-            if (!b.session) return false
-            const endMs = new Date((b.session as any).end_time).getTime()
+            // Defensive: Supabase sometimes returns embedded relations as an array
+            const session = Array.isArray(b.session) ? b.session[0] : b.session
+            if (!session) return false
+            const endMs = new Date((session as any).end_time).getTime()
+            if (isNaN(endMs)) {
+              console.warn('[UpcomingBookings] bad end_time for booking', b.id, session)
+              return false
+            }
             return endMs + CHECK_IN_GRACE_MINUTES * 60 * 1000 >= now
           })
+          .map(b => ({
+            ...b,
+            session: Array.isArray(b.session) ? b.session[0] : b.session,
+          }))
           .sort((a, b) => new Date((a.session as any).start_time).getTime() - new Date((b.session as any).start_time).getTime())
         ) as unknown as Booking[]
       )
