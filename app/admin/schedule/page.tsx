@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/admin/schedule/page.tsx
+// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -47,7 +53,7 @@ export default function AdminSchedulePage() {
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addDay, setAddDay] = useState<Date | null>(null)
-  const [newSession, setNewSession] = useState({ class_type_id: '', time: '', capacity: 12 })
+  const [newSession, setNewSession] = useState({ class_type_id: '', time: '', capacity: 12, instructor_name: 'Enjy Gebril' })
   const [saving, setSaving] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
 
@@ -110,6 +116,7 @@ export default function AdminSchedulePage() {
       max_capacity: newSession.capacity,
       booked_count: 0,
       is_cancelled: false,
+      instructor_name: newSession.instructor_name.trim() || 'Enjy Gebril',
     }).select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, class_type:class_types(id, name)').single()
 
     if (data) setSessions(prev => [...prev, data as unknown as Session].sort(
@@ -118,7 +125,7 @@ export default function AdminSchedulePage() {
 
     setSaving(false)
     setShowAddModal(false)
-    setNewSession(s => ({ ...s, time: '', capacity: 12 }))
+    setNewSession(s => ({ ...s, time: '', capacity: 12, instructor_name: 'Enjy Gebril' }))
   }
 
   const handleCancel = async (sessionId: string) => {
@@ -261,6 +268,14 @@ export default function AdminSchedulePage() {
                   onChange={e => setNewSession(s => ({ ...s, capacity: +e.target.value }))}
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Instructor</label>
+              <input type="text" value={newSession.instructor_name}
+                placeholder="e.g. Enjy Gebril"
+                onChange={e => setNewSession(s => ({ ...s, instructor_name: e.target.value }))}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
             </div>
 
             <button onClick={handleAddSession}
