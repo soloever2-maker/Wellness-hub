@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   components/bookings/upcoming-bookings-list.tsx
+// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -14,6 +20,7 @@ type Booking = {
     id: string
     start_time: string
     end_time: string
+    instructor_name?: string
     class_type: { name: string }
   }
 }
@@ -33,7 +40,7 @@ export function UpcomingBookingsList() {
 
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
+        .select('id, status, session:class_sessions(id, start_time, end_time, instructor_name, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['confirmed', 'pending'])
         .order('booked_at', { ascending: false })
@@ -185,7 +192,7 @@ export function UpcomingBookingsList() {
                 </div>
                 <h3 className="font-bold text-foreground">{name}</h3>
                 <p className="text-sm text-muted-foreground mt-1">{dateStr} · {timeStr}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">60 min · Enjy Gebril</p>
+                <p className="text-xs text-muted-foreground mt-0.5">60 min · {(booking.session as any).instructor_name || 'Enjy Gebril'}</p>
               </div>
               {canCancel && !isAttended && (
                 <button
