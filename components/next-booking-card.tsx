@@ -65,7 +65,7 @@ export function NextBookingCard() {
         .select('id, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .eq('status', 'confirmed')
-        .order('created_at', { ascending: true })
+        .order('booked_at', { ascending: true })
 
       const upcoming = (data ?? [])
         .filter((b: any) => b.session?.start_time > now)
