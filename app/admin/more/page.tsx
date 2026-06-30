@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -110,7 +111,10 @@ export default function AdminMorePage() {
   return (
     <main className="bg-background min-h-screen pb-24">
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
-        <h1 className="text-xl font-bold text-foreground">More</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-foreground">More</h1>
+          <UserMenu variant="admin" />
+        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-6">
