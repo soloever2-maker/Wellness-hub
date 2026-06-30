@@ -160,9 +160,9 @@ export function UpcomingBookingsList() {
         const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
         const name = (booking.session.class_type as any)?.name || 'Class'
 
-        // Check-in window: opens 30 min before start, stays open until grace period after end
+        // Check-in window: opens 2 hours before start, stays open until grace period after end
         const now = Date.now()
-        const windowStart = startTime.getTime() - 30 * 60 * 1000
+        const windowStart = startTime.getTime() - 2 * 60 * 60 * 1000
         const windowEnd = endTime.getTime() + CHECK_IN_GRACE_MINUTES * 60 * 1000
         const isCheckInWindow = now >= windowStart && now <= windowEnd
         const isAttended = booking.status === 'attended'
