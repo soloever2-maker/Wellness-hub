@@ -1,13 +1,8 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/admin/schedule/page.tsx
-// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
-// ============================================================
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar, Pencil } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
 import { supabase } from '@/lib/supabase'
@@ -19,6 +14,7 @@ type Session = {
   max_capacity: number
   booked_count: number
   is_cancelled: boolean
+  instructor_name: string
   class_type: { id: string; name: string }
 }
 
@@ -53,6 +49,7 @@ export default function AdminSchedulePage() {
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [addDay, setAddDay] = useState<Date | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [newSession, setNewSession] = useState({ class_type_id: '', time: '', capacity: 12, instructor_name: 'Enjy Gebril' })
   const [saving, setSaving] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
@@ -77,7 +74,7 @@ export default function AdminSchedulePage() {
 
       const { data } = await supabase
         .from('class_sessions')
-        .select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, class_type:class_types(id, name)')
+        .select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, instructor_name, class_type:class_types(id, name)')
         .gte('start_time', start.toISOString())
         .lte('start_time', end.toISOString())
         .order('start_time')
@@ -126,6 +123,58 @@ export default function AdminSchedulePage() {
     setSaving(false)
     setShowAddModal(false)
     setNewSession(s => ({ ...s, time: '', capacity: 12, instructor_name: 'Enjy Gebril' }))
+  }
+
+  // فتح المودال في وضع التعديل وتعبئته ببيانات الكلاس
+  const openEdit = (s: Session) => {
+    const d = new Date(s.start_time)
+    const hh = String(d.getHours()).padStart(2, '0')
+    const mm = String(d.getMinutes()).padStart(2, '0')
+    setEditingId(s.id)
+    setAddDay(d)
+    setNewSession({
+      class_type_id: (s.class_type as any)?.id || '',
+      time: `${hh}:${mm}`,
+      capacity: s.max_capacity,
+      instructor_name: s.instructor_name || 'Enjy Gebril',
+    })
+    setShowAddModal(true)
+  }
+
+  // إغلاق المودال وتصفير وضع التعديل
+  const closeModal = () => {
+    setShowAddModal(false)
+    setEditingId(null)
+    setNewSession(s => ({ ...s, time: '', capacity: 12, instructor_name: 'Enjy Gebril' }))
+  }
+
+  const handleUpdateSession = async () => {
+    if (!editingId || !addDay || !newSession.class_type_id || !newSession.time) return
+    setSaving(true)
+
+    const [h, m] = newSession.time.split(':').map(Number)
+    const start = new Date(addDay)
+    start.setHours(h, m, 0, 0)
+    const end = new Date(start)
+    end.setHours(h + 1, m, 0, 0)
+
+    const { data } = await supabase.from('class_sessions').update({
+      class_type_id: newSession.class_type_id,
+      start_time: start.toISOString(),
+      end_time: end.toISOString(),
+      max_capacity: newSession.capacity,
+      instructor_name: newSession.instructor_name.trim() || 'Enjy Gebril',
+    }).eq('id', editingId)
+      .select('id, start_time, end_time, max_capacity, booked_count, is_cancelled, instructor_name, class_type:class_types(id, name)').single()
+
+    if (data) {
+      setSessions(prev => prev.map(s =>
+        s.id === editingId ? { ...(data as unknown as Session), booked_count: s.booked_count } : s
+      ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()))
+    }
+
+    setSaving(false)
+    closeModal()
   }
 
   const handleCancel = async (sessionId: string) => {
@@ -193,24 +242,32 @@ export default function AdminSchedulePage() {
                     const color = colorByName[name] || 'bg-muted text-foreground'
                     return (
                       <div key={s.id} className={`relative rounded-lg p-1.5 text-xs ${color} ${s.is_cancelled ? 'opacity-40 line-through' : ''}`}>
-                        <p className="font-semibold text-[10px] leading-tight line-clamp-1">{name}</p>
+                        <p className="font-semibold text-[10px] leading-tight line-clamp-1 pr-9">{name}</p>
                         <p className="text-[10px] opacity-80">{time}</p>
                         <p className="text-[10px] opacity-70">{s.booked_count}/{s.max_capacity}</p>
                         {!s.is_cancelled && (
-                          <button onClick={() => handleCancel(s.id)}
-                            disabled={cancellingId === s.id}
-                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/40">
-                            {cancellingId === s.id
-                              ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                              : <X className="w-2.5 h-2.5" />
-                            }
-                          </button>
+                          <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5">
+                            <button onClick={() => openEdit(s)}
+                              className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/40"
+                              title="Edit">
+                              <Pencil className="w-2.5 h-2.5" />
+                            </button>
+                            <button onClick={() => handleCancel(s.id)}
+                              disabled={cancellingId === s.id}
+                              className="w-4 h-4 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/40"
+                              title="Cancel">
+                              {cancellingId === s.id
+                                ? <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                                : <X className="w-2.5 h-2.5" />
+                              }
+                            </button>
+                          </div>
                         )}
                       </div>
                     )
                   })}
                   {/* Add button */}
-                  <button onClick={() => { setAddDay(date); setShowAddModal(true) }}
+                  <button onClick={() => { setEditingId(null); setNewSession(s => ({ ...s, time: '', capacity: 12, instructor_name: 'Enjy Gebril' })); setAddDay(date); setShowAddModal(true) }}
                     className="w-full h-7 rounded-lg border border-dashed border-border flex items-center justify-center hover:bg-muted/40 transition-colors mt-auto">
                     <Plus className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
@@ -222,18 +279,18 @@ export default function AdminSchedulePage() {
       )}
 
       {/* FAB */}
-      <button onClick={() => { setAddDay(new Date()); setShowAddModal(true) }}
+      <button onClick={() => { setEditingId(null); setNewSession(s => ({ ...s, time: '', capacity: 12, instructor_name: 'Enjy Gebril' })); setAddDay(new Date()); setShowAddModal(true) }}
         className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-[#006D77] text-white shadow-lg flex items-center justify-center hover:bg-[#004E5C] transition-colors">
         <Plus className="w-6 h-6" />
       </button>
 
       {/* Add Session Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={() => setShowAddModal(false)}>
+        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={closeModal}>
           <div className="bg-white w-full rounded-t-3xl px-6 pt-6 pb-28 space-y-4 shadow-xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-foreground">Add Class</h3>
-              <button onClick={() => setShowAddModal(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <h3 className="text-lg font-bold text-foreground">{editingId ? 'Edit Class' : 'Add Class'}</h3>
+              <button onClick={closeModal} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -278,10 +335,15 @@ export default function AdminSchedulePage() {
                 className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
             </div>
 
-            <button onClick={handleAddSession}
+            <button onClick={editingId ? handleUpdateSession : handleAddSession}
               disabled={saving || !newSession.time || !newSession.class_type_id}
               className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-xl hover:bg-[#004E5C] transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
-              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Plus className="w-5 h-5" /> Add to Schedule</>}
+              {saving
+                ? <Loader2 className="w-5 h-5 animate-spin" />
+                : editingId
+                  ? <><Pencil className="w-5 h-5" /> Save Changes</>
+                  : <><Plus className="w-5 h-5" /> Add to Schedule</>
+              }
             </button>
           </div>
         </div>
