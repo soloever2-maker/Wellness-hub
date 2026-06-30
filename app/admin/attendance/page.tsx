@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, X, Clock, Calendar, ChevronLeft, ChevronRight, Users, Loader2 } from 'lucide-react'
+import { Check, X, Clock, Calendar, ChevronLeft, ChevronRight, Users, Loader2, AlertTriangle } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
 
@@ -32,6 +32,7 @@ export default function AdminAttendancePage() {
   const [loading, setLoading] = useState(true)
   const [markingId, setMarkingId] = useState<string | null>(null)
   const [expandedSession, setExpandedSession] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
 
   const dateStr = selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
   const isToday = new Date().toDateString() === selectedDate.toDateString()
@@ -114,12 +115,19 @@ export default function AdminAttendancePage() {
       }))
     } else if (error.code === '23505') {
       // Unique constraint violation — client already has another active booking for this session
-      alert('This client already has another active booking for this class — resolve that one first.')
+      setToast('This client already has another active booking for this class — resolve that one first.')
     } else {
-      alert('Something went wrong. Please try again.')
+      setToast('Something went wrong. Please try again.')
     }
     setMarkingId(null)
   }
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 4000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   const totalBooked = Object.values(bookingsBySession).flat().length
   const totalAttended = Object.values(bookingsBySession).flat().filter(b => b.status === 'attended').length
@@ -314,6 +322,16 @@ export default function AdminAttendancePage() {
           })
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-4 right-4 z-[200] flex justify-center">
+          <div className="bg-foreground text-white rounded-xl px-4 py-3.5 shadow-2xl flex items-start gap-2.5 max-w-sm">
+            <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm leading-snug">{toast}</p>
+          </div>
+        </div>
+      )}
 
       <AdminBottomNav activePage="attendance" />
     </main>
