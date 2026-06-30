@@ -69,16 +69,25 @@ function ClassPageInner() {
         .single()
 
       if (!s) { router.replace('/schedule'); return }
-      setSession(s as unknown as Session)
-      setSpotsLeft(s.max_capacity - s.booked_count)
 
-      // Already booked?
+      // Compute live booked count from actual bookings — stored booked_count can drift
+      const { count: liveCount } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', id)
+        .eq('status', 'confirmed')
+
+      const accurateSession = { ...s, booked_count: liveCount ?? s.booked_count }
+      setSession(accurateSession as unknown as Session)
+      setSpotsLeft(accurateSession.max_capacity - accurateSession.booked_count)
+
+      // Already booked? (any non-cancelled state blocks a new booking for this session)
       const { data: existing } = await supabase
         .from('bookings')
         .select('id')
         .eq('session_id', id)
         .eq('client_id', user.id)
-        .eq('status', 'confirmed')
+        .in('status', ['confirmed', 'pending', 'attended', 'no_show'])
         .maybeSingle()
 
       if (existing) { setStatus('already_booked'); setLoading(false); return }
