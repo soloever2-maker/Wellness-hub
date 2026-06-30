@@ -1,3 +1,8 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/admin/packages-editor/page.tsx
+// (زرار Active: الدايرة بتفضل جوه الإطار صح — شمال off ويمين on)
+// ============================================================
 
 'use client'
 
@@ -112,9 +117,9 @@ export default function AdminPackagesEditorPage() {
                 <button onClick={() => handleChange(pkg.id, 'is_active', !pkg.is_active)}
                   role="switch"
                   aria-checked={pkg.is_active}
-                  className={`w-14 h-8 rounded-full transition-colors relative flex-shrink-0 ${pkg.is_active ? 'bg-[#006D77]' : 'bg-gray-300'}`}
+                  className={`w-12 h-7 rounded-full transition-colors relative flex-shrink-0 ${pkg.is_active ? 'bg-[#006D77]' : 'bg-gray-300'}`}
                 >
-                  <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${pkg.is_active ? 'translate-x-7' : 'translate-x-1'}`} />
+                  <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${pkg.is_active ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
