@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   components/bottom-nav.tsx
+// (بقى يقبل activePage — صلّح 5 من الـ 6 errors)
+// ============================================================
+
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
@@ -11,13 +17,13 @@ const NAV_ITEMS = [
   { icon: User,     label: 'Profile',  id: 'profile',  href: '/profile'  },
 ]
 
-export function BottomNav() {
+export function BottomNav({ activePage }: { activePage?: string } = {}) {
   const pathname = usePathname()
   const router   = useRouter()
 
-  const activeId = NAV_ITEMS.find(item =>
+  const activeId = activePage ?? (NAV_ITEMS.find(item =>
     item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
-  )?.id ?? 'home'
+  )?.id ?? 'home')
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border">
