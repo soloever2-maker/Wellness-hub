@@ -112,6 +112,11 @@ export default function AdminAttendancePage() {
           b.id === bookingId ? { ...b, status: newStatus } : b
         ),
       }))
+    } else if (error.code === '23505') {
+      // Unique constraint violation — client already has another active booking for this session
+      alert('This client already has another active booking for this class — resolve that one first.')
+    } else {
+      alert('Something went wrong. Please try again.')
     }
     setMarkingId(null)
   }
