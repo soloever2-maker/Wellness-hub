@@ -1,3 +1,10 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/packages/page.tsx
+// (العميل يشوف كل الباكدجات بأسعارها، بس ميقدرش يطلب جديدة
+//  لحد ما يخلّص حصص الباكدج الحالية)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -29,6 +36,7 @@ export default function PackagesPage() {
   const [buying, setBuying] = useState<string | null>(null)
   const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null)
   const [activePackageId, setActivePackageId] = useState<string | null>(null)
+  const [hasActiveBalance, setHasActiveBalance] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -50,15 +58,19 @@ export default function PackagesPage() {
             .maybeSingle(),
           supabase
             .from('client_packages')
-            .select('package_id')
+            .select('package_id, sessions_remaining')
             .eq('client_id', userRes.id)
             .in('status', ['active', 'frozen'])
+            .gt('sessions_remaining', 0)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
         ])
         if (pendingRes.data) setPendingRequest(pendingRes.data as unknown as PendingRequest)
-        if (activePkgRes.data) setActivePackageId(activePkgRes.data.package_id)
+        if (activePkgRes.data) {
+          setActivePackageId(activePkgRes.data.package_id)
+          setHasActiveBalance(true)
+        }
       }
       setLoading(false)
     }
@@ -68,9 +80,9 @@ export default function PackagesPage() {
   const handleBuy = async (pkg: Package) => {
     // Guard 1: already have a request waiting for admin confirmation
     if (pendingRequest) return
-    // Guard 2: this exact package is already their active/frozen package —
-    // they can switch to a different one any time, just not re-request the same one
-    if (pkg.id === activePackageId) return
+    // Guard 2: still has sessions left in an active package — can't request a new
+    // one until the current balance is used up
+    if (hasActiveBalance) return
 
     setBuying(pkg.id)
     try {
@@ -140,6 +152,18 @@ export default function PackagesPage() {
         <h1 className="text-lg font-semibold text-foreground">Packages</h1>
       </div>
 
+      {/* Active package banner — client still has sessions, can't request a new one yet */}
+      {hasActiveBalance && !pendingRequest && (
+        <div className="mx-4 mt-4 bg-[#4CAF50]/10 border border-[#4CAF50]/20 rounded-2xl p-4 text-center">
+          <p className="text-sm font-medium text-[#2E7D32]">
+            You still have an active package with sessions left.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            You can browse all packages below. You'll be able to request a new one once your current sessions are used up.
+          </p>
+        </div>
+      )}
+
       {/* Pending request banner — shown until admin confirms, prevents duplicate requests */}
       {pendingRequest && (
         <div className="mx-4 mt-4 bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-2xl p-4 text-center">
@@ -186,7 +210,7 @@ export default function PackagesPage() {
 
                 <button
                   onClick={() => handleBuy(pkg)}
-                  disabled={buying === pkg.id || !!pendingRequest || pkg.id === activePackageId}
+                  disabled={buying === pkg.id || !!pendingRequest || hasActiveBalance}
                   className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-semibold transition-colors disabled:opacity-60 ${
                     pkg.id === activePackageId
                       ? 'bg-[#4CAF50]/10 text-[#4CAF50] border-2 border-[#4CAF50]/30'
@@ -196,9 +220,11 @@ export default function PackagesPage() {
                   {buying === pkg.id ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : pkg.id === activePackageId ? (
-                    'Active Package'
+                    'Current Plan'
                   ) : pendingRequest ? (
                     'Request Pending'
+                  ) : hasActiveBalance ? (
+                    'Finish current package first'
                   ) : (
                     <><MessageCircle className="w-4 h-4" /> Buy Package</>
                   )}
