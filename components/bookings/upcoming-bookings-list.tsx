@@ -35,12 +35,9 @@ export function UpcomingBookingsList() {
         .select('id, status, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['confirmed', 'pending'])
-        .order('created_at', { ascending: false })
+        .order('booked_at', { ascending: false })
 
-      // TEMP DEBUG — remove once issue is found
-      console.log('[UpcomingBookings] user.id:', user.id)
-      console.log('[UpcomingBookings] error:', error)
-      console.log('[UpcomingBookings] raw data:', JSON.stringify(data, null, 2))
+      if (error) console.error('[UpcomingBookings] query error:', error)
 
       // Keep sessions visible until grace period after end_time passes
       // (so the client can still self check-in shortly after class ends)
