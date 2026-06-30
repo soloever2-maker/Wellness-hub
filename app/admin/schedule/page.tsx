@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
 import { supabase } from '@/lib/supabase'
 
 type Session = {
@@ -119,9 +120,12 @@ export default function AdminSchedulePage() {
   return (
     <main className="bg-background min-h-screen pb-24">
       {/* Top Bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 space-y-3">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-foreground">Manage Schedule</h1>
+          <UserMenu variant="admin" />
+        </div>
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button onClick={() => setWeekOffset(w => w - 1)}
               className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center">
