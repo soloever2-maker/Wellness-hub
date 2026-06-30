@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Check, X, Clock, Calendar, ChevronLeft, ChevronRight, Users, Loader2, AlertTriangle } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
 import { supabase } from '@/lib/supabase'
 
 type Session = {
@@ -139,12 +140,15 @@ export default function AdminAttendancePage() {
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
         <div className="flex items-center justify-between mb-3">
           <h1 className="text-xl font-bold text-foreground">Attendance</h1>
-          {totalBooked > 0 && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="px-2 py-1 rounded-full bg-[#4CAF50]/10 text-[#4CAF50] font-semibold">{totalAttended} attended</span>
-              {totalPending > 0 && <span className="px-2 py-1 rounded-full bg-[#FF9800]/10 text-[#FF9800] font-semibold">{totalPending} pending</span>}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {totalBooked > 0 && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="px-2 py-1 rounded-full bg-[#4CAF50]/10 text-[#4CAF50] font-semibold">{totalAttended} attended</span>
+                {totalPending > 0 && <span className="px-2 py-1 rounded-full bg-[#FF9800]/10 text-[#FF9800] font-semibold">{totalPending} pending</span>}
+              </div>
+            )}
+            <UserMenu variant="admin" />
+          </div>
         </div>
 
         {/* Date selector */}
