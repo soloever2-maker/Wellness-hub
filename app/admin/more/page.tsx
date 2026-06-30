@@ -1,7 +1,13 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/admin/more/page.tsx
+// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin, Image as ImageIcon } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
 import Link from 'next/link'
@@ -127,6 +133,10 @@ export default function AdminMorePage() {
               {
                 icon: Dumbbell, label: 'Class Types', desc: 'Add or remove class types',
                 href: '/admin/classes', value: '',
+              },
+              {
+                icon: ImageIcon, label: 'Class Images', desc: 'Change the cover image of each class',
+                href: '/admin/class-images', value: '',
               },
               {
                 icon: Package, label: 'Package Editor', desc: 'Edit prices, names, validity',
