@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal } from 'lucide-react'
 import { ConfirmModal } from '@/components/confirm-modal'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { UserMenu } from '@/components/user-menu'
 import { supabase } from '@/lib/supabase'
 
 type Client = {
@@ -404,7 +405,10 @@ function AdminClientsPageInner() {
       )}
 
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 space-y-3">
-        <h1 className="text-xl font-bold text-foreground">Clients</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-foreground">Clients</h1>
+          <UserMenu variant="admin" />
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input type="text" placeholder="Search by name or phone..." value={search}
