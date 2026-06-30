@@ -22,6 +22,7 @@ export function UpcomingBookingsList() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [confirmCancel, setConfirmCancel] = useState<Booking | null>(null)
   const [checkingInId, setCheckingInId] = useState<string | null>(null)
   const [checkInError, setCheckInError] = useState<{ id: string; msg: string } | null>(null)
 
@@ -98,6 +99,7 @@ export function UpcomingBookingsList() {
       setBookings(prev => prev.filter(b => b.id !== bookingId))
     }
     setCancellingId(null)
+    setConfirmCancel(null)
   }
 
   const handleCheckIn = async (bookingId: string) => {
@@ -187,14 +189,10 @@ export function UpcomingBookingsList() {
               </div>
               {canCancel && !isAttended && (
                 <button
-                  onClick={() => handleCancel(booking.id, booking.session.id, booking.session.start_time)}
-                  disabled={cancellingId === booking.id}
-                  className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors disabled:opacity-50"
+                  onClick={() => setConfirmCancel(booking)}
+                  className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors"
                 >
-                  {cancellingId === booking.id
-                    ? <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
-                    : <X className="w-4 h-4 text-red-400" />
-                  }
+                  <X className="w-4 h-4 text-red-400" />
                 </button>
               )}
             </div>
@@ -234,6 +232,54 @@ export function UpcomingBookingsList() {
           </div>
         )
       })}
+
+      {/* Cancel confirmation modal */}
+      {confirmCancel && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center px-5"
+          onClick={() => setConfirmCancel(null)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+
+            <h3 className="text-lg font-bold text-foreground text-center mb-2">
+              Cancel This Booking?
+            </h3>
+            <p className="text-sm text-muted-foreground text-center mb-1">
+              {(confirmCancel.session.class_type as any)?.name || 'Class'}
+            </p>
+            <p className="text-sm text-muted-foreground text-center mb-6">
+              {new Date(confirmCancel.session.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {' · '}
+              {new Date(confirmCancel.session.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmCancel(null)}
+                className="flex-1 py-3.5 border border-border rounded-xl text-sm font-medium active:scale-[0.97] transition-all"
+              >
+                Keep Booking
+              </button>
+              <button
+                onClick={() => handleCancel(confirmCancel.id, confirmCancel.session.id, confirmCancel.session.start_time)}
+                disabled={cancellingId === confirmCancel.id}
+                className="flex-1 py-3.5 bg-red-500 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.97] transition-all"
+              >
+                {cancellingId === confirmCancel.id
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : 'Cancel Booking'
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
