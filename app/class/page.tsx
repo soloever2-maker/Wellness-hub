@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
@@ -26,10 +27,14 @@ type ClientPackage = {
 
 type BookingStatus = 'idle' | 'loading' | 'success' | 'already_booked' | 'no_package' | 'full' | 'error' | 'waitlisted'
 
-const classEmoji: Record<string, string> = {
-  'Power Yoga': '🔥', 'Mat Pilates': '💪', 'Gentle Yoga & Recovery': '🧘',
-  'Belly Rhythmic Dancing': '💃', 'Aqua Aerobics': '🌊',
+const CLASS_IMAGES: Record<string, string> = {
+  'Power Yoga':             '/images/classes/yoga.jpg',
+  'Mat Pilates':            '/images/classes/stretching.jpg',
+  'Gentle Yoga & Recovery': '/images/classes/meditation.jpg',
+  'Belly Rhythmic Dancing': '/images/classes/sidebend.jpg',
+  'Aqua Aerobics':          '/images/venue/outdoor.jpg',
 }
+const FALLBACK_IMG = '/images/classes/yoga.jpg'
 
 function ClassPageInner() {
   const router = useRouter()
@@ -67,13 +72,13 @@ function ClassPageInner() {
       setSession(s as unknown as Session)
       setSpotsLeft(s.max_capacity - s.booked_count)
 
-      // Already booked?
+      // Already booked? (any non-cancelled state blocks a new booking for this session)
       const { data: existing } = await supabase
         .from('bookings')
         .select('id')
         .eq('session_id', id)
         .eq('client_id', user.id)
-        .eq('status', 'confirmed')
+        .in('status', ['confirmed', 'pending', 'attended', 'no_show'])
         .maybeSingle()
 
       if (existing) { setStatus('already_booked'); setLoading(false); return }
@@ -178,14 +183,25 @@ function ClassPageInner() {
 
   return (
     <main className="bg-background min-h-screen pb-32">
-      <div className="bg-gradient-to-br from-[#006D77] to-[#004E5C] px-4 pt-12 pb-8 text-white">
+      {/* Hero Image Header */}
+      <div className="relative h-56 w-full overflow-hidden">
+        <Image
+          src={CLASS_IMAGES[className] || FALLBACK_IMG}
+          alt={className}
+          fill
+          className="object-cover"
+          sizes="100vw"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-black/10" />
         <button onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-6">
+          className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <div className="text-4xl mb-3">{classEmoji[className] || '🧘'}</div>
-        <h1 className="text-2xl font-bold mb-1">{className}</h1>
-        <p className="text-white/70 text-sm">with Enjy Gebril</p>
+        <div className="absolute bottom-4 left-4">
+          <h1 className="text-2xl font-bold text-white drop-shadow-lg">{className}</h1>
+          <p className="text-white/80 text-sm mt-0.5">with Enjy Gebril</p>
+        </div>
       </div>
 
       <div className="px-4 pt-6 space-y-5">
