@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
@@ -16,8 +15,7 @@ type Session = {
   end_time: string
   max_capacity: number
   booked_count: number
-  instructor_name: string
-  class_type: { name: string; description: string; image_url: string | null }
+  class_type: { name: string; description: string }
 }
 
 type ClientPackage = {
@@ -66,7 +64,7 @@ function ClassPageInner() {
 
       const { data: s } = await supabase
         .from('class_sessions')
-        .select('id, start_time, end_time, max_capacity, booked_count, instructor_name, class_type:class_types(name, description, image_url)')
+        .select('id, start_time, end_time, max_capacity, booked_count, class_type:class_types(name, description)')
         .eq('id', id)
         .single()
 
@@ -190,8 +188,6 @@ function ClassPageInner() {
   const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
   const className = (session.class_type as any)?.name || 'Class'
   const description = (session.class_type as any)?.description || ''
-  const instructorName = session.instructor_name || 'Enjy Gebril'
-  const imageSrc = (session.class_type as any)?.image_url || CLASS_IMAGES[className] || FALLBACK_IMG
   const isFull = spotsLeft <= 0
 
   return (
@@ -199,13 +195,12 @@ function ClassPageInner() {
       {/* Hero Image Header */}
       <div className="relative h-56 w-full overflow-hidden">
         <Image
-          src={imageSrc}
+          src={CLASS_IMAGES[className] || FALLBACK_IMG}
           alt={className}
           fill
           className="object-cover"
           sizes="100vw"
           priority
-          unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-black/10" />
         <button onClick={() => router.back()}
@@ -214,7 +209,7 @@ function ClassPageInner() {
         </button>
         <div className="absolute bottom-4 left-4">
           <h1 className="text-2xl font-bold text-white drop-shadow-lg">{className}</h1>
-          <p className="text-white/80 text-sm mt-0.5">with {instructorName}</p>
+          <p className="text-white/80 text-sm mt-0.5">with Enjy Gebril</p>
         </div>
       </div>
 
