@@ -1,6 +1,6 @@
 // ============================================================
 // انسخ الملف ده فوق القديم في المسار ده:
-//   app/class/page.tsx
+//   app/admin/classes/page.tsx
 // (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
 // ============================================================
 
@@ -76,8 +76,17 @@ function ClassPageInner() {
         .single()
 
       if (!s) { router.replace('/schedule'); return }
-      setSession(s as unknown as Session)
-      setSpotsLeft(s.max_capacity - s.booked_count)
+
+      // Compute live booked count from actual bookings — stored booked_count can drift
+      const { count: liveCount } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', id)
+        .eq('status', 'confirmed')
+
+      const accurateSession = { ...s, booked_count: liveCount ?? s.booked_count }
+      setSession(accurateSession as unknown as Session)
+      setSpotsLeft(accurateSession.max_capacity - accurateSession.booked_count)
 
       // Already booked? (any non-cancelled state blocks a new booking for this session)
       const { data: existing } = await supabase
