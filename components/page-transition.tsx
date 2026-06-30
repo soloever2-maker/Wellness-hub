@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   components/page-transition.tsx
+// (قيمة ابتدائية للـ useRef — صلّح الـ error السادس)
+// ============================================================
+
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
@@ -8,7 +14,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [show, setShow] = useState(false)
   const prevPath = useRef(pathname)
-  const timerRef = useRef<NodeJS.Timeout>()
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (prevPath.current === pathname) return
