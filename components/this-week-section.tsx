@@ -46,8 +46,19 @@ export function ThisWeekSection() {
       .gte('start_time', start.toISOString())
       .lte('start_time', end.toISOString())
       .order('start_time')
-      .then(({ data }) => {
-        if (data) setSessions(data as unknown as Session[])
+      .then(async ({ data }) => {
+        if (data) {
+          // Compute live counts from actual bookings — stored booked_count can drift
+          const ids = data.map(s => s.id)
+          const { data: liveBookings } = await supabase
+            .from('bookings').select('session_id')
+            .in('session_id', ids).eq('status', 'confirmed')
+
+          const counts: Record<string, number> = {}
+          liveBookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+
+          setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
+        }
         setLoading(false)
       })
   }, [])
