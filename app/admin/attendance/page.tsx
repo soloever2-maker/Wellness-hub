@@ -98,7 +98,7 @@ export default function AdminAttendancePage() {
     fetchData()
   }, [selectedDate])
 
-  const handleMark = async (bookingId: string, sessionId: string, newStatus: 'attended' | 'no_show') => {
+  const handleMark = async (bookingId: string, sessionId: string, newStatus: 'attended' | 'no_show' | 'confirmed') => {
     setMarkingId(bookingId)
     const { error } = await supabase
       .from('bookings')
@@ -260,13 +260,22 @@ export default function AdminAttendancePage() {
                               </button>
                             </div>
                           ) : (
-                            // Allow changing decision
-                            <button
-                              onClick={() => handleMark(booking.id, session.id, isAttended ? 'no_show' : 'attended')}
-                              className="text-xs text-muted-foreground underline hover:text-foreground transition-colors"
-                            >
-                              Change
-                            </button>
+                            // Already marked — allow correction
+                            <div className="flex items-center gap-2.5">
+                              <button
+                                onClick={() => handleMark(booking.id, session.id, isAttended ? 'no_show' : 'attended')}
+                                className="text-xs text-muted-foreground underline hover:text-foreground transition-colors whitespace-nowrap"
+                              >
+                                {isAttended ? 'Mark No Show' : 'Mark Attended'}
+                              </button>
+                              <span className="text-muted-foreground/30">·</span>
+                              <button
+                                onClick={() => handleMark(booking.id, session.id, 'confirmed')}
+                                className="text-xs text-[#006D77] underline hover:text-[#004E5C] transition-colors whitespace-nowrap"
+                              >
+                                Undo
+                              </button>
+                            </div>
                           )}
                         </div>
                       )
