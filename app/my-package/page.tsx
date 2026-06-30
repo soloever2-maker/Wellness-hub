@@ -20,7 +20,7 @@ type ClientPackage = {
 type BookingHistory = {
   id: string
   status: string
-  created_at: string
+  booked_at: string
   session: {
     start_time: string
     class_type: { name: string }
@@ -55,10 +55,10 @@ export default function MyPackagePage() {
       // Get booking history
       const { data: bookings } = await supabase
         .from('bookings')
-        .select('id, status, created_at, session:class_sessions(start_time, class_type:class_types(name))')
+        .select('id, status, booked_at, session:class_sessions(start_time, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['attended', 'no_show'])
-        .order('created_at', { ascending: false })
+        .order('booked_at', { ascending: false })
         .limit(10)
 
       if (bookings) setHistory(bookings as unknown as BookingHistory[])
@@ -250,7 +250,7 @@ export default function MyPackagePage() {
                   {history.map((booking, i) => (
                     <div key={booking.id} className={`flex items-center justify-between px-4 py-3 ${i < history.length - 1 ? 'border-b border-border' : ''}`}>
                       <span className="text-sm text-muted-foreground w-20">
-                        {new Date(booking.session?.start_time || booking.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {new Date(booking.session?.start_time || booking.booked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                       <span className="text-sm font-medium text-foreground flex-1">
                         {booking.session?.class_type?.name || 'Class'}
