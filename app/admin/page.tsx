@@ -223,7 +223,22 @@ export default function AdminDashboardPage() {
           .gte('start_time', dayStart.toISOString())
           .lte('start_time', dayEnd.toISOString())
           .order('start_time')
-        if (data) setTodaySessions(data as unknown as TodaySession[])
+
+        if (data) {
+          // Compute live counts from actual bookings — the stored booked_count
+          // column can drift out of sync (cancellations, manual admin bookings, etc.)
+          const ids = data.map(s => s.id)
+          const { data: liveBookings } = await supabase
+            .from('bookings').select('session_id')
+            .in('session_id', ids).eq('status', 'confirmed')
+
+          const counts: Record<string, number> = {}
+          liveBookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+
+          setTodaySessions(
+            data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as TodaySession[]
+          )
+        }
       } catch {}
 
       setStatsLoading(false)
