@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -109,9 +110,11 @@ export default function AdminPackagesEditorPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-foreground">Active</span>
                 <button onClick={() => handleChange(pkg.id, 'is_active', !pkg.is_active)}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${pkg.is_active ? 'bg-[#006D77]' : 'bg-gray-200'}`}
+                  role="switch"
+                  aria-checked={pkg.is_active}
+                  className={`w-14 h-8 rounded-full transition-colors relative flex-shrink-0 ${pkg.is_active ? 'bg-[#006D77]' : 'bg-gray-300'}`}
                 >
-                  <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${pkg.is_active ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${pkg.is_active ? 'translate-x-7' : 'translate-x-1'}`} />
                 </button>
               </div>
 
