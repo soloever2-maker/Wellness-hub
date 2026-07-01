@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { CheckCircle2, Loader2, Sparkles, Heart } from 'lucide-react'
+import { CheckCircle2, Loader2, Sparkles, Heart, Copy, ExternalLink, Share2 } from 'lucide-react'
 
 type Partner = {
   id: string
@@ -18,11 +18,16 @@ type Partner = {
 
 export default function JoinPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params?.slug as string
+  const bypassPWA = searchParams?.get('test') === '1'
 
   const [partner, setPartner]   = useState<Partner | null>(null)
   const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [isPWA,    setIsPWA]    = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const [name,   setName]   = useState('')
   const [phone,  setPhone]  = useState('')
@@ -31,6 +36,23 @@ export default function JoinPage() {
   const [submitting, setSubmitting] = useState(false)
   const [success,    setSuccess]    = useState(false)
   const [error,      setError]      = useState('')
+
+  // Detect if running as PWA (standalone) + check auth
+  useEffect(() => {
+    // PWA detection (unless bypassed via ?test=1)
+    const standalone =
+      !bypassPWA && (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true
+      )
+
+    setIsPWA(standalone)
+
+    // Auth check
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user)
+    })
+  }, [bypassPWA])
 
   useEffect(() => {
     const fetchPartner = async () => {
@@ -100,6 +122,116 @@ export default function JoinPage() {
         <p className="text-4xl">🔍</p>
         <h1 className="text-xl font-bold text-foreground">Link not found</h1>
         <p className="text-sm text-muted-foreground">This partner link is no longer active.</p>
+      </div>
+    )
+  }
+
+  // ── PWA mode — different screens for logged-in vs anonymous ──
+  if (isPWA && partner) {
+    const partnerUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}/join/${slug}`
+      : ''
+
+    const copyLink = async () => {
+      try {
+        await navigator.clipboard.writeText(partnerUrl)
+        setLinkCopied(true)
+        setTimeout(() => setLinkCopied(false), 2000)
+      } catch {}
+    }
+
+    const shareLink = async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `${partner.name} × Align with Enjy`,
+            text:  `Get ${discountLabel} on your first package at Align with Enjy Wellness Studio!`,
+            url:   partnerUrl,
+          })
+        } catch {}
+      } else {
+        copyLink()
+      }
+    }
+
+    // Existing client — encourage them to share
+    if (isLoggedIn) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-[#E0EEF0] to-[#FFF8F3] flex flex-col items-center justify-center px-6 text-center gap-5">
+          <div className="w-20 h-20 rounded-full bg-[#006D77]/10 flex items-center justify-center">
+            <Heart className="w-10 h-10 text-[#006D77]" fill="currentColor" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">You're already with us! 💛</h1>
+            <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+              This link is for new members coming from{' '}
+              <strong className="text-foreground">{partner.name}</strong>.
+              Share it with a friend so they can get {discountLabel} on their first package.
+            </p>
+          </div>
+
+          <div className="w-full max-w-xs space-y-2.5">
+            <button
+              onClick={shareLink}
+              className="w-full flex items-center justify-center gap-2 py-3.5
+                         bg-[#006D77] text-white font-semibold rounded-xl
+                         hover:bg-[#004E5C] active:scale-[0.98] transition-all"
+            >
+              <Share2 className="w-4 h-4" /> Share with a friend
+            </button>
+
+            <button
+              onClick={copyLink}
+              className="w-full flex items-center justify-center gap-2 py-3
+                         bg-white border border-border text-foreground font-medium rounded-xl
+                         active:scale-[0.98] transition-all"
+            >
+              <Copy className="w-4 h-4" />
+              {linkCopied ? 'Link copied ✓' : 'Copy link'}
+            </button>
+          </div>
+
+          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
+            <Heart className="w-3 h-3 text-[#E86500]" fill="currentColor" />
+            Align with Enjy Wellness Studio
+          </p>
+        </div>
+      )
+    }
+
+    // Not logged in — open in browser
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#E0EEF0] to-[#FFF8F3] flex flex-col items-center justify-center px-6 text-center gap-5">
+        <div className="w-20 h-20 rounded-full bg-[#E86500]/10 flex items-center justify-center">
+          <ExternalLink className="w-10 h-10 text-[#E86500]" />
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-foreground">Almost there!</h1>
+          <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+            To sign up with your <strong className="text-foreground">{partner.name}</strong> discount,
+            please open this link in your browser (Safari or Chrome).
+          </p>
+        </div>
+
+        <div className="w-full max-w-xs bg-white rounded-2xl border border-border p-4 space-y-2">
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Your link</p>
+          <p className="text-xs text-foreground break-all font-mono">{partnerUrl}</p>
+          <button
+            onClick={copyLink}
+            className="w-full mt-2 flex items-center justify-center gap-2 py-2.5
+                       bg-[#006D77] text-white text-sm font-semibold rounded-xl
+                       active:scale-[0.98] transition-all"
+          >
+            <Copy className="w-4 h-4" />
+            {linkCopied ? 'Copied ✓' : 'Copy link'}
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+          After copying, open Safari or Chrome and paste it in the address bar.
+        </p>
       </div>
     )
   }
