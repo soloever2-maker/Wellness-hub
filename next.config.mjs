@@ -11,7 +11,10 @@ const nextConfig = {
       {
         source: '/((?!_next/static|_next/image|icon|logo|manifest|favicon).*)',
         headers: [
-          { key: 'Cache-Control', value: 'no-store, must-revalidate' },
+          // no-cache = المتصفح بيخزّن الصفحة محلياً، لكن قبل ما يستخدمها
+          // بيسأل السيرفر "هي لسه صالحة؟" — لو أيوة يرد بـ 304 (رد سريع جداً)
+          // ده بيحسّن سرعة التنقل بشكل ملحوظ مع الحفاظ على حداثة الداتا
+          { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
           { key: 'Pragma', value: 'no-cache' },
         ],
       },
