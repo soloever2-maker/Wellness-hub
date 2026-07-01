@@ -5,7 +5,7 @@ import { TodaysClasses } from '@/components/todays-classes'
 import { ThisWeekSection } from '@/components/this-week-section'
 import { QuickActions } from '@/components/quick-actions'
 import { TrainerCard } from '@/components/trainer'
-import { StudioGallery } from '@/components/studio-gallery'
+import { StudioTeaser } from '@/components/studio-teaser'
 import { BottomNav } from '@/components/bottom-nav'
 
 export default function Page() {
@@ -18,7 +18,7 @@ export default function Page() {
         <QuickActions />
         <TodaysClasses />
         <ThisWeekSection />
-        <StudioGallery />
+        <StudioTeaser />
         <TrainerCard />
       </div>
       <BottomNav />
