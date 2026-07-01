@@ -7,7 +7,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin, Image as ImageIcon } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin, Image as ImageIcon, Handshake } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
 import Link from 'next/link'
@@ -164,6 +164,10 @@ export default function AdminMorePage() {
               {
                 icon: MapPin, label: 'Retreats', desc: 'Create & manage retreat announcements',
                 href: '/admin/retreats', value: '',
+              },
+              {
+                icon: Handshake, label: 'Partners', desc: 'Manage referral partners & track leads',
+                href: '/admin/partners', value: '',
               },
             ].map((item, i, arr) => (
               <Link key={item.label} href={item.href}
