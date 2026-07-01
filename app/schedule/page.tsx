@@ -210,54 +210,52 @@ export default function SchedulePage() {
             const name = (s.class_type as any)?.name || 'Class'
             const colorKey = (s.class_type as any)?.name?.includes('Pilates') ? 'orange' : (s.class_type as any)?.name?.includes('Dancing') ? 'peach' : (s.class_type as any)?.name?.includes('Gentle') ? 'green' : 'teal'
 
+            const bookers = bookersBySession[s.id] || []
+            const iAmIn   = bookers.some(b => b.id === currentUserId)
+            const others  = bookers.filter(b => b.id !== currentUserId)
+            const COLORS  = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
+
+            const bookersLabel = (() => {
+              if (bookers.length === 0)          return null
+              if (iAmIn && bookers.length === 1) return "You're going 🎉"
+              if (iAmIn && others.length === 1)  return `You & ${others[0].firstName} are going`
+              if (iAmIn && others.length === 2)  return `You, ${others[0].firstName} & ${others[1].firstName}`
+              if (iAmIn && others.length > 2)    return `You, ${others[0].firstName} & ${others.length - 1} others`
+              if (bookers.length === 1)          return `${bookers[0].firstName} is going`
+              if (bookers.length === 2)          return `${bookers[0].firstName} & ${bookers[1].firstName} are going`
+              if (bookers.length === 3)          return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers[2].firstName}`
+              return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers.length - 2} others`
+            })()
+
             return (
               <Link key={s.id} href={`/class?id=${s.id}`}>
-                <div className="bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${colorMap[colorKey] || colorMap.teal}`}>
-                    {classEmoji[name] || '🧘'}
+                <div className="bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                  {/* Main row — icon + info + spots */}
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${colorMap[colorKey] || colorMap.teal}`}>
+                      {classEmoji[name] || '🧘'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-foreground text-sm">{name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{time} · 60 min</p>
+                      <p className="text-xs text-muted-foreground">{(s as any).instructor_name || 'Enjy Gebril'}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                        isFull
+                          ? 'bg-red-50 text-red-500'
+                          : spotsLeft <= 3
+                          ? 'bg-[#FFD9B8]/40 text-[#E86500]'
+                          : 'bg-[#E0EEF0] text-[#006D77]'
+                      }`}>
+                        {isFull ? 'Full' : `${spotsLeft} spots`}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-sm">{name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">{time} · 60 min</p>
-                    <p className="text-xs text-muted-foreground">{(s as any).instructor_name || 'Enjy Gebril'}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      isFull
-                        ? 'bg-red-50 text-red-500'
-                        : spotsLeft <= 3
-                        ? 'bg-[#FFD9B8]/40 text-[#E86500]'
-                        : 'bg-[#E0EEF0] text-[#006D77]'
-                    }`}>
-                      {isFull ? 'Full' : `${spotsLeft} spots`}
-                    </span>
-                  </div>
-                </div>
 
-                {/* ── Who's joining ── */}
-                {(() => {
-                  const bookers = bookersBySession[s.id] || []
-                  if (bookers.length === 0) return null
-
-                  const iAmIn  = bookers.some(b => b.id === currentUserId)
-                  const others = bookers.filter(b => b.id !== currentUserId)
-                  const COLORS = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
-
-                  // Build the label — names first, count second
-                  const label = (() => {
-                    if (iAmIn && bookers.length === 1) return "You're going 🎉"
-                    if (iAmIn && others.length === 1)  return `You & ${others[0].firstName} are going`
-                    if (iAmIn && others.length === 2)  return `You, ${others[0].firstName} & ${others[1].firstName}`
-                    if (iAmIn && others.length > 2)    return `You, ${others[0].firstName} & ${others.length - 1} others`
-                    if (bookers.length === 1)          return `${bookers[0].firstName} is going`
-                    if (bookers.length === 2)          return `${bookers[0].firstName} & ${bookers[1].firstName} are going`
-                    if (bookers.length === 3)          return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers[2].firstName}`
-                    return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers.length - 2} others`
-                  })()
-
-                  return (
-                    <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border/60">
-                      {/* Small colored dots — just visual, names carry the message */}
+                  {/* Who's joining — inside the same card, below the divider */}
+                  {bookersLabel && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/60">
                       <div className="flex -space-x-1 shrink-0">
                         {bookers.slice(0, 4).map((b, idx) => (
                           <div
@@ -267,15 +265,14 @@ export default function SchedulePage() {
                           />
                         ))}
                       </div>
-                      {/* Names — the actual value */}
                       <span className={`text-[11px] font-medium leading-tight ${
                         iAmIn ? 'text-[#006D77]' : 'text-muted-foreground'
                       }`}>
-                        {label}
+                        {bookersLabel}
                       </span>
                     </div>
-                  )
-                })()}
+                  )}
+                </div>
               </Link>
             )
           })
