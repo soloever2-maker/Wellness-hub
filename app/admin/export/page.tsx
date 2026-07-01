@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/admin/export/page.tsx
+// (فلتر تواريخ: All time / This month / Last month / Custom)
+// ============================================================
+
 'use client'
 
 import { useState } from 'react'
@@ -129,11 +135,16 @@ export default function AdminExportPage() {
         XLSX.utils.book_append_sheet(wb, ws, 'Clients')
       }
 
+      const { startISO, endISO } = getBounds()
+
       if (type === 'bookings' || type === 'full') {
-        const { data: bookings } = await supabase
+        let q = supabase
           .from('bookings')
           .select('status, created_at, client:users(full_name, phone), session:class_sessions(start_time, class_type:class_types(name))')
           .order('created_at', { ascending: false })
+        if (startISO) q = q.gte('created_at', startISO)
+        if (endISO) q = q.lt('created_at', endISO)
+        const { data: bookings } = await q
 
         const bookingsData = (bookings || []).map(b => ({
           'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
@@ -154,10 +165,13 @@ export default function AdminExportPage() {
       }
 
       if (type === 'payments' || type === 'full') {
-        const { data: payments } = await supabase
+        let q = supabase
           .from('payments')
           .select('amount, gateway, status, created_at, client:users(full_name, phone), package:packages(name)')
           .order('created_at', { ascending: false })
+        if (startISO) q = q.gte('created_at', startISO)
+        if (endISO) q = q.lt('created_at', endISO)
+        const { data: payments } = await q
 
         const paymentsData = (payments || []).map(p => ({
           'Date': new Date(p.created_at).toLocaleDateString('en-GB'),
@@ -179,7 +193,7 @@ export default function AdminExportPage() {
 
       // ── Download ──────────────────────────────────────────
       const date = new Date().toISOString().slice(0, 10)
-      const filename = `AlignWithEnjy_${type === 'full' ? 'FullReport' : type.charAt(0).toUpperCase() + type.slice(1)}_${date}.xlsx`
+      const filename = `AlignWithEnjy_${type === 'full' ? 'FullReport' : type.charAt(0).toUpperCase() + type.slice(1)}_${rangeLabel()}_${date}.xlsx`
       XLSX.writeFile(wb, filename)
 
       setDone(type)
@@ -205,6 +219,48 @@ export default function AdminExportPage() {
       </div>
 
       <div className="px-4 pt-6 space-y-3">
+        {/* Date range filter */}
+        <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
+          <p className="text-sm font-semibold text-foreground mb-3">Date range</p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: 'all', label: 'All time' },
+              { id: 'this_month', label: 'This month' },
+              { id: 'last_month', label: 'Last month' },
+              { id: 'custom', label: 'Custom' },
+            ] as { id: RangeId; label: string }[]).map(r => (
+              <button key={r.id} onClick={() => setRange(r.id)}
+                className={`py-2.5 rounded-xl text-sm font-medium border transition-colors ${
+                  range === r.id
+                    ? 'bg-[#006D77] text-white border-[#006D77]'
+                    : 'bg-background text-foreground border-border hover:bg-muted/40'
+                }`}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+
+          {range === 'custom' && (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">From</label>
+                <input type="date" value={customFrom} max={customTo || undefined}
+                  onChange={e => setCustomFrom(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">To</label>
+                <input type="date" value={customTo} min={customFrom || undefined}
+                  onChange={e => setCustomTo(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-muted-foreground mt-3">
+            Applies to Bookings & Revenue. The Clients report always shows current package balances.
+          </p>
+        </div>
         {options.map(opt => (
           <button key={opt.id} onClick={() => handleExport(opt.id)}
             disabled={loading !== null}
