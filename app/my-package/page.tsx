@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/my-package/page.tsx
+// (زرار Renew بقى اسمه View Packages (أوضح))
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -232,7 +238,7 @@ export default function MyPackagePage() {
               <Link href="/packages"
                 className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
                 <RefreshCw className="w-4 h-4" />
-                Renew
+                View Packages
               </Link>
               <button
                 onClick={() => setShowCancelConfirm(true)}
