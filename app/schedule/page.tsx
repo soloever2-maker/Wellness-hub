@@ -238,46 +238,41 @@ export default function SchedulePage() {
                 {(() => {
                   const bookers = bookersBySession[s.id] || []
                   if (bookers.length === 0) return null
-                  const MAX_SHOWN = 4
-                  const shown    = bookers.slice(0, MAX_SHOWN)
-                  const extra    = bookers.length - MAX_SHOWN
-                  const iAmIn    = bookers.some(b => b.id === currentUserId)
-                  const COLORS   = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
 
+                  const iAmIn  = bookers.some(b => b.id === currentUserId)
+                  const others = bookers.filter(b => b.id !== currentUserId)
+                  const COLORS = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
+
+                  // Build the label — names first, count second
                   const label = (() => {
-                    if (iAmIn && bookers.length === 1) return "You're going!"
-                    if (iAmIn && bookers.length === 2) {
-                      const other = bookers.find(b => b.id !== currentUserId)
-                      return `You & ${other?.firstName}`
-                    }
-                    if (bookers.length === 1)  return `${bookers[0].firstName} is joining`
-                    if (extra > 0)             return `+${extra} more joined`
-                    return `${bookers.length} joined`
+                    if (iAmIn && bookers.length === 1) return "You're going 🎉"
+                    if (iAmIn && others.length === 1)  return `You & ${others[0].firstName} are going`
+                    if (iAmIn && others.length === 2)  return `You, ${others[0].firstName} & ${others[1].firstName}`
+                    if (iAmIn && others.length > 2)    return `You, ${others[0].firstName} & ${others.length - 1} others`
+                    if (bookers.length === 1)          return `${bookers[0].firstName} is going`
+                    if (bookers.length === 2)          return `${bookers[0].firstName} & ${bookers[1].firstName} are going`
+                    if (bookers.length === 3)          return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers[2].firstName}`
+                    return `${bookers[0].firstName}, ${bookers[1].firstName} & ${bookers.length - 2} others`
                   })()
 
                   return (
                     <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border/60">
-                      <div className="flex -space-x-2">
-                        {shown.map((b, idx) => (
+                      {/* Small colored dots — just visual, names carry the message */}
+                      <div className="flex -space-x-1 shrink-0">
+                        {bookers.slice(0, 4).map((b, idx) => (
                           <div
                             key={b.id}
-                            title={b.id === currentUserId ? 'You' : b.firstName}
-                            className={`w-6 h-6 rounded-full border-2 border-white flex items-center
-                                        justify-center text-[9px] font-bold text-white shrink-0
-                                        ${b.id === currentUserId ? 'ring-2 ring-[#E86500] bg-[#E86500]' : COLORS[idx % COLORS.length]}`}
-                          >
-                            {b.initials}
-                          </div>
+                            className={`w-3.5 h-3.5 rounded-full border border-white shrink-0
+                                        ${b.id === currentUserId ? 'bg-[#E86500]' : COLORS[idx % COLORS.length]}`}
+                          />
                         ))}
-                        {extra > 0 && (
-                          <div className="w-6 h-6 rounded-full border-2 border-white bg-muted
-                                          flex items-center justify-center text-[9px] font-bold
-                                          text-muted-foreground shrink-0">
-                            +{extra}
-                          </div>
-                        )}
                       </div>
-                      <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
+                      {/* Names — the actual value */}
+                      <span className={`text-[11px] font-medium leading-tight ${
+                        iAmIn ? 'text-[#006D77]' : 'text-muted-foreground'
+                      }`}>
+                        {label}
+                      </span>
                     </div>
                   )
                 })()}
