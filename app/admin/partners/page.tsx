@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
-  Users, TrendingUp, DollarSign, Plus, ChevronRight, X,
-  Check, Loader2, Copy, Edit2, ToggleLeft, ToggleRight,
-  ExternalLink, ArrowLeft,
+  Users, TrendingUp, DollarSign, Plus, ChevronRight, ChevronLeft, X,
+  Check, Loader2, Copy, Edit2, ToggleLeft, ToggleRight, ExternalLink,
 } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu }        from '@/components/user-menu'
@@ -69,6 +69,8 @@ function fmtDate(iso: string) {
 // ─── Component ────────────────────────────────────────────────────
 
 export default function AdminPartnersPage() {
+
+  const router = useRouter()
 
   const [partners,      setPartners]      = useState<Partner[]>([])
   const [loading,       setLoading]       = useState(true)
@@ -235,14 +237,25 @@ export default function AdminPartnersPage() {
 
       {/* ── Header ── */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center gap-3">
+          {/* Back button */}
+          <button
+            onClick={() => router.back()}
+            className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center shrink-0"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+
+          {/* Title */}
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-foreground">Partners</h1>
             <p className="text-xs text-muted-foreground">
               {loading ? '—' : `${partners.length} partner${partners.length !== 1 ? 's' : ''}`}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 shrink-0">
             <UserMenu variant="admin" />
             <button
               onClick={openAdd}
