@@ -20,9 +20,48 @@ const options: ExportOption[] = [
   { id: 'full',      icon: Download,    label: 'Full Report (All)',   desc: 'All 3 sheets in one Excel file',                color: 'text-[#E86500]' },
 ]
 
+type RangeId = 'all' | 'this_month' | 'last_month' | 'custom'
+
+// بداية/نهاية شهر معيّن
+function monthRange(offset: number) {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1)
+  return { start, end }
+}
+
 export default function AdminExportPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [range, setRange] = useState<RangeId>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  // يحسب المدى الزمني المختار كـ ISO strings (أو null لو "كل الفترات")
+  const getBounds = (): { startISO: string | null; endISO: string | null } => {
+    if (range === 'all') return { startISO: null, endISO: null }
+    if (range === 'this_month') {
+      const { start, end } = monthRange(0)
+      return { startISO: start.toISOString(), endISO: end.toISOString() }
+    }
+    if (range === 'last_month') {
+      const { start, end } = monthRange(-1)
+      return { startISO: start.toISOString(), endISO: end.toISOString() }
+    }
+    // custom
+    const startISO = customFrom ? new Date(customFrom + 'T00:00:00').toISOString() : null
+    // نهاية اليوم المختار (شامل)
+    const endISO = customTo ? new Date(customTo + 'T23:59:59.999').toISOString() : null
+    return { startISO, endISO }
+  }
+
+  // اسم الفترة للاستخدام في اسم الملف
+  const rangeLabel = (): string => {
+    if (range === 'this_month') return 'ThisMonth'
+    if (range === 'last_month') return 'LastMonth'
+    if (range === 'custom' && (customFrom || customTo)) return `${customFrom || 'start'}_to_${customTo || 'end'}`
+    return 'AllTime'
+  }
 
   const handleExport = async (type: string) => {
     setLoading(type)
