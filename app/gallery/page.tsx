@@ -1,9 +1,9 @@
 'use client'
 
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BottomNav } from '@/components/bottom-nav'
 
 const GALLERY = [
@@ -29,9 +29,21 @@ const GALLERY = [
 export default function GalleryPage() {
   const [lightbox, setLightbox] = useState<number | null>(null)
 
+  // Touch tracking for swipe
+  const touchStartX = useRef<number>(0)
+  const touchStartY = useRef<number>(0)
+  const isSwiping = useRef<boolean>(false)
+
+  const goPrev = () => setLightbox(i => (i !== null && i > 0 ? i - 1 : i))
+  const goNext = () => setLightbox(i => (i !== null && i < GALLERY.length - 1 ? i + 1 : i))
+
   useEffect(() => {
     if (lightbox === null) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null) }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape')      setLightbox(null)
+      if (e.key === 'ArrowLeft')   goPrev()
+      if (e.key === 'ArrowRight')  goNext()
+    }
     document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
     return () => {
@@ -39,6 +51,31 @@ export default function GalleryPage() {
       window.removeEventListener('keydown', onKey)
     }
   }, [lightbox])
+
+  // Touch handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX
+    touchStartY.current = e.targetTouches[0].clientY
+    isSwiping.current = false
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const diffX = Math.abs(e.targetTouches[0].clientX - touchStartX.current)
+    const diffY = Math.abs(e.targetTouches[0].clientY - touchStartY.current)
+    if (diffX > diffY && diffX > 10) {
+      isSwiping.current = true
+      e.stopPropagation()
+    }
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!isSwiping.current) return
+    const diff = touchStartX.current - e.changedTouches[0].clientX
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goNext()
+      else goPrev()
+    }
+  }
 
   return (
     <main className="bg-background min-h-screen pb-24">
@@ -49,17 +86,19 @@ export default function GalleryPage() {
           </Link>
           <div>
             <h1 className="text-lg font-bold text-foreground">Our Studio</h1>
-            <p className="text-xs text-muted-foreground">See where the magic happens</p>
+            <p className="text-xs text-muted-foreground">{GALLERY.length} photos</p>
           </div>
         </div>
       </div>
 
+      {/* Grid — rectangular cards (taller) instead of perfect squares */}
       <div className="px-3 pt-3 grid grid-cols-2 gap-2">
         {GALLERY.map((item, i) => (
           <button
             key={i}
             onClick={() => setLightbox(i)}
-            className="relative aspect-square rounded-2xl overflow-hidden active:scale-[0.98] transition-transform"
+            className="relative rounded-2xl overflow-hidden active:scale-[0.98] transition-transform"
+            style={{ aspectRatio: '4/5' }}
           >
             <Image
               src={item.src}
@@ -69,26 +108,41 @@ export default function GalleryPage() {
               sizes="(max-width: 640px) 50vw, 300px"
               loading={i < 4 ? 'eager' : 'lazy'}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-            <p className="absolute bottom-2 left-2.5 right-2.5 text-[11px] font-semibold text-white text-left leading-tight">
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent" />
+            <p className="absolute bottom-2.5 left-2.5 right-2.5 text-[11px] font-semibold text-white text-left leading-tight">
               {item.caption}
             </p>
           </button>
         ))}
       </div>
 
+      {/* Lightbox with swipe */}
       {lightbox !== null && (
         <div
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/97 z-50 flex items-center justify-center"
           onClick={() => setLightbox(null)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
+          {/* Close */}
           <button
             onClick={() => setLightbox(null)}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center"
+            className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center"
           >
             <X className="w-5 h-5 text-white" />
           </button>
-          <div className="relative w-full max-w-2xl aspect-square" onClick={e => e.stopPropagation()}>
+
+          {/* Counter */}
+          <span className="absolute top-4 left-4 text-xs text-white/60 font-medium">
+            {lightbox + 1} / {GALLERY.length}
+          </span>
+
+          {/* Image */}
+          <div
+            className="relative w-full h-[78vh] mx-2"
+            onClick={e => e.stopPropagation()}
+          >
             <Image
               src={GALLERY[lightbox].src}
               alt={GALLERY[lightbox].alt}
@@ -97,9 +151,44 @@ export default function GalleryPage() {
               sizes="100vw"
               priority
             />
-            <p className="absolute bottom-4 left-0 right-0 text-center text-white text-sm font-medium bg-black/50 py-2 backdrop-blur-sm">
-              {GALLERY[lightbox].caption}
-            </p>
+          </div>
+
+          {/* Caption */}
+          <p className="absolute bottom-14 text-sm text-white/80 font-medium px-6 text-center w-full">
+            {GALLERY[lightbox].caption}
+          </p>
+
+          {/* Prev arrow */}
+          {lightbox > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); goPrev() }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:bg-white/25 transition-colors"
+            >
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </button>
+          )}
+
+          {/* Next arrow */}
+          {lightbox < GALLERY.length - 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); goNext() }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:bg-white/25 transition-colors"
+            >
+              <ChevronRight className="w-6 h-6 text-white" />
+            </button>
+          )}
+
+          {/* Dots */}
+          <div className="absolute bottom-4 flex gap-1.5 flex-wrap justify-center px-8">
+            {GALLERY.map((_, i) => (
+              <button
+                key={i}
+                onClick={e => { e.stopPropagation(); setLightbox(i) }}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === lightbox ? 'bg-white w-5' : 'bg-white/35 w-1.5'
+                }`}
+              />
+            ))}
           </div>
         </div>
       )}
