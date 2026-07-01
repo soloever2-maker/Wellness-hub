@@ -53,6 +53,8 @@ export default function SchedulePage() {
   const [selectedDay, setSelectedDay] = useState(new Date().getDay() === 6 ? 0 : ((new Date().getDay() + 1) % 7))
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
+  const [bookersBySession, setBookersBySession] = useState<Record<string, Array<{ id: string; initials: string; firstName: string }>>>({})
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const weekDates = getWeekDates(weekOffset)
 
@@ -63,6 +65,18 @@ export default function SchedulePage() {
     // Map to our week index (Sat=0, Sun=1, ..., Fri=6)
     const idx = dayOfWeek === 6 ? 0 : dayOfWeek + 1
     setSelectedDay(idx)
+  }, [])
+
+  // Get current user ID once
+  useEffect(() => {
+    const getMe = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('users').select('id').eq('auth_id', user.id).single()
+      if (data) setCurrentUserId(data.id)
+    }
+    getMe()
   }, [])
 
   useEffect(() => {
@@ -84,11 +98,33 @@ export default function SchedulePage() {
       if (data) {
         const ids = data.map(s => s.id)
         const { data: bookings } = await supabase
-          .from('bookings').select('session_id')
+          .from('bookings').select('session_id, client_id')
           .in('session_id', ids).eq('status', 'confirmed')
 
         const counts: Record<string, number> = {}
         bookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+
+        // Fetch names for all booked client_ids
+        const clientIds = [...new Set(bookings?.map(b => b.client_id).filter(Boolean) || [])]
+        let nameMap: Record<string, string> = {}
+        if (clientIds.length) {
+          const { data: users } = await supabase
+            .from('users').select('id, full_name').in('id', clientIds)
+          users?.forEach(u => { nameMap[u.id] = u.full_name || '?' })
+        }
+
+        // Build bookers per session
+        const bmap: Record<string, Array<{ id: string; initials: string; firstName: string }>> = {}
+        bookings?.forEach(b => {
+          if (!bmap[b.session_id]) bmap[b.session_id] = []
+          const name   = nameMap[b.client_id] || '?'
+          const parts  = name.trim().split(' ')
+          const initials = parts.length >= 2
+            ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+            : parts[0].slice(0, 2).toUpperCase()
+          bmap[b.session_id].push({ id: b.client_id, initials, firstName: parts[0] })
+        })
+        setBookersBySession(bmap)
 
         setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
       }
@@ -197,6 +233,54 @@ export default function SchedulePage() {
                     </span>
                   </div>
                 </div>
+
+                {/* ── Who's joining ── */}
+                {(() => {
+                  const bookers = bookersBySession[s.id] || []
+                  if (bookers.length === 0) return null
+                  const MAX_SHOWN = 4
+                  const shown    = bookers.slice(0, MAX_SHOWN)
+                  const extra    = bookers.length - MAX_SHOWN
+                  const iAmIn    = bookers.some(b => b.id === currentUserId)
+                  const COLORS   = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
+
+                  const label = (() => {
+                    if (iAmIn && bookers.length === 1) return "You're going!"
+                    if (iAmIn && bookers.length === 2) {
+                      const other = bookers.find(b => b.id !== currentUserId)
+                      return `You & ${other?.firstName}`
+                    }
+                    if (bookers.length === 1)  return `${bookers[0].firstName} is joining`
+                    if (extra > 0)             return `+${extra} more joined`
+                    return `${bookers.length} joined`
+                  })()
+
+                  return (
+                    <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-border/60">
+                      <div className="flex -space-x-2">
+                        {shown.map((b, idx) => (
+                          <div
+                            key={b.id}
+                            title={b.id === currentUserId ? 'You' : b.firstName}
+                            className={`w-6 h-6 rounded-full border-2 border-white flex items-center
+                                        justify-center text-[9px] font-bold text-white shrink-0
+                                        ${b.id === currentUserId ? 'ring-2 ring-[#E86500] bg-[#E86500]' : COLORS[idx % COLORS.length]}`}
+                          >
+                            {b.initials}
+                          </div>
+                        ))}
+                        {extra > 0 && (
+                          <div className="w-6 h-6 rounded-full border-2 border-white bg-muted
+                                          flex items-center justify-center text-[9px] font-bold
+                                          text-muted-foreground shrink-0">
+                            +{extra}
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
+                    </div>
+                  )
+                })()}
               </Link>
             )
           })
