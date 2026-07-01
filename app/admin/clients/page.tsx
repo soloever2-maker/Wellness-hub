@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal, Handshake } from 'lucide-react'
 import { ConfirmModal } from '@/components/confirm-modal'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
@@ -49,6 +49,7 @@ function AdminClientsPageInner() {
   const searchParams = useSearchParams()
   const [clients, setClients] = useState<Client[]>([])
   const [pkgByClient, setPkgByClient] = useState<Record<string, ClientPackageInfo>>({})
+  const [partnerByClient, setPartnerByClient] = useState<Record<string, string>>({})
   const [packages, setPackages] = useState<PackageOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -79,15 +80,29 @@ function AdminClientsPageInner() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [clientsRes, pkgsRes, clientPkgsRes] = await Promise.all([
+      const [clientsRes, pkgsRes, clientPkgsRes, partnerLeadsRes] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
         supabase.from('client_packages')
           .select('id, client_id, status, sessions_remaining, freeze_start')
           .in('status', ['active', 'frozen']),
+        supabase.from('partner_leads')
+          .select('client_id, partners!inner(name)')
+          .not('client_id', 'is', null),
       ])
       const loadedClients = (clientsRes.data as Client[]) || []
       if (clientsRes.data) setClients(loadedClients)
+
+      // Build partner map: client_id → partner name
+      if (partnerLeadsRes.data) {
+        const pmap: Record<string, string> = {}
+        for (const row of partnerLeadsRes.data as any[]) {
+          if (row.client_id && row.partners?.name) {
+            pmap[row.client_id] = row.partners.name
+          }
+        }
+        setPartnerByClient(pmap)
+      }
 
       if (clientPkgsRes.data) {
         const map: Record<string, ClientPackageInfo> = {}
@@ -449,6 +464,13 @@ function AdminClientsPageInner() {
               <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-foreground text-sm">{client.full_name || '—'}</h4>
                 <p className="text-xs text-muted-foreground">{client.phone}</p>
+                {partnerByClient[client.id] && (
+                  <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold
+                                   text-[#E86500] bg-[#E86500]/8 px-2 py-0.5 rounded-full">
+                    <Handshake className="w-2.5 h-2.5" />
+                    {partnerByClient[client.id]}
+                  </span>
+                )}
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
