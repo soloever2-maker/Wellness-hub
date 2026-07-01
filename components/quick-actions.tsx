@@ -1,5 +1,11 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   components/quick-actions.tsx
+// (أضفت زرار Packages واضح في الصفحة الرئيسية للعميل)
+// ============================================================
+
 import Link from 'next/link'
-import { Calendar, Package, MessageCircle } from 'lucide-react'
+import { Calendar, Package, MessageCircle, Tag } from 'lucide-react'
 
 export function QuickActions() {
   return (
@@ -16,17 +22,22 @@ export function QuickActions() {
         Book a Class
       </Link>
 
-      {/* Secondary — 2 col */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* Secondary — 3 col */}
+      <div className="grid grid-cols-3 gap-2.5">
         <Link href="/my-package"
-          className="flex items-center justify-center gap-2 py-3.5 bg-white border border-[#006D77]/20 text-[#006D77] rounded-2xl font-semibold text-sm hover:bg-[#E0EEF0] active:scale-[0.97] transition-all shadow-sm">
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#006D77]/20 text-[#006D77] rounded-2xl font-semibold text-xs hover:bg-[#E0EEF0] active:scale-[0.97] transition-all shadow-sm">
           <Package className="w-4 h-4" />
           My Package
         </Link>
+        <Link href="/packages"
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#E86500]/25 text-[#E86500] rounded-2xl font-semibold text-xs hover:bg-[#E86500]/5 active:scale-[0.97] transition-all shadow-sm">
+          <Tag className="w-4 h-4" />
+          Packages
+        </Link>
         <a href="https://wa.me/201063751653" target="_blank" rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 py-3.5 bg-white border border-[#25D366]/25 text-[#1a9e4a] rounded-2xl font-semibold text-sm hover:bg-[#25D366]/5 active:scale-[0.97] transition-all shadow-sm">
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#25D366]/25 text-[#1a9e4a] rounded-2xl font-semibold text-xs hover:bg-[#25D366]/5 active:scale-[0.97] transition-all shadow-sm">
           <MessageCircle className="w-4 h-4" />
-          Contact Enjy
+          Contact
         </a>
       </div>
 
