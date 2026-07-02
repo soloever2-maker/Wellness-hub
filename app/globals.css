@@ -204,3 +204,13 @@
 [style*="#006D77, #B8612A, #006D77"] { background: linear-gradient(135deg, #8FA98F, #B8612A, #8FA98F) !important; }
 [style*="#004E5C 0%"] { background: linear-gradient(160deg, #6F8A6F 0%, #8FA98F 40%, #B8612A 100%) !important; }
 [style*="#E0EEF0 50%"] { background: linear-gradient(160deg, #F5F1E6 0%, #E6EDE4 50%, #EDD7C9 100%) !important; }
+
+/* ===== Inline-style gradients: React serializes hex to rgb() ===== */
+[style*="rgb(0, 109, 119)"] { background-color: #8FA98F !important; }
+[style*="rgb(0, 109, 119) 0%, rgb(0, 78, 92)"] { background: linear-gradient(135deg, #8FA98F 0%, #6F8A6F 100%) !important; }
+[style*="rgb(0, 109, 119), rgb(0, 78, 92)"] { background: linear-gradient(135deg, #8FA98F, #6F8A6F) !important; }
+[style*="rgb(0, 109, 119), rgb(184, 97, 42)"] { background: linear-gradient(135deg, #8FA98F, #B8612A) !important; }
+[style*="rgb(184, 97, 42), rgb(0, 109, 119)"] { background: linear-gradient(135deg, #8FA98F, #B8612A, #8FA98F) !important; }
+[style*="rgb(0, 90, 99)"] { background: linear-gradient(135deg, #617C61 0%, #4E634E 100%) !important; }
+[style*="rgb(0, 78, 92) 0%"] { background: linear-gradient(160deg, #6F8A6F 0%, #8FA98F 40%, #B8612A 100%) !important; }
+[style*="rgb(224, 238, 240) 50%"] { background: linear-gradient(160deg, #F5F1E6 0%, #E6EDE4 50%, #EDD7C9 100%) !important; }
