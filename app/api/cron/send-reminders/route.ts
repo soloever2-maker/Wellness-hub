@@ -115,8 +115,8 @@ export async function GET(request: Request) {
         icon: '/icon-192x192.png',
         badge: '/icon-96x96.png',
         tag: `reminder_${reminderType}_${session.id}`,
-        // Signal app to play singing bowl when opened
-        data: { type: 'class_reminder', sessionId: session.id, sound: 'singing_bowl' },
+        // Signal app to play singing bowl when opened + open the prepare screen
+        data: { type: 'class_reminder', sessionId: session.id, sound: 'singing_bowl', url: '/prepare' },
       }
 
       const okWeb = await sendPushToClient(booking.client_id, payload)
