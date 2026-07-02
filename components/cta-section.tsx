@@ -30,7 +30,7 @@ export function CTASection() {
             const Icon = benefit.icon
             return (
               <div key={idx} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#006D77] to-[#E86500] text-white mb-6 shadow-lg">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-[#006D77] to-[#B8612A] text-white mb-6 shadow-lg">
                   <Icon className="w-8 h-8" />
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-3">
@@ -45,7 +45,7 @@ export function CTASection() {
         </div>
 
         {/* Main CTA */}
-        <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-3xl p-8 md:p-16 text-white text-center relative overflow-hidden">
+        <div className="bg-gradient-to-r from-[#006D77] to-[#B8612A] rounded-3xl p-8 md:p-16 text-white text-center relative overflow-hidden">
           {/* Decorative elements */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full -mr-40 -mt-40"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mb-32"></div>
@@ -78,7 +78,7 @@ export function CTASection() {
             { number: '6', label: 'Days/Week' },
           ].map((stat, idx) => (
             <div key={idx}>
-              <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#006D77] to-[#E86500] bg-clip-text text-transparent">
+              <p className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-[#006D77] to-[#B8612A] bg-clip-text text-transparent">
                 {stat.number}
               </p>
               <p className="text-muted-foreground text-sm mt-2">{stat.label}</p>

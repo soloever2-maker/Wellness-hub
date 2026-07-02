@@ -72,7 +72,7 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
         >
           <Bell className="w-5 h-5 text-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#E86500] flex items-center justify-center">
+            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#B8612A] flex items-center justify-center">
               <span className="text-[8px] font-bold text-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
@@ -99,7 +99,7 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
               <p className="text-sm font-bold text-foreground truncate">{user?.full_name || 'User'}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               {isAdmin && (
-                <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E86500]/10 text-[#E86500] uppercase tracking-wider">
+                <span className="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#B8612A]/10 text-[#B8612A] uppercase tracking-wider">
                   Admin
                 </span>
               )}

@@ -29,8 +29,8 @@ const classEmoji: Record<string, string> = {
 }
 const colorMap: Record<string, string> = {
   teal:   'bg-[#006D77] text-white',
-  orange: 'bg-[#E86500] text-white',
-  peach:  'bg-[#FFD9B8] text-[#E86500]',
+  orange: 'bg-[#B8612A] text-white',
+  peach:  'bg-[#EDD7C9] text-[#B8612A]',
   green:  'bg-[#E0EEF0] text-[#006D77]',
 }
 
@@ -176,11 +176,11 @@ export default function SchedulePage() {
                 }`}
               >
                 <span className="text-[10px] font-medium">{day}</span>
-                <span className={`text-sm font-bold mt-0.5 ${isToday && selectedDay !== i ? 'text-[#E86500]' : ''}`}>
+                <span className={`text-sm font-bold mt-0.5 ${isToday && selectedDay !== i ? 'text-[#B8612A]' : ''}`}>
                   {date?.getDate()}
                 </span>
                 {hasSessions && selectedDay !== i && (
-                  <div className="w-1 h-1 rounded-full bg-[#E86500] mt-0.5" />
+                  <div className="w-1 h-1 rounded-full bg-[#B8612A] mt-0.5" />
                 )}
               </button>
             )
@@ -213,7 +213,7 @@ export default function SchedulePage() {
             const bookers = bookersBySession[s.id] || []
             const iAmIn   = bookers.some(b => b.id === currentUserId)
             const others  = bookers.filter(b => b.id !== currentUserId)
-            const COLORS  = ['bg-[#006D77]','bg-[#E86500]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
+            const COLORS  = ['bg-[#006D77]','bg-[#B8612A]','bg-[#4CAF50]','bg-[#7C4DFF]','bg-[#00897B]']
 
             const bookersLabel = (() => {
               if (bookers.length === 0)          return null
@@ -245,7 +245,7 @@ export default function SchedulePage() {
                         isFull
                           ? 'bg-red-50 text-red-500'
                           : spotsLeft <= 3
-                          ? 'bg-[#FFD9B8]/40 text-[#E86500]'
+                          ? 'bg-[#EDD7C9]/40 text-[#B8612A]'
                           : 'bg-[#E0EEF0] text-[#006D77]'
                       }`}>
                         {isFull ? 'Full' : `${spotsLeft} spots`}
@@ -261,7 +261,7 @@ export default function SchedulePage() {
                           <div
                             key={b.id}
                             className={`w-3.5 h-3.5 rounded-full border border-white shrink-0
-                                        ${b.id === currentUserId ? 'bg-[#E86500]' : COLORS[idx % COLORS.length]}`}
+                                        ${b.id === currentUserId ? 'bg-[#B8612A]' : COLORS[idx % COLORS.length]}`}
                           />
                         ))}
                       </div>

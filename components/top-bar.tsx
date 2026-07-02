@@ -38,7 +38,7 @@ export function TopBar() {
               <img src={avatarUrl} alt={firstName} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
+                style={{ background: 'linear-gradient(135deg, #006D77, #B8612A)' }}>
                 <span className="text-white font-bold text-base">{initials || '🧘'}</span>
               </div>
             )}

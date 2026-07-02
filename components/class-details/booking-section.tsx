@@ -15,7 +15,7 @@ export function BookingSection({ state, onBook, onJoinWaitlist, onCancel }: Book
           <>
             <button
               onClick={onBook}
-              className="w-full bg-gradient-to-r from-[#006D77] to-[#E86500] text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-[#006D77] to-[#B8612A] text-white font-bold py-4 rounded-[12px] hover:shadow-lg transition-all active:scale-[0.98]"
             >
               Book This Class
             </button>

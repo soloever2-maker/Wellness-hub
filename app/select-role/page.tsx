@@ -15,7 +15,7 @@ export default function SelectRolePage() {
           <Logo variant="icon" size="sm" className="w-16 h-16 object-contain" />
         </div>
         <h1 className="text-xl font-bold text-[#B8612A]">Align with Enjy</h1>
-        <p className="text-xs text-[#E86500] font-medium tracking-wider uppercase mt-1">Welcome back, Enjy 👋</p>
+        <p className="text-xs text-[#B8612A] font-medium tracking-wider uppercase mt-1">Welcome back, Enjy 👋</p>
       </div>
 
       <h2 className="text-lg font-bold text-foreground mb-2">Where would you like to go?</h2>

@@ -25,7 +25,7 @@ export function LoginSplash({ onFinished, userName }: LoginSplashProps) {
         phase === 'exit' ? 'opacity-0' : 'opacity-100'
       }`}
       style={{
-        background: 'linear-gradient(160deg, #004E5C 0%, #006D77 40%, #E86500 100%)',
+        background: 'linear-gradient(160deg, #004E5C 0%, #006D77 40%, #B8612A 100%)',
       }}
     >
       {/* Animated glow rings */}

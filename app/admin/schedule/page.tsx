@@ -23,10 +23,10 @@ type ClassType = { id: string; name: string }
 const DAYS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const colorByName: Record<string, string> = {
   'Power Yoga':             'bg-[#006D77] text-white',
-  'Mat Pilates':            'bg-[#E86500] text-white',
+  'Mat Pilates':            'bg-[#B8612A] text-white',
   'Belly Rhythmic Dancing': 'bg-[#006D77] text-white',
-  'Aqua Aerobics':          'bg-[#E86500] text-white',
-  'Gentle Yoga & Recovery': 'bg-[#FFD9B8] text-[#006D77]',
+  'Aqua Aerobics':          'bg-[#B8612A] text-white',
+  'Gentle Yoga & Recovery': 'bg-[#EDD7C9] text-[#006D77]',
 }
 
 function getWeekDates(offset: number) {
@@ -222,7 +222,7 @@ export default function AdminSchedulePage() {
               return (
                 <div key={day} className="text-center pb-2">
                   <p className="text-xs text-muted-foreground">{day}</p>
-                  <p className={`text-sm font-bold ${isToday ? 'text-[#E86500]' : 'text-foreground'}`}>
+                  <p className={`text-sm font-bold ${isToday ? 'text-[#B8612A]' : 'text-foreground'}`}>
                     {date?.getDate()}
                   </p>
                 </div>

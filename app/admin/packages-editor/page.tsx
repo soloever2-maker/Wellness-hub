@@ -141,7 +141,7 @@ export default function AdminPackagesEditorPage() {
           </div>
         ))}
 
-        <div className="bg-[#FFD9B8]/20 border border-[#FFD9B8] rounded-2xl px-4 py-3 flex items-start gap-3">
+        <div className="bg-[#EDD7C9]/20 border border-[#EDD7C9] rounded-2xl px-4 py-3 flex items-start gap-3">
           <Info className="w-5 h-5 text-[#006D77] mt-0.5 shrink-0" />
           <p className="text-sm text-foreground">Changes apply to new purchases only. Existing client packages are not affected.</p>
         </div>

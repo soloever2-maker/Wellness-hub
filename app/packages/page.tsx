@@ -167,7 +167,7 @@ export default function PackagesPage() {
       {/* Pending request banner — shown until admin confirms, prevents duplicate requests */}
       {pendingRequest && (
         <div className="mx-4 mt-4 bg-[#FF9800]/10 border border-[#FF9800]/20 rounded-2xl p-4 text-center">
-          <p className="text-sm font-medium text-[#E86500]">
+          <p className="text-sm font-medium text-[#B8612A]">
             Request sent for "{pendingRequest.package?.name || 'your package'}" — waiting for Enjy to confirm payment.
           </p>
           <p className="text-xs text-muted-foreground mt-1">You can't send another request until this one is confirmed.</p>
@@ -185,14 +185,14 @@ export default function PackagesPage() {
             return (
               <div key={pkg.id} className="relative bg-white rounded-2xl border border-border p-6 shadow-sm">
                 {isPopular && (
-                  <div className="absolute top-4 right-4 flex items-center gap-1 bg-[#E86500] text-white px-3 py-1 rounded-full text-xs font-semibold">
+                  <div className="absolute top-4 right-4 flex items-center gap-1 bg-[#B8612A] text-white px-3 py-1 rounded-full text-xs font-semibold">
                     <Star className="w-3 h-3" /> Most Popular
                   </div>
                 )}
                 <h3 className="text-lg font-bold text-foreground mb-6">{pkg.name}</h3>
 
                 <div className="flex flex-col items-center mb-6">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#006D77] to-[#E86500] flex items-center justify-center shadow-md">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#006D77] to-[#B8612A] flex items-center justify-center shadow-md">
                     <span className="text-3xl font-bold text-white">{pkg.session_count}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">classes</p>

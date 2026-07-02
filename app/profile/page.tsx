@@ -212,7 +212,7 @@ export default function ProfilePage() {
               <img src={avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #006D77, #E86500)' }}>
+                style={{ background: 'linear-gradient(135deg, #006D77, #B8612A)' }}>
                 <span className="text-2xl font-bold text-white">{initials}</span>
               </div>
             )}
@@ -599,7 +599,7 @@ export default function ProfilePage() {
             {welcomeStep === 'intro' && (
               <div className="p-6 text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#006D77] to-[#E86500] flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#006D77] to-[#B8612A] flex items-center justify-center">
                     <Sparkles className="w-8 h-8 text-white" />
                   </div>
                 </div>
@@ -617,8 +617,8 @@ export default function ProfilePage() {
                       <p className="text-xs text-muted-foreground">Get notified 24h & 2h before your class</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 bg-[#FFD9B8]/30 rounded-xl p-3">
-                    <Fingerprint className="w-5 h-5 text-[#E86500] shrink-0" />
+                  <div className="flex items-center gap-3 bg-[#EDD7C9]/30 rounded-xl p-3">
+                    <Fingerprint className="w-5 h-5 text-[#B8612A] shrink-0" />
                     <div>
                       <p className="text-sm font-semibold text-foreground">Biometric Login</p>
                       <p className="text-xs text-muted-foreground">Log in with your fingerprint or Face ID</p>
@@ -696,8 +696,8 @@ export default function ProfilePage() {
             {welcomeStep === 'biometric' && (
               <div className="p-6 text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="w-16 h-16 rounded-full bg-[#FFD9B8]/30 flex items-center justify-center">
-                    <Fingerprint className="w-8 h-8 text-[#E86500]" />
+                  <div className="w-16 h-16 rounded-full bg-[#EDD7C9]/30 flex items-center justify-center">
+                    <Fingerprint className="w-8 h-8 text-[#B8612A]" />
                   </div>
                 </div>
                 <h2 className="text-xl font-bold text-foreground mb-2">Quick Login</h2>
@@ -713,7 +713,7 @@ export default function ProfilePage() {
                 ) : (
                   <button
                     onClick={() => { setShowWelcome(false); setShowBiometricSetup(true) }}
-                    className="w-full py-3.5 bg-[#E86500] text-white font-bold rounded-2xl hover:bg-[#C55200] transition-colors flex items-center justify-center gap-2 mb-3"
+                    className="w-full py-3.5 bg-[#B8612A] text-white font-bold rounded-2xl hover:bg-[#C55200] transition-colors flex items-center justify-center gap-2 mb-3"
                   >
                     <Fingerprint className="w-5 h-5" /> Set Up Biometrics
                   </button>

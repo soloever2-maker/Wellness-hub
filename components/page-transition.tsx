@@ -53,7 +53,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           {/* Loading bar */}
           <div className="w-32 h-1 bg-[#006D77]/10 rounded-full overflow-hidden">
             <div
-              className={`h-full bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-full transition-all ease-out ${
+              className={`h-full bg-gradient-to-r from-[#006D77] to-[#B8612A] rounded-full transition-all ease-out ${
                 show ? 'w-full duration-700' : 'w-0 duration-0'
               }`}
             />

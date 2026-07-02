@@ -2,7 +2,7 @@
 
 export function Hero() {
   return (
-    <section className="relative min-h-screen bg-gradient-to-br from-[#006D77] to-[#E86500] px-4 py-20 flex flex-col justify-center items-center text-center overflow-hidden">
+    <section className="relative min-h-screen bg-gradient-to-br from-[#006D77] to-[#B8612A] px-4 py-20 flex flex-col justify-center items-center text-center overflow-hidden">
       {/* Decorative circles */}
       <div className="absolute top-10 right-10 w-32 h-32 rounded-full opacity-10 bg-white mix-blend-multiply"></div>
       <div className="absolute bottom-20 left-5 w-40 h-40 rounded-full opacity-10 bg-white mix-blend-multiply"></div>

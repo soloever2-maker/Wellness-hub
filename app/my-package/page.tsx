@@ -158,7 +158,7 @@ export default function MyPackagePage() {
             <div className={`rounded-2xl p-6 text-white shadow-lg ${
               pkg.status === 'frozen' 
                 ? 'bg-gradient-to-r from-[#5C6B6E] to-[#5C6B6E]/80' 
-                : 'bg-gradient-to-r from-[#006D77] to-[#E86500]'
+                : 'bg-gradient-to-r from-[#006D77] to-[#B8612A]'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-lg font-bold">{pkg.package?.name || `${pkg.sessions_total} Classes`}</p>
@@ -193,7 +193,7 @@ export default function MyPackagePage() {
             <div className="grid grid-cols-3 gap-3">
               {[
                 { icon: CheckCircle, label: 'Used', value: sessionsUsed, color: 'text-[#006D77]' },
-                { icon: Package, label: 'Remaining', value: pkg.sessions_remaining, color: 'text-[#E86500]' },
+                { icon: Package, label: 'Remaining', value: pkg.sessions_remaining, color: 'text-[#B8612A]' },
                 { icon: Calendar, label: 'Days Left', value: daysLeft, color: 'text-[#006D77]' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white border border-border rounded-xl p-4 text-center shadow-sm">

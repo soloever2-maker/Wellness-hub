@@ -466,7 +466,7 @@ function AdminClientsPageInner() {
                 <p className="text-xs text-muted-foreground">{client.phone}</p>
                 {partnerByClient[client.id] && (
                   <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold
-                                   text-[#E86500] bg-[#E86500]/8 px-2 py-0.5 rounded-full">
+                                   text-[#B8612A] bg-[#B8612A]/8 px-2 py-0.5 rounded-full">
                     <Handshake className="w-2.5 h-2.5" />
                     {partnerByClient[client.id]}
                   </span>
@@ -536,7 +536,7 @@ function AdminClientsPageInner() {
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Sessions Remaining</span>
                       <div className="flex items-center gap-2">
-                        <span className={`text-sm font-bold ${clientPkg.status === 'frozen' ? 'text-[#E86500]' : 'text-[#4CAF50]'}`}>
+                        <span className={`text-sm font-bold ${clientPkg.status === 'frozen' ? 'text-[#B8612A]' : 'text-[#4CAF50]'}`}>
                           {clientPkg.sessions_remaining} {clientPkg.status === 'frozen' ? '❄️' : ''}
                         </span>
                         <button
@@ -666,8 +666,8 @@ function AdminClientsPageInner() {
                 </button>
                 <button onClick={handleFreeze} disabled={!clientPkg || saving}
                   className="flex flex-col items-center gap-1.5 py-3 bg-white border border-border rounded-xl hover:bg-muted/30 transition-colors disabled:opacity-40">
-                  {saving ? <Loader2 className="w-5 h-5 text-[#E86500] animate-spin" />
-                    : <Snowflake className="w-5 h-5 text-[#E86500]" />}
+                  {saving ? <Loader2 className="w-5 h-5 text-[#B8612A] animate-spin" />
+                    : <Snowflake className="w-5 h-5 text-[#B8612A]" />}
                   <span className="text-[10px] font-medium text-foreground">
                     {clientPkg?.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                   </span>

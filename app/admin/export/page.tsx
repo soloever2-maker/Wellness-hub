@@ -21,9 +21,9 @@ type ExportOption = {
 
 const options: ExportOption[] = [
   { id: 'clients',   icon: Users,       label: 'Clients Report',     desc: 'All clients with packages & attendance stats', color: 'text-[#006D77]' },
-  { id: 'bookings',  icon: Calendar,    label: 'Bookings Report',    desc: 'All bookings with class and client details',    color: 'text-[#E86500]' },
+  { id: 'bookings',  icon: Calendar,    label: 'Bookings Report',    desc: 'All bookings with class and client details',    color: 'text-[#B8612A]' },
   { id: 'payments',  icon: DollarSign,  label: 'Revenue Report',     desc: 'All payments with method and amounts',          color: 'text-[#006D77]' },
-  { id: 'full',      icon: Download,    label: 'Full Report (All)',   desc: 'All 3 sheets in one Excel file',                color: 'text-[#E86500]' },
+  { id: 'full',      icon: Download,    label: 'Full Report (All)',   desc: 'All 3 sheets in one Excel file',                color: 'text-[#B8612A]' },
 ]
 
 type RangeId = 'all' | 'this_month' | 'last_month' | 'custom'

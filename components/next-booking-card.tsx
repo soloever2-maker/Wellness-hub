@@ -99,10 +99,10 @@ export function NextBookingCard() {
       <Link href="/schedule" className="block active:scale-[0.97] transition-all">
         {/* Glowing animated border */}
         <div className="relative rounded-2xl p-[2px] overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #006D77, #E86500, #006D77)' }}>
+          style={{ background: 'linear-gradient(135deg, #006D77, #B8612A, #006D77)' }}>
           {/* Animated shimmer ring */}
           <div className="absolute inset-0 rounded-2xl animate-pulse opacity-60"
-            style={{ background: 'linear-gradient(135deg, #006D77, #E86500, #006D77)' }} />
+            style={{ background: 'linear-gradient(135deg, #006D77, #B8612A, #006D77)' }} />
           {/* Inner card */}
           <div className="relative rounded-[14px] p-4 flex items-center gap-4"
             style={{ background: 'linear-gradient(135deg, #005a63 0%, #003d44 100%)' }}>
@@ -141,8 +141,8 @@ function NextCard({ emoji, name, timeStr, dayLabel, startTime, sessionId }: {
     <Link href={`/class?id=${sessionId}`} className="block active:scale-[0.97] transition-all">
       <div className="bg-white border-2 border-[#006D77]/15 rounded-2xl p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
-          <Clock className="w-3.5 h-3.5 text-[#E86500]" />
-          <span className="text-xs font-semibold text-[#E86500] uppercase tracking-wide">Next Class</span>
+          <Clock className="w-3.5 h-3.5 text-[#B8612A]" />
+          <span className="text-xs font-semibold text-[#B8612A] uppercase tracking-wide">Next Class</span>
           <span className="flex-1" />
           <span className="text-xs font-bold text-[#006D77] bg-[#E0EEF0] px-2.5 py-0.5 rounded-full">
             {countdown}

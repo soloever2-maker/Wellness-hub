@@ -171,9 +171,9 @@ export default function AdminMorePage() {
               },
             ].map((item, i, arr) => (
               <Link key={item.label} href={item.href}
-                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFD9B8]/10 transition-colors ${i < arr.length - 1 ? 'border-b border-border' : ''}`}
+                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-[#EDD7C9]/10 transition-colors ${i < arr.length - 1 ? 'border-b border-border' : ''}`}
               >
-                <div className="w-9 h-9 rounded-xl bg-[#FFD9B8]/30 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-[#EDD7C9]/30 flex items-center justify-center">
                   <item.icon className="w-5 h-5 text-[#006D77]" />
                 </div>
                 <div className="flex-1">
@@ -193,12 +193,12 @@ export default function AdminMorePage() {
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {(Object.keys(settingLabel) as SettingKey[]).map((key, i, arr) => (
               <button key={key} onClick={() => openEdit(key)}
-                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFD9B8]/10 transition-colors text-left ${i < arr.length - 1 ? 'border-b border-border' : ''}`}
+                className={`w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#EDD7C9]/10 transition-colors text-left ${i < arr.length - 1 ? 'border-b border-border' : ''}`}
               >
                 <div className="w-9 h-9 rounded-xl bg-[#E0EEF0] flex items-center justify-center">
-                  {key === 'cancellation_window_hours' && <Clock className="w-5 h-5 text-[#E86500]" />}
-                  {key === 'max_freeze_days' && <Snowflake className="w-5 h-5 text-[#E86500]" />}
-                  {key === 'reminder_timing' && <Bell className="w-5 h-5 text-[#E86500]" />}
+                  {key === 'cancellation_window_hours' && <Clock className="w-5 h-5 text-[#B8612A]" />}
+                  {key === 'max_freeze_days' && <Snowflake className="w-5 h-5 text-[#B8612A]" />}
+                  {key === 'reminder_timing' && <Bell className="w-5 h-5 text-[#B8612A]" />}
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-foreground">{settingLabel[key].label}</p>
@@ -211,10 +211,10 @@ export default function AdminMorePage() {
 
             {/* My Account */}
             <Link href="/admin/approvals"
-              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#FFD9B8]/10 transition-colors border-t border-border"
+              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#EDD7C9]/10 transition-colors border-t border-border"
             >
               <div className="w-9 h-9 rounded-xl bg-[#E0EEF0] flex items-center justify-center">
-                <User className="w-5 h-5 text-[#E86500]" />
+                <User className="w-5 h-5 text-[#B8612A]" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-foreground">Approvals</p>

@@ -205,7 +205,7 @@ export function UpcomingBookingsList() {
             </div>
 
             {!canCancel && !isCheckInWindow && hoursUntil > 0 && (
-              <p className="text-xs text-[#E86500] mt-2">⏰ Less than 12h — cannot cancel</p>
+              <p className="text-xs text-[#B8612A] mt-2">⏰ Less than 12h — cannot cancel</p>
             )}
 
             {/* Check-in button */}

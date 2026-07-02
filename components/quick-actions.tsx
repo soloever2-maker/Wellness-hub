@@ -30,7 +30,7 @@ export function QuickActions() {
           My Package
         </Link>
         <Link href="/packages"
-          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#E86500]/25 text-[#E86500] rounded-2xl font-semibold text-xs hover:bg-[#E86500]/5 active:scale-[0.97] transition-all shadow-sm">
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#B8612A]/25 text-[#B8612A] rounded-2xl font-semibold text-xs hover:bg-[#B8612A]/5 active:scale-[0.97] transition-all shadow-sm">
           <Tag className="w-4 h-4" />
           Packages
         </Link>

@@ -294,7 +294,7 @@ function ClassPageInner() {
         )}
         {status === 'idle' && !isFull && myPackages.length === 0 && (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-[#E86500] justify-center">
+            <div className="flex items-center gap-2 text-[#B8612A] justify-center">
               <AlertCircle className="w-5 h-5" />
               <span className="text-sm font-medium">You need a package to book</span>
             </div>
@@ -318,7 +318,7 @@ function ClassPageInner() {
         {/* Full — Join Waitlist */}
         {isFull && status !== 'already_booked' && status !== 'success' && status !== 'waitlisted' && (
           <button onClick={handleJoinWaitlist} disabled={status === 'loading'}
-            className="w-full py-3.5 border-2 border-[#E86500] text-[#E86500] font-semibold rounded-xl hover:bg-[#E86500]/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            className="w-full py-3.5 border-2 border-[#B8612A] text-[#B8612A] font-semibold rounded-xl hover:bg-[#B8612A]/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
             {status === 'loading'
               ? <Loader2 className="w-5 h-5 animate-spin" />
               : 'Join Waitlist'

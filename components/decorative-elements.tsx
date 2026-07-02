@@ -11,7 +11,7 @@ export function DecorativeSwirl({ className = '', color = '#006D77' }: Decorativ
   )
 }
 
-export function DecorativeLotus({ className = '', color = '#E86500' }: { className?: string; color?: string }) {
+export function DecorativeLotus({ className = '', color = '#B8612A' }: { className?: string; color?: string }) {
   return (
     <svg viewBox="0 0 60 70" xmlns="http://www.w3.org/2000/svg" className={className} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M30 65 C 15 50, 10 30, 18 12 C 22 20, 28 28, 30 40" />

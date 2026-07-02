@@ -193,7 +193,7 @@ export default function JoinPage() {
           </div>
 
           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-2">
-            <Heart className="w-3 h-3 text-[#E86500]" fill="currentColor" />
+            <Heart className="w-3 h-3 text-[#B8612A]" fill="currentColor" />
             Align with Enjy Wellness Studio
           </p>
         </div>
@@ -203,8 +203,8 @@ export default function JoinPage() {
     // Not logged in — open in browser
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#E0EEF0] to-[#FFF8F3] flex flex-col items-center justify-center px-6 text-center gap-5">
-        <div className="w-20 h-20 rounded-full bg-[#E86500]/10 flex items-center justify-center">
-          <ExternalLink className="w-10 h-10 text-[#E86500]" />
+        <div className="w-20 h-20 rounded-full bg-[#B8612A]/10 flex items-center justify-center">
+          <ExternalLink className="w-10 h-10 text-[#B8612A]" />
         </div>
 
         <div className="space-y-2">
@@ -259,7 +259,7 @@ export default function JoinPage() {
         </div>
 
         <p className="text-xs text-muted-foreground flex items-center gap-1">
-          <Heart className="w-3 h-3 text-[#E86500]" fill="currentColor" />
+          <Heart className="w-3 h-3 text-[#B8612A]" fill="currentColor" />
           Align with Enjy Wellness Studio
         </p>
       </div>
@@ -397,7 +397,7 @@ export default function JoinPage() {
 
         {/* Footer */}
         <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
-          <Heart className="w-3 h-3 text-[#E86500]" fill="currentColor" />
+          <Heart className="w-3 h-3 text-[#B8612A]" fill="currentColor" />
           Align with Enjy · Wellness Studio
         </p>
       </div>

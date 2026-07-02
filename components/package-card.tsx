@@ -39,14 +39,14 @@ export function PackageCard() {
   }, [])
 
   if (loading) {
-    return <div className="h-40 bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl animate-pulse" />
+    return <div className="h-40 bg-gradient-to-r from-[#006D77] to-[#B8612A] rounded-2xl animate-pulse" />
   }
 
   // No package → CTA
   if (!pkg) {
     return (
       <Link href="/packages" className="block">
-        <div className="bg-gradient-to-r from-[#006D77] to-[#E86500] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
+        <div className="bg-gradient-to-r from-[#006D77] to-[#B8612A] rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
               <Package className="w-8 h-8 text-white" />
@@ -76,7 +76,7 @@ export function PackageCard() {
       <div className={`rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow ${
         pkg.status === 'frozen'
           ? 'bg-gradient-to-r from-[#5C6B6E] to-[#5C6B6E]/80'
-          : 'bg-gradient-to-r from-[#006D77] to-[#E86500]'
+          : 'bg-gradient-to-r from-[#006D77] to-[#B8612A]'
       }`}>
         <div className="flex items-start justify-between mb-6">
           <div>

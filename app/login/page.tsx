@@ -52,7 +52,7 @@ function FloatingParticles() {
         rotation: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 0.012,
         type: Math.floor(Math.random() * 3),
-        color: colorChoice < 0.5 ? '#006D77' : (colorChoice < 0.85 ? '#E86500' : '#004E5C'),
+        color: colorChoice < 0.5 ? '#006D77' : (colorChoice < 0.85 ? '#B8612A' : '#004E5C'),
       })
     }
 
@@ -216,7 +216,7 @@ export default function LoginPage() {
         />
       )}
       <main className="h-dvh flex flex-col relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #F5F1E6 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
+        style={{ background: 'linear-gradient(160deg, #F5F1E6 0%, #E0EEF0 50%, #EDD7C9 100%)' }}>
         <FloatingParticles />
 
         <div className="relative z-10 flex-1 flex items-center justify-center overflow-hidden px-6">
@@ -295,7 +295,7 @@ export default function LoginPage() {
                 </form>
                 <p className="text-sm text-muted-foreground text-center mt-4">
                   Don&apos;t have an account?{' '}
-                  <button onClick={() => { setMode('register'); setError('') }} className="text-[#E86500] font-semibold">Request Access</button>
+                  <button onClick={() => { setMode('register'); setError('') }} className="text-[#B8612A] font-semibold">Request Access</button>
                 </p>
               </>)}
 
@@ -330,7 +330,7 @@ export default function LoginPage() {
                 </div>
                 <p className="text-sm text-muted-foreground text-center mt-4">
                   Remembered it?{' '}
-                  <button onClick={() => { setMode('login'); setError('') }} className="text-[#E86500] font-semibold">Back to Sign In</button>
+                  <button onClick={() => { setMode('login'); setError('') }} className="text-[#B8612A] font-semibold">Back to Sign In</button>
                 </p>
               </>)}
 
@@ -379,14 +379,14 @@ export default function LoginPage() {
                 </form>
                 <p className="text-sm text-muted-foreground text-center mt-4">
                   Already have an account?{' '}
-                  <button onClick={() => { setMode('login'); setError('') }} className="text-[#E86500] font-semibold">Sign In</button>
+                  <button onClick={() => { setMode('login'); setError('') }} className="text-[#B8612A] font-semibold">Sign In</button>
                 </p>
               </>)}
 
               {mode === 'pending' && (
                 <div className="flex flex-col items-center text-center py-4">
-                  <div className="w-16 h-16 rounded-full bg-[#FFD9B8]/40 flex items-center justify-center mb-4">
-                    <Clock className="w-8 h-8 text-[#E86500]" />
+                  <div className="w-16 h-16 rounded-full bg-[#EDD7C9]/40 flex items-center justify-center mb-4">
+                    <Clock className="w-8 h-8 text-[#B8612A]" />
                   </div>
                   <h2 className="text-xl font-bold text-foreground mb-2">Request Submitted ✓</h2>
                   <p className="text-sm text-muted-foreground mb-6 leading-relaxed">

@@ -96,11 +96,11 @@ export function ThisWeekSection() {
                   : 'bg-white text-foreground border border-border hover:bg-muted'
               }`}>
               <span className="text-[10px] font-medium">{DAY_NAMES[date.getDay()]}</span>
-              <span className={`text-sm font-bold mt-0.5 ${isToday && selectedIdx !== i ? 'text-[#E86500]' : ''}`}>
+              <span className={`text-sm font-bold mt-0.5 ${isToday && selectedIdx !== i ? 'text-[#B8612A]' : ''}`}>
                 {date.getDate()}
               </span>
               {hasClasses && selectedIdx !== i && (
-                <span className="w-1 h-1 rounded-full bg-[#E86500] mt-0.5" />
+                <span className="w-1 h-1 rounded-full bg-[#B8612A] mt-0.5" />
               )}
             </button>
           )

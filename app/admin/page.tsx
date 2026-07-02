@@ -387,7 +387,7 @@ export default function AdminDashboardPage() {
           {/* Pending approvals banner */}
           {stats.pendingApprovals > 0 && (
             <Link href="/admin/approvals">
-              <div className="bg-gradient-to-r from-[#E86500] to-[#E86500]/80 rounded-2xl p-4 flex items-center justify-between shadow-md shadow-[#E86500]/20">
+              <div className="bg-gradient-to-r from-[#B8612A] to-[#B8612A]/80 rounded-2xl p-4 flex items-center justify-between shadow-md shadow-[#B8612A]/20">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
                     <UserCheck className="w-5 h-5 text-white" />
@@ -413,8 +413,8 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Active Packages */}
-            <div className="bg-white border border-border border-l-4 border-l-[#E86500] rounded-2xl p-4 shadow-sm">
-              <Package className="w-4 h-4 text-[#E86500] mb-2" />
+            <div className="bg-white border border-border border-l-4 border-l-[#B8612A] rounded-2xl p-4 shadow-sm">
+              <Package className="w-4 h-4 text-[#B8612A] mb-2" />
               <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.activePackages}</p>
               <p className="text-xs text-muted-foreground">Active Packages</p>
             </div>
@@ -434,8 +434,8 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Attendance Rate */}
-            <div className="bg-white border border-border border-l-4 border-l-[#E86500] rounded-2xl p-4 shadow-sm">
-              <TrendingUp className="w-4 h-4 text-[#E86500] mb-2" />
+            <div className="bg-white border border-border border-l-4 border-l-[#B8612A] rounded-2xl p-4 shadow-sm">
+              <TrendingUp className="w-4 h-4 text-[#B8612A] mb-2" />
               <p className="text-2xl font-bold text-foreground">
                 {statsLoading ? '—' : attendanceRate !== null ? `${attendanceRate}%` : '—'}
               </p>
@@ -451,7 +451,7 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-muted-foreground">Classes today</p>
             </div>
             <div className="bg-white border border-border rounded-2xl p-4 shadow-sm text-center">
-              <CheckCircle className="w-5 h-5 text-[#E86500] mx-auto mb-1.5" />
+              <CheckCircle className="w-5 h-5 text-[#B8612A] mx-auto mb-1.5" />
               <p className="text-2xl font-bold text-foreground">{statsLoading ? '—' : stats.weekBookings}</p>
               <p className="text-xs text-muted-foreground">Bookings this week</p>
             </div>
@@ -536,22 +536,22 @@ export default function AdminDashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-[#E86500]" />
+                  <Package className="w-4 h-4 text-[#B8612A]" />
                   <h3 className="text-sm font-semibold text-foreground">Package Requests</h3>
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-[#E86500]/10 text-[#E86500] font-medium">{pendingReqs.length}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-[#B8612A]/10 text-[#B8612A] font-medium">{pendingReqs.length}</span>
               </div>
               <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
                 {pendingReqs.map((r, i) => (
                   <div key={r.id} className={`flex items-center gap-3 px-4 py-3 ${i < pendingReqs.length - 1 ? 'border-b border-border' : ''}`}>
-                    <div className="w-8 h-8 rounded-full bg-[#E86500]/10 flex items-center justify-center shrink-0">
-                      <span className="text-xs font-bold text-[#E86500]">{initials(r.client?.full_name)}</span>
+                    <div className="w-8 h-8 rounded-full bg-[#B8612A]/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#B8612A]">{initials(r.client?.full_name)}</span>
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground truncate">{r.client?.full_name || '—'}</p>
                         {r.hasActivePackage && (
-                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-[#E86500]/10 text-[#E86500] rounded-full">♻️ Replace</span>
+                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 bg-[#B8612A]/10 text-[#B8612A] rounded-full">♻️ Replace</span>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">{r.package?.name} · {Number(r.amount).toLocaleString()} EGP</p>
@@ -667,7 +667,7 @@ export default function AdminDashboardPage() {
               <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-[#E86500]" /> Most Popular Classes
+                    <Zap className="w-3.5 h-3.5 text-[#B8612A]" /> Most Popular Classes
                   </p>
                   <span className="text-[10px] text-muted-foreground">{allBookings.length} total bookings</span>
                 </div>
@@ -677,7 +677,7 @@ export default function AdminDashboardPage() {
                     const pct = Math.round((count / allBookings.length) * 100)
                     return (
                       <div key={name} className="flex items-center gap-2.5">
-                        <span className={`text-xs font-bold w-4 shrink-0 ${idx === 0 ? 'text-[#E86500]' : 'text-muted-foreground'}`}>
+                        <span className={`text-xs font-bold w-4 shrink-0 ${idx === 0 ? 'text-[#B8612A]' : 'text-muted-foreground'}`}>
                           {idx + 1}
                         </span>
                         <div className="flex-1 min-w-0">
@@ -687,7 +687,7 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-[#006D77] to-[#E86500]"
+                              className="h-full rounded-full bg-gradient-to-r from-[#006D77] to-[#B8612A]"
                               style={{ width: `${(count / max) * 100}%` }}
                             />
                           </div>
@@ -783,7 +783,7 @@ export default function AdminDashboardPage() {
           ) : (<>
 
             {/* Revenue hero */}
-            <div className="bg-gradient-to-r from-[#004E5C] via-[#006D77] to-[#E86500] rounded-2xl p-5 text-white shadow-lg">
+            <div className="bg-gradient-to-r from-[#004E5C] via-[#006D77] to-[#B8612A] rounded-2xl p-5 text-white shadow-lg">
               <p className="text-xs text-white/60 mb-1">Revenue — {fmtMonth(rMonth)}</p>
               <p className="text-4xl font-bold tracking-tight">{monthTotal.toLocaleString()}</p>
               <p className="text-sm text-white/70 mt-0.5">EGP · {payments.length} payment{payments.length !== 1 ? 's' : ''}</p>
