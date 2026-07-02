@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
+import { sendApnsBroadcast } from '@/lib/apns'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,25 +22,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
     }
 
-    // Get push subscriptions for these clients
+    const finalTitle = title || '📢 Message from Enjy'
+
+    // ── 1. Web Push subscriptions (browser / Android) ──────────
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('client_id, endpoint, p256dh, auth')
       .in('client_id', clientIds)
 
-    if (!subs?.length) {
-      return NextResponse.json({ sent: 0, reason: 'No push subscriptions found for these clients' })
-    }
-
     let sent = 0
     const errors: string[] = []
 
-    for (const sub of subs) {
+    for (const sub of subs || []) {
       try {
         await webPush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           JSON.stringify({
-            title: title || '📢 Message from Enjy',
+            title: finalTitle,
             body,
             icon: '/icon-192x192.png',
             badge: '/icon-96x96.png',
@@ -57,7 +56,21 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ sent, total: subs.length, errors })
+    // ── 2. Native APNs (iOS app) — no-op until APNS_* env vars exist ──
+    const apns = await sendApnsBroadcast(supabase, clientIds, {
+      title: finalTitle,
+      body,
+      data: { type: 'broadcast', url: '/notifications' },
+    })
+    sent += apns.sent
+    errors.push(...apns.errors)
+
+    const total = (subs?.length || 0) + apns.total
+    if (total === 0) {
+      return NextResponse.json({ sent: 0, reason: 'No push subscriptions or devices found for these clients' })
+    }
+
+    return NextResponse.json({ sent, total, errors })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
