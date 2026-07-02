@@ -13,6 +13,7 @@ const supabaseAdmin = createClient(
 // Deletes are best-effort: a missing table or FK quirk must not
 // block the rest of the wipe.
 const CLIENT_LINKED_TABLES = [
+  'device_tokens',
   'push_subscriptions',
   'waitlist',
   'bookings',
