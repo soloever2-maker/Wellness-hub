@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
+import { sendApnsToClient } from '@/lib/apns'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const { client_id, title, body, type = 'alert', url } = await request.json()
 
-    // Get push subscriptions
+    // ── 1. Web Push (browser / Android / PWA) — unchanged ──────
     const { data: subs } = await supabase
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth')
@@ -37,6 +38,14 @@ export async function POST(request: Request) {
         }
       }
     }
+
+    // ── 2. Native APNs (iOS app) — no-op until APNS_* env vars exist ──
+    const apnsSent = await sendApnsToClient(supabase, client_id, {
+      title,
+      body,
+      data: { type, url: url || '/notifications' },
+    })
+    sent = sent || apnsSent
 
     // Log notification
     await supabase.from('notification_log').insert({
