@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell, Sparkles } from 'lucide-react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell, Sparkles, Trash2, ShieldCheck } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -133,6 +133,35 @@ export default function ProfilePage() {
       console.error('Logout error:', err)
     } finally {
       router.replace('/login')
+    }
+  }
+
+  // ── Delete Account (App Store Guideline 5.1.1(v)) ──
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true)
+    setDeleteError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Session expired. Please sign in again.')
+
+      const res = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to delete account')
+
+      // Local sign-out (auth user is already gone on the server)
+      try { await supabase.auth.signOut() } catch { /* already deleted */ }
+      if (typeof window !== 'undefined') localStorage.clear()
+      router.replace('/login')
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete account')
+      setDeleteLoading(false)
     }
   }
 
@@ -577,17 +606,67 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Log Out */}
+        {/* Privacy */}
         <div>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-            <button onClick={handleLogout} className="flex items-center w-full px-4 py-3.5 hover:bg-red-50 transition-colors">
+            <button onClick={() => router.push('/privacy')} className="flex items-center w-full px-4 py-3.5 hover:bg-muted/30 transition-colors">
+              <ShieldCheck className="w-5 h-5 text-[#006D77] mr-3" />
+              <span className="text-sm text-foreground flex-1 text-left">Privacy Policy</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            </button>
+          </div>
+        </div>
+
+        {/* Log Out + Delete Account */}
+        <div>
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+            <button onClick={handleLogout} className="flex items-center w-full px-4 py-3.5 border-b border-border hover:bg-red-50 transition-colors">
               <LogOut className="w-5 h-5 text-[#E53935] mr-3" />
               <span className="text-sm font-medium text-[#E53935]">Log Out</span>
+            </button>
+            <button onClick={() => { setDeleteError(''); setShowDeleteConfirm(true) }} className="flex items-center w-full px-4 py-3.5 hover:bg-red-50 transition-colors">
+              <Trash2 className="w-5 h-5 text-[#C62828] mr-3" />
+              <span className="text-sm font-medium text-[#C62828]">Delete Account</span>
             </button>
           </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground py-4">Align with Enjy v1.0</p>
+
+        {/* ── Delete Account Confirmation Modal ── */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-5">
+            <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-[#C62828]" />
+              </div>
+              <h2 className="text-lg font-bold text-foreground text-center mb-2">Delete your account?</h2>
+              <p className="text-sm text-muted-foreground text-center leading-relaxed mb-4">
+                This will permanently delete your account, bookings, packages, and personal data.
+                <span className="font-semibold text-foreground"> This cannot be undone.</span>
+              </p>
+              {deleteError && (
+                <p className="text-xs text-[#C62828] bg-red-50 rounded-xl px-3 py-2 text-center mb-3">{deleteError}</p>
+              )}
+              <div className="space-y-2">
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading}
+                  className="w-full py-3 bg-[#C62828] text-white font-semibold rounded-xl hover:bg-[#a81f1f] transition-colors disabled:opacity-60"
+                >
+                  {deleteLoading ? 'Deleting…' : 'Yes, delete my account'}
+                </button>
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleteLoading}
+                  className="w-full py-3 bg-muted text-foreground font-semibold rounded-xl hover:bg-muted/70 transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Welcome Onboarding Modal ── */}
