@@ -1,0 +1,151 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-geist-sans), 'Geist Fallback';
+  --font-mono: var(--font-geist-mono), 'Geist Mono Fallback';
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: #F5F1E6;
+  --foreground: #1A2E33;
+  --card: #FFFFFF;
+  --card-foreground: #1A2E33;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A2E33;
+  --primary: #006D77;
+  --primary-foreground: #FFFFFF;
+  --secondary: #FFD9B8;
+  --secondary-foreground: #1A2E33;
+  --muted: #E0EEF0;
+  --muted-foreground: #5C6B6E;
+  --accent: #E86500;
+  --accent-foreground: #FFFFFF;
+  --destructive: #C62828;
+  --border: #E0EEF0;
+  --input: #F5F1E6;
+  --ring: #006D77;
+  --chart-1: #006D77;
+  --chart-2: #E86500;
+  --chart-3: #FFD9B8;
+  --chart-4: #E0EEF0;
+  --chart-5: #004E5C;
+  --radius: 0.625rem;
+  --sidebar: #F5F1E6;
+  --sidebar-foreground: #1A2E33;
+  --sidebar-primary: #006D77;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E86500;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #E0EEF0;
+  --sidebar-ring: #006D77;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Leaf transition animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.06); opacity: 0.9; }
+}
+
+@keyframes leaf-sway {
+  0% { transform: rotate(0deg) scale(0.9); opacity: 0; }
+  30% { transform: rotate(-4deg) scale(1.05); opacity: 1; }
+  60% { transform: rotate(3deg) scale(1); opacity: 1; }
+  100% { transform: rotate(0deg) scale(1); opacity: 1; }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.2s ease-in-out;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-leaf-sway {
+  animation: leaf-sway 0.6s ease-out forwards;
+}
+
+/* Loading bar animation for page transitions */
+@keyframes loading-bar {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+.animate-loading-bar {
+  animation: loading-bar 1.5s ease-in-out infinite;
+}
