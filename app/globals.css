@@ -50,7 +50,7 @@
 
 :root {
   color-scheme: light;
-  --background: #FAFAF7;
+  --background: #F5F1E6;
   --foreground: #1A2E33;
   --card: #FFFFFF;
   --card-foreground: #1A2E33;
@@ -66,7 +66,7 @@
   --accent-foreground: #FFFFFF;
   --destructive: #C62828;
   --border: #E0EEF0;
-  --input: #FAFAF7;
+  --input: #F5F1E6;
   --ring: #006D77;
   --chart-1: #006D77;
   --chart-2: #E86500;
@@ -74,7 +74,7 @@
   --chart-4: #E0EEF0;
   --chart-5: #004E5C;
   --radius: 0.625rem;
-  --sidebar: #FAFAF7;
+  --sidebar: #F5F1E6;
   --sidebar-foreground: #1A2E33;
   --sidebar-primary: #006D77;
   --sidebar-primary-foreground: #FFFFFF;

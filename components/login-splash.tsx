@@ -80,16 +80,13 @@ export function LoginSplash({ onFinished, userName }: LoginSplashProps) {
               : 'opacity-0 translate-y-3'
           }`}
         >
-          <h1 className="text-2xl font-bold text-white tracking-wide">
-            Align with Enjy
-          </h1>
           <div
             className={`transition-all duration-700 delay-500 ease-out ${
               phase !== 'enter' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             }`}
           >
             <p className="text-[11px] text-white/60 font-semibold tracking-[0.3em] uppercase mt-2">
-              Wellness & Yoga Center
+              Yoga · Fitness · Wellness
             </p>
           </div>
         </div>

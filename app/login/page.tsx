@@ -216,7 +216,7 @@ export default function LoginPage() {
         />
       )}
       <main className="h-dvh flex flex-col relative overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #FAFAF7 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
+        style={{ background: 'linear-gradient(160deg, #F5F1E6 0%, #E0EEF0 50%, #FFD9B8 100%)' }}>
         <FloatingParticles />
 
         <div className="relative z-10 flex-1 flex items-center justify-center overflow-hidden px-6">
@@ -229,13 +229,9 @@ export default function LoginPage() {
 
             {/* Logo */}
             <div className="pt-8 pb-6 flex flex-col items-center">
-              <div style={{ mixBlendMode: 'multiply' }} className="mb-3">
-                <Image src="/icon.png" alt="Align with Enjy" width={180} height={180} className="object-contain" priority />
+              <div style={{ mixBlendMode: 'multiply' }}>
+                <Image src="/logo.png" alt="Align with Enjy" width={220} height={220} className="object-contain" priority />
               </div>
-              <h1 className="text-3xl font-bold text-[#006D77] tracking-wide text-center">Align with Enjy</h1>
-              <p className="text-xs text-[#E86500] font-semibold tracking-[0.25em] uppercase mt-2">
-                Wellness & Yoga Center
-              </p>
             </div>
 
             {/* Error */}

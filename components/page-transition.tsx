@@ -37,7 +37,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
           show ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{
-          background: 'linear-gradient(160deg, rgba(250,250,247,0.97) 0%, rgba(224,238,240,0.97) 50%, rgba(255,217,184,0.97) 100%)',
+          background: 'linear-gradient(160deg, rgba(245,241,230,0.97) 0%, rgba(224,238,240,0.97) 50%, rgba(255,217,184,0.97) 100%)',
         }}
       >
         <div
