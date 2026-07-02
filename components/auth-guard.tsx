@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
 const PUBLIC_ROUTES = ['/login']
+const OPEN_ROUTES = ['/privacy']   // viewable with or without a session
 const ADMIN_ONLY_ROUTES = ['/admin', '/select-role']
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -16,6 +17,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const checkSession = useCallback(async () => {
     // Always start unauthorized until proven otherwise
     setAuthorized(false)
+
+    // Open routes (e.g. privacy policy) render for everyone
+    if (OPEN_ROUTES.includes(pathname)) {
+      setAuthorized(true)
+      return
+    }
 
     const { data: { session } } = await supabase.auth.getSession()
 
@@ -54,6 +61,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_OUT') {
+          if (OPEN_ROUTES.includes(pathname)) return
           setAuthorized(false)
           if (!PUBLIC_ROUTES.includes(pathname)) {
             router.replace('/login')
