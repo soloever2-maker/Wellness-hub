@@ -1,3 +1,9 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/class/page.tsx
+// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
@@ -219,7 +225,7 @@ function ClassPageInner() {
           unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-black/10" />
-        <button onClick={() => router.back()}
+        <button onClick={() => router.push('/schedule')}
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
