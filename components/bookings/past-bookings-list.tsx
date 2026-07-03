@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Check, X, Clock } from 'lucide-react'
+import Link from 'next/link'
+import { Check, X, Clock, Star } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
@@ -76,9 +77,19 @@ export function PastBookingsList() {
                 <h3 className="font-semibold text-foreground">{name}</h3>
                 <p className="text-sm text-muted-foreground mt-0.5">{dateStr} · {timeStr}</p>
               </div>
+              <div className="flex flex-col items-end gap-1.5">
               <span className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${s.bg} ${s.color}`}>
                 <Icon className="w-3 h-3" /> {s.label}
               </span>
+              {booking.status === 'attended' && (
+                <Link
+                  href={`/explore?tab=reviews&write=1&class=${encodeURIComponent(name)}`}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-[#B8612A]"
+                >
+                  <Star className="w-3 h-3" /> Leave a review
+                </Link>
+              )}
+              </div>
             </div>
           </div>
         )
