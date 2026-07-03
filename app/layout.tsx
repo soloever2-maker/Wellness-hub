@@ -6,6 +6,7 @@ import { PWAInit } from '@/components/pwa-init'
 import { AuthGuard } from '@/components/auth-guard'
 import { PageTransition } from '@/components/page-transition'
 import { BackHandler } from '@/components/back-handler'
+import { FloatingBg } from '@/components/floating-bg'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
       </head>
       <body className="font-sans antialiased">
+        <FloatingBg />
         <PWAInit />
         <AuthGuard>
           <PageTransition>
