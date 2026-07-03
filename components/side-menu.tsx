@@ -6,6 +6,7 @@
 // and the Align with Enjy website link.
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X, MapPin, Star, PenLine, Globe, ChevronRight } from 'lucide-react'
 
@@ -13,6 +14,9 @@ const ENJY_WEBSITE_URL = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
 
 export function SideMenu() {
   const [open, setOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   // Lock body scroll while the drawer is open
   useEffect(() => {
@@ -38,8 +42,9 @@ export function SideMenu() {
         <Menu className="w-5 h-5 text-foreground" />
       </button>
 
-      {/* Overlay + Drawer */}
-      {open && (
+      {/* Overlay + Drawer — portaled to <body> so it escapes the
+          TopBar's z-30 stacking context (fixes tabs showing above it) */}
+      {mounted && open && createPortal(
         <div className="fixed inset-0 z-[200]">
           {/* Backdrop */}
           <div
@@ -128,7 +133,8 @@ export function SideMenu() {
               </p>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
