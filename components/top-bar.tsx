@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { UserMenu } from './user-menu'
+import { SideMenu } from './side-menu'
 import { getCurrentUser } from '@/lib/auth'
 
 export function TopBar() {
@@ -54,8 +55,11 @@ export function TopBar() {
         </div>
       </div>
 
-      {/* Right: Notification + Menu */}
-      <UserMenu variant="client" />
+      {/* Right: Notification + Menus */}
+      <div className="flex items-center gap-2">
+        <UserMenu variant="client" />
+        <SideMenu />
+      </div>
     </div>
   )
 }
