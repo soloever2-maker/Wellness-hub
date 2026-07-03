@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, LogOut, LayoutDashboard, Smartphone, User as UserIcon, ChevronDown, MapPin } from 'lucide-react'
+import { Bell, LogOut, LayoutDashboard, Smartphone, User as UserIcon, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { logoutUser, getCurrentUser } from '@/lib/auth'
 import type { AppUser } from '@/lib/supabase'
@@ -136,23 +136,6 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
                 )}
                 <div className="h-px bg-border" />
               </>
-            )}
-
-            {/* Retreats — glowing entry (client view) */}
-            {variant === 'client' && (
-              <Link
-                href="/retreats"
-                onClick={() => setOpen(false)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#B8612A]/5 transition-colors"
-              >
-                <span className="relative flex w-4 h-4 items-center justify-center shrink-0">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-[#B8612A]/50 animate-ping" />
-                  <MapPin className="w-4 h-4 text-[#B8612A] relative" />
-                </span>
-                <span className="text-sm font-semibold bg-gradient-to-r from-[#B8612A] to-[#006D77] bg-clip-text text-transparent">
-                  Retreats ✨
-                </span>
-              </Link>
             )}
 
             {/* Profile (only client view) */}
