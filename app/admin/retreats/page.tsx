@@ -200,7 +200,7 @@ export default function AdminRetreatsPage() {
       {/* Header */}
       <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+          <button onClick={() => router.push('/admin/more')} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
             <ChevronLeft className="w-4 h-4" />
           </button>
           <div>
