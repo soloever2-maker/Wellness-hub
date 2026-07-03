@@ -123,14 +123,6 @@ export default function ProfilePage() {
 
       if (error) throw new Error(error.message)
 
-      // If email changed, update Supabase Auth email too
-      if (editForm.email !== profile.email) {
-        const { error: authEmailError } = await supabase.auth.updateUser({
-          email: editForm.email,
-        })
-        if (authEmailError) throw new Error(authEmailError.message)
-      }
-
       setProfile({ ...editForm })
       setIsEditing(false)
     } catch (err: unknown) {
@@ -329,15 +321,6 @@ export default function ProfilePage() {
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">Phone number cannot be changed</p>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
-                <input
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-                />
-              </div>
               {saveError && (
                 <p className="text-xs text-red-500 text-center">{saveError}</p>
               )}
@@ -420,7 +403,6 @@ export default function ProfilePage() {
               { label: 'Full Name', value: profile.name },
               { label: 'Phone', value: profile.phone, badge: 'Verified' },
               { label: 'Date of Birth', value: profile.dateOfBirth ? new Date(profile.dateOfBirth + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' },
-              { label: 'Email', value: profile.email },
             ].map((item, i, arr) => (
               <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < arr.length - 1 ? 'border-b border-border' : ''}`}>
                 <span className="text-sm text-foreground">{item.label}</span>
