@@ -1,19 +1,14 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/class/page.tsx
-// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
-// ============================================================
-
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2, Info } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2, Info, Volume2, VolumeX } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 import { playSingingBowl } from '@/lib/sounds'
+import { startAmbientTrack, stopAmbientTrack, isAmbientPlaying } from '@/lib/ambient-tracks'
 
 type Session = {
   id: string
@@ -57,6 +52,7 @@ function ClassPageInner() {
   const [userId, setUserId] = useState<string>('')
   const [isPast, setIsPast] = useState(false)
   const [cancelWindowHours, setCancelWindowHours] = useState(12)
+  const [ambientOn, setAmbientOn] = useState(false)
 
   // نحفظ الـ sessionId عند الـ mount بس
   // عشان لو الـ URL اتغير من برا (BackHandler مثلاً) الـ effect ما يـredirect-ش
@@ -126,6 +122,32 @@ function ClassPageInner() {
     fetchAll()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // intentionally on mount only — sessionId won't change while on page
+
+  // ── Ambient track: play when session loads, stop on leave ──
+  useEffect(() => {
+    if (!session) return
+    const className = (session.class_type as any)?.name || ''
+    // Check if user previously muted — respect their preference
+    const muted = localStorage.getItem('ambient_muted') === '1'
+    if (!muted && className) {
+      startAmbientTrack(className, 0.4)
+      setAmbientOn(true)
+    }
+    return () => { stopAmbientTrack(); setAmbientOn(false) }
+  }, [session])
+
+  const toggleAmbient = () => {
+    if (ambientOn) {
+      stopAmbientTrack()
+      setAmbientOn(false)
+      localStorage.setItem('ambient_muted', '1')
+    } else {
+      const className = (session?.class_type as any)?.name || ''
+      startAmbientTrack(className, 0.4)
+      setAmbientOn(true)
+      localStorage.removeItem('ambient_muted')
+    }
+  }
 
   const handleBook = async () => {
     if (!session || !selectedPackageId || !userId) return
@@ -228,6 +250,16 @@ function ClassPageInner() {
         <button onClick={() => router.push('/schedule')}
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
+        </button>
+        {/* Ambient sound toggle */}
+        <button onClick={toggleAmbient}
+          className="absolute top-12 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
+          aria-label={ambientOn ? 'Mute ambient sound' : 'Play ambient sound'}
+        >
+          {ambientOn
+            ? <Volume2 className="w-5 h-5 text-white" />
+            : <VolumeX className="w-5 h-5 text-white/60" />
+          }
         </button>
         <div className="absolute bottom-4 left-4">
           <h1 className="text-2xl font-bold text-white drop-shadow-lg">{className}</h1>
