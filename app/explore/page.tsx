@@ -49,6 +49,9 @@ export default function ExplorePage() {
   const [reviews, setReviews]     = useState<Review[]>([])
   const [activeTab, setActiveTab] = useState<'about' | 'private' | 'reviews'>('about')
 
+  // Classes this client actually attended (only these can be reviewed)
+  const [reviewableClasses, setReviewableClasses] = useState<string[]>([])
+
   // Review form (bottom sheet)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewForm, setReviewForm] = useState({ type: 'review', rating: 5, classType: '', comment: '' })
@@ -61,7 +64,38 @@ export default function ExplorePage() {
   const [reqStatus, setReqStatus] = useState<RequestStatus>('idle')
 
   useEffect(() => {
-    getCurrentUser().then(u => { if (u) setUserId(u.id) })
+    getCurrentUser().then(async u => {
+      if (!u) return
+      setUserId(u.id)
+
+      // Classes the client attended (or booked and the class already ended)
+      const { data: past } = await supabase
+        .from('bookings')
+        .select('status, session:class_sessions(end_time, class_type:class_types(name))')
+        .eq('client_id', u.id)
+        .in('status', ['attended', 'confirmed'])
+      const now = Date.now()
+      const names = new Set<string>()
+      for (const b of (past || []) as any[]) {
+        const name = b.session?.class_type?.name
+        const ended = b.session?.end_time && new Date(b.session.end_time).getTime() < now
+        if (name && (b.status === 'attended' || ended)) names.add(name)
+      }
+      setReviewableClasses(Array.from(names))
+    })
+
+    // Deep link: /explore?tab=reviews&write=1&class=Power%20Yoga
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('tab') === 'reviews') {
+        setActiveTab('reviews')
+        if (params.get('write') === '1') {
+          setReviewForm({ type: 'review', rating: 5, classType: params.get('class') || '', comment: '' })
+          setReviewStatus('idle')
+          setShowReviewModal(true)
+        }
+      }
+    } catch { /* ignore */ }
 
     supabase
       .from('reviews')
@@ -102,6 +136,25 @@ export default function ExplorePage() {
       is_approved: false,
     })
     setReviewStatus(error ? 'error' : 'success')
+
+    if (!error) {
+      // Ping Enjy (best-effort — never blocks the user)
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        fetch('/api/push/notify-admins', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({
+            kind: reviewForm.type,
+            rating: reviewForm.rating,
+            class_type: reviewForm.classType || null,
+          }),
+        }).catch(() => {})
+      } catch { /* ignore */ }
+    }
   }
 
   return (
@@ -426,7 +479,15 @@ export default function ExplorePage() {
                   ))}
                 </div>
 
-                {reviewForm.type === 'review' ? (
+                {reviewForm.type === 'review' && reviewableClasses.length === 0 ? (
+                  <div className="bg-[#EDD7C9]/25 border border-[#B8612A]/15 rounded-xl px-4 py-4 text-center">
+                    <p className="text-sm font-semibold text-foreground mb-1">Attend a class first 🧘‍♀️</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Reviews can only be written for classes you&apos;ve attended.
+                      Book your next session and come back to share your experience!
+                    </p>
+                  </div>
+                ) : reviewForm.type === 'review' ? (
                   <>
                     {/* Stars */}
                     <div>
@@ -447,8 +508,8 @@ export default function ExplorePage() {
                         onChange={e => setReviewForm(f => ({ ...f, classType: e.target.value }))}
                         className="w-full border border-border rounded-xl px-3 py-3 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
                       >
-                        <option value="">Select a class...</option>
-                        {CLASS_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="">Select a class you attended...</option>
+                        {reviewableClasses.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                   </>
@@ -480,7 +541,7 @@ export default function ExplorePage() {
 
                 <button
                   onClick={handleSubmitReview}
-                  disabled={reviewStatus === 'loading' || !reviewForm.comment.trim() || (reviewForm.type === 'review' && !reviewForm.classType)}
+                  disabled={reviewStatus === 'loading' || !reviewForm.comment.trim() || (reviewForm.type === 'review' && (!reviewForm.classType || reviewableClasses.length === 0))}
                   className="w-full py-3.5 bg-[#006D77] text-white rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
                 >
                   {reviewStatus === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
