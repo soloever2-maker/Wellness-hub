@@ -1,13 +1,7 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/class/page.tsx
-// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
-// ============================================================
-
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2 } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2, Info } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -55,6 +49,8 @@ function ClassPageInner() {
   const [status, setStatus] = useState<BookingStatus>('idle')
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string>('')
+  const [isPast, setIsPast] = useState(false)
+  const [cancelWindowHours, setCancelWindowHours] = useState(12)
 
   // نحفظ الـ sessionId عند الـ mount بس
   // عشان لو الـ URL اتغير من برا (BackHandler مثلاً) الـ effect ما يـredirect-ش
@@ -78,6 +74,20 @@ function ClassPageInner() {
       if (!s) { router.replace('/schedule'); return }
       setSession(s as unknown as Session)
       setSpotsLeft(s.max_capacity - s.booked_count)
+
+      // Load cancellation window (admin-configurable, fallback 12h)
+      supabase.from('settings').select('value').eq('key', 'cancellation_window_hours').maybeSingle()
+        .then(({ data: setting }) => {
+          const h = parseFloat(setting?.value)
+          if (!isNaN(h) && h > 0) setCancelWindowHours(h)
+        })
+
+      // ⛔ Class already started/finished → booking is closed. Full stop.
+      if (new Date(s.start_time).getTime() <= Date.now()) {
+        setIsPast(true)
+        setLoading(false)
+        return
+      }
 
       // Already booked? (any non-cancelled state blocks a new booking for this session)
       const { data: existing } = await supabase
@@ -113,6 +123,8 @@ function ClassPageInner() {
 
   const handleBook = async () => {
     if (!session || !selectedPackageId || !userId) return
+    // Revalidate at click time — the user may have left the page open
+    if (new Date(session.start_time).getTime() <= Date.now()) { setIsPast(true); return }
     setStatus('loading')
     try {
       const { error } = await supabase.from('bookings').insert({
@@ -159,6 +171,7 @@ function ClassPageInner() {
 
   const handleJoinWaitlist = async () => {
     if (!session || !userId) return
+    if (new Date(session.start_time).getTime() <= Date.now()) { setIsPast(true); return }
     setStatus('loading')
     try {
       await supabase.from('waitlist').insert({
@@ -189,6 +202,8 @@ function ClassPageInner() {
   const instructorName = session.instructor_name || 'Enjy Gebril'
   const imageSrc = (session.class_type as any)?.image_url || CLASS_IMAGES[className] || FALLBACK_IMG
   const isFull = spotsLeft <= 0
+  const cancelDeadline = new Date(startTime.getTime() - cancelWindowHours * 3_600_000)
+  const cancelDeadlineStr = `${cancelDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${cancelDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
 
   return (
     <main className="bg-background min-h-screen pb-32">
@@ -240,7 +255,24 @@ function ClassPageInner() {
           </div>
         )}
 
-        {status === 'idle' && !isFull && myPackages.length > 0 && (
+        {/* Cancellation policy — shown before booking so there are no surprises */}
+        {!isPast && status !== 'success' && status !== 'already_booked' && (
+          <div className="bg-[#E0EEF0]/50 border border-[#006D77]/15 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center flex-shrink-0">
+              <Info className="w-4 h-4 text-[#006D77]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground">Cancellation policy</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Free cancellation up to <span className="font-semibold text-[#006D77]">{cancelWindowHours} hours</span> before
+                class — that&apos;s until <span className="font-semibold text-[#006D77]">{cancelDeadlineStr}</span>.
+                Cancel in time and your session goes back to your package.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isPast && status === 'idle' && !isFull && myPackages.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
               <Package className="w-4 h-4 text-[#006D77]" /> Use Package
@@ -270,6 +302,18 @@ function ClassPageInner() {
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border px-4 py-4">
+        {/* Class already took place — booking is closed */}
+        {isPast && (
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="w-5 h-5" />
+              <span className="font-semibold">This class has already taken place</span>
+            </div>
+            <Link href="/schedule" className="w-full py-3 bg-[#006D77] text-white font-semibold rounded-xl text-center">
+              Browse Upcoming Classes
+            </Link>
+          </div>
+        )}
         {status === 'already_booked' && (
           <div className="flex flex-col items-center gap-3">
             <div className="flex items-center gap-2 text-[#4CAF50]">
@@ -292,7 +336,7 @@ function ClassPageInner() {
             </Link>
           </div>
         )}
-        {status === 'idle' && !isFull && myPackages.length === 0 && (
+        {!isPast && status === 'idle' && !isFull && myPackages.length === 0 && (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-[#B8612A] justify-center">
               <AlertCircle className="w-5 h-5" />
@@ -316,7 +360,7 @@ function ClassPageInner() {
           </div>
         )}
         {/* Full — Join Waitlist */}
-        {isFull && status !== 'already_booked' && status !== 'success' && status !== 'waitlisted' && (
+        {!isPast && isFull && status !== 'already_booked' && status !== 'success' && status !== 'waitlisted' && (
           <button onClick={handleJoinWaitlist} disabled={status === 'loading'}
             className="w-full py-3.5 border-2 border-[#B8612A] text-[#B8612A] font-semibold rounded-xl hover:bg-[#B8612A]/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
             {status === 'loading'
@@ -325,7 +369,7 @@ function ClassPageInner() {
             }
           </button>
         )}
-        {status === 'idle' && !isFull && myPackages.length > 0 && (
+        {!isPast && status === 'idle' && !isFull && myPackages.length > 0 && (
           <button onClick={handleBook} disabled={!selectedPackageId}
             className="w-full py-3.5 bg-[#006D77] text-white font-bold rounded-xl hover:bg-[#004E5C] transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-[#006D77]/20">
             Confirm Booking
