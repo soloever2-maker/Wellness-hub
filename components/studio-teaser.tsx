@@ -10,8 +10,8 @@ export function StudioTeaser() {
       {/* Hero image */}
       <div className="relative w-full aspect-[16/10] bg-muted">
         <Image
-          src="/images/trainer/enjy-hero.jpg"
-          alt="Enjy Gebril — Wellness & Yoga"
+          src="/images/venue/studio-room.jpg"
+          alt="Align with Enjy Studio"
           fill
           className="object-cover"
           sizes="(max-width: 640px) 100vw, 640px"
