@@ -45,7 +45,7 @@ export function TrainerCard() {
         </div>
 
         {/* Website link */}
-        
+        <a
           href={ENJY_SITE}
           target="_blank"
           rel="noopener noreferrer"
