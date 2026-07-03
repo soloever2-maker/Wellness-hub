@@ -1,9 +1,9 @@
 'use client'
 
 import Image from 'next/image'
-import { ExternalLink } from 'lucide-react'
+import { Globe, ArrowUpRight } from 'lucide-react'
 
-const ENJY_IMG = '/images/trainer/enjy-teaching.jpg'
+const ENJY_IMG = '/images/trainer/enjy-class-aswan.jpg'
 const ENJY_SITE = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
 
 const certs = ['RYT-500 Yoga Alliance', 'YACEP Continuing Education', 'Therapeutic Yoga 860h', 'Yin Yoga 100h']
@@ -17,7 +17,7 @@ export function TrainerCard() {
           src={ENJY_IMG}
           alt="Enjy Gebril"
           fill
-          className="object-cover object-top"
+          className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#006D77]/80 to-transparent" />
         <div className="absolute bottom-3 left-4 text-white">
@@ -45,14 +45,22 @@ export function TrainerCard() {
         </div>
 
         {/* Website link */}
-        <a
+        
           href={ENJY_SITE}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-between w-full px-4 py-3 bg-gradient-to-r from-[#006D77] to-[#004E5C] text-white rounded-xl hover:opacity-90 transition-opacity"
+          className="flex items-center gap-3 w-full p-3 bg-[#006D77]/[0.04] border border-[#006D77]/15 rounded-2xl active:scale-[0.99] hover:bg-[#006D77]/[0.07] transition-all"
         >
-          <span className="text-sm font-semibold">Visit Enjy&apos;s Website</span>
-          <ExternalLink className="w-4 h-4" />
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#006D77] to-[#004E5C] flex items-center justify-center shrink-0 shadow-sm">
+            <Globe className="w-[18px] h-[18px] text-white" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-foreground">Visit Enjy&apos;s Website</span>
+            <span className="block text-[11px] text-muted-foreground mt-0.5">Programs, retreats & more</span>
+          </span>
+          <span className="w-8 h-8 rounded-full bg-white border border-border flex items-center justify-center shrink-0">
+            <ArrowUpRight className="w-4 h-4 text-[#006D77]" />
+          </span>
         </a>
       </div>
     </div>
