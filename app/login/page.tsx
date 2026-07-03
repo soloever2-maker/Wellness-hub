@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint } from 'lucide-react'
+import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint, CalendarDays } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
@@ -116,7 +116,7 @@ export default function LoginPage() {
   const [biometricLoading, setBiometricLoading] = useState(false)
   const [error, setError] = useState('')
   const [showBiometric, setShowBiometric] = useState(false)
-  const [form, setForm] = useState({ fullName: '', phone: '', password: '' })
+  const [form, setForm] = useState({ fullName: '', phone: '', password: '', dateOfBirth: '' })
 
   useEffect(() => {
     setShowBiometric(isBiometricSupported() && isBiometricEnabled())
@@ -198,8 +198,24 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError('')
+
+    // Validate full name has at least first + last name
+    const nameParts = form.fullName.trim().split(/\s+/)
+    if (nameParts.length < 2 || nameParts.some(p => p.length === 0)) {
+      setError('Please enter your first and last name (e.g. Sara Ahmed).')
+      setLoading(false)
+      return
+    }
+
+    // Validate date of birth
+    if (!form.dateOfBirth) {
+      setError('Please enter your date of birth.')
+      setLoading(false)
+      return
+    }
+
     try {
-      await registerUser(form.fullName, form.phone, form.password)
+      await registerUser(form.fullName, form.phone, form.password, form.dateOfBirth)
       setMode('pending')
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : ''
@@ -339,17 +355,34 @@ export default function LoginPage() {
                 <p className="text-xs text-muted-foreground text-center mb-5">Enjy will approve your request shortly</p>
                 <form onSubmit={handleRegister} className="space-y-3">
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Full Name</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Full Name <span className="text-[#E53935]">*</span>
+                    </label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input type="text" required autoComplete="name" value={form.fullName}
                         onChange={e => setForm({ ...form, fullName: e.target.value })}
-                        placeholder="Your full name"
+                        placeholder="First & Last name (e.g. Sara Ahmed)"
                         className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">First and last name required</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Date of Birth <span className="text-[#E53935]">*</span>
+                    </label>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input type="date" required value={form.dateOfBirth}
+                        onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77] text-foreground" />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Phone Number <span className="text-[#E53935]">*</span>
+                    </label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input type="tel" required autoComplete="tel" value={form.phone}
@@ -359,7 +392,9 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Password</label>
+                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                      Password <span className="text-[#E53935]">*</span>
+                    </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete="new-password"

@@ -18,7 +18,7 @@ type Booking = {
   id: string
   status: string
   client_id: string
-  client: { full_name: string; phone: string }
+  client: { full_name: string; phone: string; client_id?: number }
 }
 
 const classEmoji: Record<string, string> = {
@@ -80,7 +80,7 @@ export default function AdminAttendancePage() {
         // Re-fetch with session_id
         const { data: bookingsWithSession } = await supabase
           .from('bookings')
-          .select('id, status, client_id, session_id, client:users(full_name, phone)')
+          .select('id, status, client_id, session_id, client:users(full_name, phone, client_id)')
           .in('session_id', sessionIds)
           .in('status', ['confirmed', 'attended', 'no_show'])
 
@@ -227,6 +227,7 @@ export default function AdminAttendancePage() {
                   <div className="border-t border-border">
                     {bookings.map((booking, i) => {
                       const clientName = (booking.client as any)?.full_name || '—'
+                      const clientIdNum = (booking.client as any)?.client_id
                       const initials = clientName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
                       const isPending = booking.status === 'confirmed'
                       const isAttended = booking.status === 'attended'
@@ -248,9 +249,16 @@ export default function AdminAttendancePage() {
                             }`}>{initials}</span>
                           </div>
 
-                          {/* Name */}
+                          {/* Name + Client ID */}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-foreground truncate">{clientName}</p>
+                              {clientIdNum != null && (
+                                <span className="text-[10px] font-bold text-[#006D77] bg-[#006D77]/10 px-1.5 py-0.5 rounded-md shrink-0">
+                                  #{clientIdNum}
+                                </span>
+                              )}
+                            </div>
                             {!isPending && (
                               <p className={`text-xs font-medium ${isAttended ? 'text-[#4CAF50]' : 'text-[#E53935]'}`}>
                                 {isAttended ? '✓ Attended' : '✗ No Show'}

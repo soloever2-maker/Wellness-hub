@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell, Sparkles, Trash2, ShieldCheck } from 'lucide-react'
+import { ChevronRight, Phone, MapPin, Camera, Info, LogOut, MessageCircle, X, Check, Fingerprint, Lock, Bell, Sparkles, Trash2, ShieldCheck, CalendarDays, Hash } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { Logo } from '@/components/logo'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -32,7 +32,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saveLoading, setSaveLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [profile, setProfile]           = useState({ name: '', phone: '', email: '', userId: '' })
+  const [profile, setProfile]           = useState({ name: '', phone: '', email: '', userId: '', clientId: 0, dateOfBirth: '' })
   const [avatarUrl, setAvatarUrl]         = useState('')
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [editForm, setEditForm] = useState(profile)
@@ -72,6 +72,8 @@ export default function ProfilePage() {
           phone: user.phone || '',
           email: user.email || '',
           userId: user.id || '',
+          clientId: (user as any).client_id || 0,
+          dateOfBirth: (user as any).date_of_birth || '',
         }
         setProfile(userData)
         setEditForm(userData)
@@ -98,13 +100,25 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setSaveLoading(true)
     setSaveError('')
+
+    // Validate full name — must have at least first + last name
+    const nameParts = editForm.name.trim().split(/\s+/)
+    if (nameParts.length < 2 || nameParts.some(p => p.length === 0)) {
+      setSaveError('Please enter your first and last name.')
+      setSaveLoading(false)
+      return
+    }
+
     try {
+      const updatePayload: Record<string, unknown> = {
+        full_name: editForm.name,
+        email: editForm.email,
+      }
+      if (editForm.dateOfBirth) updatePayload.date_of_birth = editForm.dateOfBirth
+
       const { error } = await supabase
         .from('users')
-        .update({
-          full_name: editForm.name,
-          email: editForm.email,
-        })
+        .update(updatePayload)
         .eq('id', profile.userId)
 
       if (error) throw new Error(error.message)
@@ -255,9 +269,15 @@ export default function ProfilePage() {
         </label>
         <h2 className="text-xl font-bold text-foreground">{profile.name}</h2>
         <p className="text-sm text-muted-foreground mt-1">{profile.phone}</p>
+        {profile.clientId > 0 && (
+          <div className="mt-2 inline-flex items-center gap-1.5 bg-[#006D77]/10 text-[#006D77] px-3 py-1 rounded-full">
+            <Hash className="w-3.5 h-3.5" />
+            <span className="text-xs font-bold tracking-wide">ID: {profile.clientId}</span>
+          </div>
+        )}
         <button
           onClick={() => { setEditForm(profile); setIsEditing(true); setSaveError('') }}
-          className="mt-3 text-sm font-medium text-[#006D77]"
+          className="mt-3 text-sm font-medium text-[#006D77] block"
         >
           Edit Profile
         </button>
@@ -275,11 +295,27 @@ export default function ProfilePage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Full Name</label>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Full Name <span className="text-[#E53935]">*</span>
+                </label>
                 <input
                   type="text"
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="First & Last name (e.g. Sara Ahmed)"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">First and last name required</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                  Date of Birth <span className="text-[#E53935]">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editForm.dateOfBirth}
+                  onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]}
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
                 />
               </div>
@@ -352,16 +388,41 @@ export default function ProfilePage() {
       )}
 
       <div className="px-4 space-y-4">
+        {/* Complete Profile Banner — shown when DOB or full name is missing */}
+        {(!profile.dateOfBirth || profile.name.trim().split(/\s+/).length < 2) && (
+          <button
+            onClick={() => { setEditForm(profile); setIsEditing(true); setSaveError('') }}
+            className="w-full bg-gradient-to-r from-[#B8612A]/10 to-[#006D77]/10 border border-[#B8612A]/30 rounded-2xl p-4 flex items-center gap-3 text-left"
+          >
+            <div className="w-10 h-10 rounded-full bg-[#B8612A]/20 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-[#B8612A]" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">Complete Your Profile</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {!profile.dateOfBirth && profile.name.trim().split(/\s+/).length < 2
+                  ? 'Add your full name and date of birth'
+                  : !profile.dateOfBirth
+                  ? 'Add your date of birth'
+                  : 'Add your full name (first + last)'}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          </button>
+        )}
+
         {/* Account */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Account</p>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
             {[
+              { label: 'Client ID', value: profile.clientId > 0 ? `#${profile.clientId}` : '—' },
               { label: 'Full Name', value: profile.name },
               { label: 'Phone', value: profile.phone, badge: 'Verified' },
+              { label: 'Date of Birth', value: profile.dateOfBirth ? new Date(profile.dateOfBirth + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' },
               { label: 'Email', value: profile.email },
-            ].map((item, i) => (
-              <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < 2 ? 'border-b border-border' : ''}`}>
+            ].map((item, i, arr) => (
+              <div key={i} className={`flex items-center justify-between px-4 py-3.5 ${i < arr.length - 1 ? 'border-b border-border' : ''}`}>
                 <span className="text-sm text-foreground">{item.label}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">{item.value}</span>

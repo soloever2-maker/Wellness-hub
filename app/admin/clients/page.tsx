@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal, Handshake } from 'lucide-react'
+import { Search, X, MessageCircle, Snowflake, Plus, Users, Loader2, Check, Package, Trash2, CreditCard, RotateCcw, KeyRound, Copy, RefreshCw, Minus, SlidersHorizontal, Handshake, Hash } from 'lucide-react'
 import { ConfirmModal } from '@/components/confirm-modal'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
@@ -16,6 +16,8 @@ type Client = {
   email: string
   status: string
   created_at: string
+  client_id: number | null
+  date_of_birth: string | null
 }
 
 type PackageOption = {
@@ -405,7 +407,11 @@ function AdminClientsPageInner() {
   }
 
   const filtered = clients.filter(c => {
-    const matchesSearch = (c.full_name || '').toLowerCase().includes(search.toLowerCase()) || (c.phone || '').includes(search)
+    const q = search.toLowerCase().trim()
+    const matchesSearch = !q
+      || (c.full_name || '').toLowerCase().includes(q)
+      || (c.phone || '').includes(q)
+      || (c.client_id != null && String(c.client_id).includes(q))
     const matchesFilter = activeFilter === 'All' ? true : activeFilter === 'Approved' ? c.status === 'approved' : c.status === 'pending'
     return matchesSearch && matchesFilter
   })
@@ -426,7 +432,7 @@ function AdminClientsPageInner() {
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input type="text" placeholder="Search by name or phone..." value={search}
+          <input type="text" placeholder="Search by name, phone, or ID..." value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30" />
         </div>
@@ -462,7 +468,14 @@ function AdminClientsPageInner() {
                 </span>
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-foreground text-sm">{client.full_name || '—'}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-foreground text-sm">{client.full_name || '—'}</h4>
+                  {client.client_id != null && (
+                    <span className="text-[10px] font-bold text-[#006D77] bg-[#006D77]/10 px-1.5 py-0.5 rounded-md shrink-0">
+                      #{client.client_id}
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">{client.phone}</p>
                 {partnerByClient[client.id] && (
                   <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold
@@ -509,7 +522,14 @@ function AdminClientsPageInner() {
                     </span>
                   </div>
                   <div>
-                    <h2 className="text-lg font-bold text-foreground">{selectedClient.full_name}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-foreground">{selectedClient.full_name}</h2>
+                      {selectedClient.client_id != null && (
+                        <span className="text-xs font-bold text-[#006D77] bg-[#006D77]/10 px-2 py-0.5 rounded-lg">
+                          #{selectedClient.client_id}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
                   </div>
                 </div>
@@ -521,10 +541,24 @@ function AdminClientsPageInner() {
 
               {/* Info */}
               <div className="bg-white border border-border rounded-2xl p-4 mb-4 space-y-3">
+                {selectedClient.client_id != null && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Client ID</span>
+                    <span className="text-sm font-bold text-[#006D77]">#{selectedClient.client_id}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Status</span>
                   <span className="text-sm font-medium text-foreground capitalize">{selectedClient.status}</span>
                 </div>
+                {selectedClient.date_of_birth && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Date of Birth</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {new Date(selectedClient.date_of_birth + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Joined</span>
                   <span className="text-sm font-medium text-foreground">
