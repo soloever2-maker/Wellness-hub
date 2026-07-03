@@ -31,57 +31,62 @@ function createLFO(ctx: AudioContext, freq: number, min: number, max: number) {
 // ── TRACK: Power Yoga 🔥 ──────────────────────────────────
 // Deep powerful drone, rhythmic pulse, warm & grounding
 function playPowerYoga(ctx: AudioContext, dest: AudioNode) {
-  // Deep drone
+  // Deep drone — loud & present
   const drone = ctx.createOscillator()
   drone.type = 'sawtooth'
   drone.frequency.value = 55 // Low A
   const droneGain = ctx.createGain()
-  droneGain.gain.value = 0.06
+  droneGain.gain.value = 0.18
   const droneFilter = ctx.createBiquadFilter()
   droneFilter.type = 'lowpass'
-  droneFilter.frequency.value = 200
+  droneFilter.frequency.value = 280
   droneFilter.Q.value = 2
   drone.connect(droneFilter)
   droneFilter.connect(droneGain)
   droneGain.connect(dest)
   drone.start()
 
-  // Warm pad
+  // Warm pad — fuller
   const pad = ctx.createOscillator()
   pad.type = 'sine'
   pad.frequency.value = 110
   const pad2 = ctx.createOscillator()
   pad2.type = 'sine'
   pad2.frequency.value = 165 // Perfect 5th
+  const pad3 = ctx.createOscillator()
+  pad3.type = 'sine'
+  pad3.frequency.value = 220 // Octave
   const padGain = ctx.createGain()
-  padGain.gain.value = 0.04
+  padGain.gain.value = 0.12
   pad.connect(padGain)
   pad2.connect(padGain)
+  pad3.connect(padGain)
   padGain.connect(dest)
   pad.start()
   pad2.start()
+  pad3.start()
 
   // Slow breath-like pulse via LFO
   const lfo = ctx.createOscillator()
   lfo.type = 'sine'
   lfo.frequency.value = 0.15 // ~4 second cycle (breath rhythm)
   const lfoGain = ctx.createGain()
-  lfoGain.gain.value = 0.025
+  lfoGain.gain.value = 0.06
   lfo.connect(lfoGain)
   lfoGain.connect(padGain.gain)
   lfo.start()
 
-  // Sub bass hum
+  // Sub bass hum — felt more than heard
   const sub = ctx.createOscillator()
   sub.type = 'sine'
   sub.frequency.value = 55
   const subGain = ctx.createGain()
-  subGain.gain.value = 0.05
+  subGain.gain.value = 0.15
   sub.connect(subGain)
   subGain.connect(dest)
   sub.start()
 
-  activeNodes.push(drone, pad, pad2, lfo, sub)
+  activeNodes.push(drone, pad, pad2, pad3, lfo, sub)
 }
 
 // ── TRACK: Mat Pilates 💪 ─────────────────────────────────
@@ -194,7 +199,7 @@ function playGentleYoga(ctx: AudioContext, dest: AudioNode) {
 }
 
 // ── TRACK: Belly Rhythmic Dancing 💃 ──────────────────────
-// Middle-eastern intervals, gentle rhythmic feel, warm
+// Middle-eastern intervals, gentle rhythmic feel, warm + sagat (finger cymbals)
 function playBellyDancing(ctx: AudioContext, dest: AudioNode) {
   // Oud-like drone on D (middle-eastern root)
   const drone = ctx.createOscillator()
@@ -229,7 +234,7 @@ function playBellyDancing(ctx: AudioContext, dest: AudioNode) {
   // Rhythmic pulse — gentle tabla-like feel
   const pulseOsc = ctx.createOscillator()
   pulseOsc.type = 'sine'
-  pulseOsc.frequency.value = 0.9 // slightly faster than breath
+  pulseOsc.frequency.value = 0.9
   const pulseGain = ctx.createGain()
   pulseGain.gain.value = 0.02
   pulseOsc.connect(pulseGain)
@@ -247,6 +252,89 @@ function playBellyDancing(ctx: AudioContext, dest: AudioNode) {
   sweepLfo.start()
 
   activeNodes.push(drone, color1, color2, pulseOsc, sweepLfo)
+
+  // ── Sagat (finger cymbals) ────────────────────────────────
+  // Metallic ring: burst of high harmonics with sharp attack & ringing decay
+  // Plays in a repeating pattern: ting-ting ... ting-ting-ting ... (belly dance rhythm)
+  const sagatPattern = [0, 0.35, 1.6, 2.0, 2.35] // timing within one cycle (seconds)
+  const cycleLength = 3.8 // full cycle length
+
+  let sagatTimer: ReturnType<typeof setInterval> | null = null
+  let cycleStart = ctx.currentTime + 1.5 // slight delay before first ring
+
+  const playSingleSagat = (time: number, vol: number) => {
+    // Multiple harmonics for metallic character
+    const freqs = [4200, 5600, 7400, 9800]
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, time)
+      // Slight pitch drop — real cymbal behavior
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.92, time + 0.8)
+
+      const gain = ctx.createGain()
+      const harmVol = vol / (1 + i * 0.6) // higher harmonics are quieter
+      gain.gain.setValueAtTime(0, time)
+      gain.gain.linearRampToValueAtTime(harmVol, time + 0.003) // sharp attack
+      gain.gain.exponentialRampToValueAtTime(harmVol * 0.3, time + 0.12) // initial drop
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.9) // long ring-out
+
+      osc.connect(gain)
+      gain.connect(dest)
+      osc.start(time)
+      osc.stop(time + 1.0)
+    })
+
+    // Noise burst for the "tsh" attack
+    const bufLen = Math.floor(ctx.sampleRate * 0.015)
+    const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate)
+    const nd = noiseBuf.getChannelData(0)
+    for (let j = 0; j < bufLen; j++) nd[j] = (Math.random() * 2 - 1)
+    const noiseSrc = ctx.createBufferSource()
+    noiseSrc.buffer = noiseBuf
+    const noiseG = ctx.createGain()
+    noiseG.gain.setValueAtTime(vol * 0.6, time)
+    noiseG.gain.exponentialRampToValueAtTime(0.0001, time + 0.04)
+    const noiseFilt = ctx.createBiquadFilter()
+    noiseFilt.type = 'highpass'
+    noiseFilt.frequency.value = 6000
+    noiseSrc.connect(noiseFilt)
+    noiseFilt.connect(noiseG)
+    noiseG.connect(dest)
+    noiseSrc.start(time)
+  }
+
+  const scheduleCycle = () => {
+    const now = ctx.currentTime
+    sagatPattern.forEach(offset => {
+      const t = cycleStart + offset
+      if (t > now - 0.05) { // only schedule future events
+        const vol = offset === 0 || offset === 1.6 ? 0.07 : 0.045 // accent on 1st beat of each pair
+        playSingleSagat(t, vol)
+      }
+    })
+    cycleStart += cycleLength
+  }
+
+  // Schedule first few cycles, then keep scheduling
+  scheduleCycle()
+  scheduleCycle()
+  sagatTimer = setInterval(() => {
+    scheduleCycle()
+  }, (cycleLength * 1000) / 2)
+
+  // Store cleanup in activeNodes via a dummy oscillator we can reference
+  const cleanup = ctx.createOscillator()
+  cleanup.frequency.value = 0
+  cleanup.connect(ctx.createGain()) // connected but silent
+  cleanup.start()
+  // Override stop to also clear the interval
+  const origStop = cleanup.stop.bind(cleanup)
+  cleanup.stop = (when?: number) => {
+    if (sagatTimer) clearInterval(sagatTimer)
+    try { origStop(when) } catch {}
+  }
+  activeNodes.push(cleanup)
 }
 
 // ── TRACK: Aqua Aerobics 🌊 ──────────────────────────────
