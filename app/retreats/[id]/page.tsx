@@ -102,7 +102,7 @@ export default function RetreatPage() {
 
         {/* Back */}
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/retreats')}
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center"
         >
           <ArrowLeft className="w-5 h-5 text-white" />
