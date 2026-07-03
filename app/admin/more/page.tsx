@@ -1,13 +1,7 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/admin/more/page.tsx
-// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
-// ============================================================
-
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin, Image as ImageIcon, Handshake, Lightbulb } from 'lucide-react'
+import { Package, CreditCard, ClipboardList, Megaphone, Clock, Bell, Snowflake, User, ChevronRight, LogOut, X, Check, Loader2, Download, Dumbbell, MapPin, Image as ImageIcon, Handshake, Lightbulb, Star } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
 import Link from 'next/link'
@@ -172,6 +166,10 @@ export default function AdminMorePage() {
               {
                 icon: Lightbulb, label: "Enjy's Tips", desc: 'Pre-class tips shown to your clients',
                 href: '/admin/tips', value: '',
+              },
+              {
+                icon: Star, label: 'Reviews & Feedback', desc: 'Approve reviews & read suggestions',
+                href: '/admin/feedback', value: '',
               },
             ].map((item, i, arr) => (
               <Link key={item.label} href={item.href}
