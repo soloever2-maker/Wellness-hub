@@ -5,7 +5,7 @@
 // ============================================================
 
 import Link from 'next/link'
-import { Calendar, Package, MessageCircle, Tag } from 'lucide-react'
+import { Calendar, Package, MessageCircle, Tag, Sparkles } from 'lucide-react'
 
 export function QuickActions() {
   return (
@@ -22,8 +22,8 @@ export function QuickActions() {
         Book a Class
       </Link>
 
-      {/* Secondary — 3 col */}
-      <div className="grid grid-cols-3 gap-2.5">
+      {/* Secondary — 2x2 grid */}
+      <div className="grid grid-cols-2 gap-2.5">
         <Link href="/my-package"
           className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#006D77]/20 text-[#006D77] rounded-2xl font-semibold text-xs hover:bg-[#E0EEF0] active:scale-[0.97] transition-all shadow-sm">
           <Package className="w-4 h-4" />
@@ -33,6 +33,11 @@ export function QuickActions() {
           className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#B8612A]/25 text-[#B8612A] rounded-2xl font-semibold text-xs hover:bg-[#B8612A]/5 active:scale-[0.97] transition-all shadow-sm">
           <Tag className="w-4 h-4" />
           Packages
+        </Link>
+        <Link href="/prepare"
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#7C4DFF]/25 text-[#7C4DFF] rounded-2xl font-semibold text-xs hover:bg-[#7C4DFF]/5 active:scale-[0.97] transition-all shadow-sm">
+          <Sparkles className="w-4 h-4" />
+          Enjy&apos;s Tips
         </Link>
         <a href="https://wa.me/201063751653" target="_blank" rel="noopener noreferrer"
           className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#25D366]/25 text-[#1a9e4a] rounded-2xl font-semibold text-xs hover:bg-[#25D366]/5 active:scale-[0.97] transition-all shadow-sm">
