@@ -130,6 +130,9 @@ export function UpcomingBookingsList() {
       }).catch(() => {})
 
       setBookings(prev => prev.filter(b => b.id !== bookingId))
+
+      // Broadcast cancellation so other components (NextBookingCard, Schedule) can re-fetch
+      window.dispatchEvent(new CustomEvent('booking-changed'))
     }
     setCancellingId(null)
     setConfirmCancel(null)
