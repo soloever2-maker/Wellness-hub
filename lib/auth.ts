@@ -23,20 +23,28 @@ function normalizePhone(phone: string): string {
 export async function registerUser(
   fullName: string,
   phone: string,
-  password: string
+  password: string,
+  dateOfBirth?: string          // ISO date string "YYYY-MM-DD"
 ) {
+  // Validate full name — must have at least first + last name
+  const nameParts = fullName.trim().split(/\s+/)
+  if (nameParts.length < 2 || nameParts.some(p => p.length === 0)) {
+    throw new Error('Please enter your first and last name.')
+  }
+
   const normalizedPhone = normalizePhone(phone)
   const fakeEmail = phoneToEmail(phone)
+
+  const metadata: Record<string, unknown> = {
+    full_name: fullName,
+    phone: normalizedPhone,
+  }
+  if (dateOfBirth) metadata.date_of_birth = dateOfBirth
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: fakeEmail,
     password,
-    options: {
-      data: {
-        full_name: fullName,
-        phone: normalizedPhone,
-      },
-    },
+    options: { data: metadata },
   })
 
   if (authError) {
@@ -50,9 +58,12 @@ export async function registerUser(
   // ── Link auth user → existing users row ────────────────────
   // If admin pre-created the user in `users` table (auth_id = NULL),
   // stamp auth_id now so getCurrentUser() can find their profile.
+  const updatePayload: Record<string, unknown> = { auth_id: authData.user.id }
+  if (dateOfBirth) updatePayload.date_of_birth = dateOfBirth
+
   const { error: linkError } = await supabase
     .from('users')
-    .update({ auth_id: authData.user.id })
+    .update(updatePayload)
     .eq('phone', normalizedPhone)
     .is('auth_id', null)   // only update rows that aren't linked yet
 
