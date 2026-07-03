@@ -1,13 +1,14 @@
 'use client'
 
+// ── Explore ────────────────────────────────────────────────────
+// About Enjy + Private Session request.
+// Reviews moved to their own pages: /reviews (Clients Reviews)
+// and /reviews/write (Review Your Class).
+
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Award, Send, Loader2, Star, X,
-  Sparkles, CheckCircle,
-} from 'lucide-react'
+import { Award, Send, Loader2, Sparkles, CheckCircle } from 'lucide-react'
 import { BottomNav } from '@/components/bottom-nav'
 import { TopBar } from '@/components/top-bar'
 import { supabase } from '@/lib/supabase'
@@ -32,30 +33,12 @@ const CLASS_TYPES = [
   'Meditation', 'Breathwork',
 ]
 
-type Review = {
-  id: string
-  rating: number | null
-  class_type: string | null
-  comment: string
-  created_at: string
-  client: { full_name: string } | null
-}
-
 type RequestStatus = 'idle' | 'loading' | 'success' | 'error'
 
 export default function ExplorePage() {
   const router = useRouter()
-  const [userId, setUserId]       = useState<string | null>(null)
-  const [reviews, setReviews]     = useState<Review[]>([])
-  const [activeTab, setActiveTab] = useState<'about' | 'private' | 'reviews'>('about')
-
-  // Classes this client actually attended (only these can be reviewed)
-  const [reviewableClasses, setReviewableClasses] = useState<string[]>([])
-
-  // Review form (bottom sheet)
-  const [showReviewModal, setShowReviewModal] = useState(false)
-  const [reviewForm, setReviewForm] = useState({ type: 'review', rating: 5, classType: '', comment: '' })
-  const [reviewStatus, setReviewStatus] = useState<RequestStatus>('idle')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'about' | 'private'>('about')
 
   // Private session form
   const [form, setForm] = useState({
@@ -64,47 +47,13 @@ export default function ExplorePage() {
   const [reqStatus, setReqStatus] = useState<RequestStatus>('idle')
 
   useEffect(() => {
-    getCurrentUser().then(async u => {
-      if (!u) return
-      setUserId(u.id)
+    getCurrentUser().then(u => { if (u) setUserId(u.id) })
 
-      // Classes the client attended (or booked and the class already ended)
-      const { data: past } = await supabase
-        .from('bookings')
-        .select('status, session:class_sessions(end_time, class_type:class_types(name))')
-        .eq('client_id', u.id)
-        .in('status', ['attended', 'confirmed'])
-      const now = Date.now()
-      const names = new Set<string>()
-      for (const b of (past || []) as any[]) {
-        const name = b.session?.class_type?.name
-        const ended = b.session?.end_time && new Date(b.session.end_time).getTime() < now
-        if (name && (b.status === 'attended' || ended)) names.add(name)
-      }
-      setReviewableClasses(Array.from(names))
-    })
-
-    // Deep link: /explore?tab=reviews&write=1&class=Power%20Yoga
+    // Deep link: /explore?tab=private
     try {
       const params = new URLSearchParams(window.location.search)
-      if (params.get('tab') === 'reviews') {
-        setActiveTab('reviews')
-        if (params.get('write') === '1') {
-          setReviewForm({ type: 'review', rating: 5, classType: params.get('class') || '', comment: '' })
-          setReviewStatus('idle')
-          setShowReviewModal(true)
-        }
-      }
+      if (params.get('tab') === 'private') setActiveTab('private')
     } catch { /* ignore */ }
-
-    supabase
-      .from('reviews')
-      .select('id, rating, class_type, comment, created_at, client:users(full_name)')
-      .eq('type', 'review')
-      .eq('is_approved', true)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => { if (data) setReviews(data as unknown as Review[]) })
   }, [])
 
   const handleRequest = async () => {
@@ -120,41 +69,6 @@ export default function ExplorePage() {
     })
     setReqStatus(error ? 'error' : 'success')
     if (!error) setForm({ classType: '', preferredDate: '', preferredTime: '', notes: '' })
-  }
-
-  const handleSubmitReview = async () => {
-    if (!userId) { router.push('/login'); return }
-    if (!reviewForm.comment.trim()) return
-    if (reviewForm.type === 'review' && !reviewForm.classType) return
-    setReviewStatus('loading')
-    const { error } = await supabase.from('reviews').insert({
-      client_id: userId,
-      type: reviewForm.type,
-      rating: reviewForm.type === 'review' ? reviewForm.rating : null,
-      class_type: reviewForm.type === 'review' ? reviewForm.classType : null,
-      comment: reviewForm.comment.trim(),
-      is_approved: false,
-    })
-    setReviewStatus(error ? 'error' : 'success')
-
-    if (!error) {
-      // Ping Enjy (best-effort — never blocks the user)
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        fetch('/api/push/notify-admins', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({
-            kind: reviewForm.type,
-            rating: reviewForm.rating,
-            class_type: reviewForm.classType || null,
-          }),
-        }).catch(() => {})
-      } catch { /* ignore */ }
-    }
   }
 
   return (
@@ -181,7 +95,7 @@ export default function ExplorePage() {
       {/* Tabs */}
       <div className="sticky top-0 z-30 bg-background border-b border-border">
         <div className="flex">
-          {(['about', 'private', 'reviews'] as const).map(tab => (
+          {(['about', 'private'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -191,7 +105,7 @@ export default function ExplorePage() {
                   : 'text-muted-foreground'
               }`}
             >
-              {tab === 'private' ? 'Private Session' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'private' ? 'Private Session' : 'About'}
             </button>
           ))}
         </div>
@@ -349,209 +263,7 @@ export default function ExplorePage() {
             </div>
           </>
         )}
-
-        {/* ─── REVIEWS TAB ─── */}
-        {activeTab === 'reviews' && (
-          <>
-            {/* Summary + CTA */}
-            <div className="bg-white border border-border rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  {reviews.length > 0 ? (
-                    <>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-2xl font-bold text-foreground">
-                          {(reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length).toFixed(1)}
-                        </span>
-                        <Star className="w-5 h-5 text-[#F5A623] fill-[#F5A623]" />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm font-semibold text-foreground">Be the first to review ⭐</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => { setReviewStatus('idle'); setReviewForm({ type: 'review', rating: 5, classType: '', comment: '' }); setShowReviewModal(true) }}
-                  className="px-4 py-2.5 rounded-full bg-[#006D77] text-white text-xs font-semibold active:scale-[0.97] transition-all"
-                >
-                  Share Your Experience
-                </button>
-              </div>
-            </div>
-
-            {/* Reviews list */}
-            {reviews.length === 0 ? (
-              <div className="flex flex-col items-center py-14 gap-3 text-center">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center">
-                  <Star className="w-6 h-6 text-muted-foreground" />
-                </div>
-                <p className="font-semibold text-foreground">No reviews yet</p>
-                <p className="text-sm text-muted-foreground px-8">
-                  Took a class with Enjy? Tell the community how it went!
-                </p>
-              </div>
-            ) : (
-              reviews.map(r => (
-                <div key={r.id} className="bg-white border border-border rounded-2xl p-4 shadow-sm">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-[#E0EEF0] flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-[#006D77]">
-                          {(r.client?.full_name || 'A').slice(0, 1).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">
-                          {r.client?.full_name?.split(' ')[0] || 'A member'}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      {[1, 2, 3, 4, 5].map(n => (
-                        <Star key={n} className={`w-3.5 h-3.5 ${n <= (r.rating || 0) ? 'text-[#F5A623] fill-[#F5A623]' : 'text-border'}`} />
-                      ))}
-                    </div>
-                  </div>
-                  {r.class_type && (
-                    <span className="inline-block text-[10px] font-semibold text-[#006D77] bg-[#E0EEF0] px-2 py-0.5 rounded-full mb-2">
-                      {r.class_type}
-                    </span>
-                  )}
-                  <p className="text-sm text-foreground leading-relaxed">{r.comment}</p>
-                </div>
-              ))
-            )}
-          </>
-        )}
       </div>
-
-      {/* ─── Review / Feedback bottom-sheet ─── */}
-      {showReviewModal && (
-        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={() => setShowReviewModal(false)}>
-          <div className="bg-white w-full rounded-t-3xl px-6 pt-6 pb-10 space-y-4 shadow-xl max-h-[88vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-foreground">Share Your Experience</h3>
-              <button onClick={() => setShowReviewModal(false)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {reviewStatus === 'success' ? (
-              <div className="flex flex-col items-center py-8 text-center gap-3">
-                <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center">
-                  <CheckCircle className="w-7 h-7 text-green-500" />
-                </div>
-                <p className="font-bold text-foreground">Thank you! 🤍</p>
-                <p className="text-sm text-muted-foreground px-4">
-                  {reviewForm.type === 'review'
-                    ? 'Your review was sent and will appear here once approved.'
-                    : 'Your message was sent to Enjy directly.'}
-                </p>
-                <button onClick={() => setShowReviewModal(false)}
-                  className="mt-2 px-6 py-2.5 rounded-full bg-[#006D77] text-white text-sm font-semibold">
-                  Done
-                </button>
-              </div>
-            ) : (
-              <>
-                {/* Type selector */}
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { id: 'review', label: '⭐ Review a Class' },
-                    { id: 'suggestion', label: '💡 Suggestion' },
-                    { id: 'feedback', label: '💬 Feedback' },
-                  ] as const).map(t => (
-                    <button key={t.id}
-                      onClick={() => setReviewForm(f => ({ ...f, type: t.id }))}
-                      className={`py-2.5 px-1 rounded-xl text-[11px] font-semibold border transition-colors ${
-                        reviewForm.type === t.id
-                          ? 'bg-[#006D77] text-white border-[#006D77]'
-                          : 'bg-white text-foreground border-border'
-                      }`}>
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
-
-                {reviewForm.type === 'review' && reviewableClasses.length === 0 ? (
-                  <div className="bg-[#EDD7C9]/25 border border-[#B8612A]/15 rounded-xl px-4 py-4 text-center">
-                    <p className="text-sm font-semibold text-foreground mb-1">Attend a class first 🧘‍♀️</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Reviews can only be written for classes you&apos;ve attended.
-                      Book your next session and come back to share your experience!
-                    </p>
-                  </div>
-                ) : reviewForm.type === 'review' ? (
-                  <>
-                    {/* Stars */}
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Your rating</label>
-                      <div className="flex items-center gap-2">
-                        {[1, 2, 3, 4, 5].map(n => (
-                          <button key={n} onClick={() => setReviewForm(f => ({ ...f, rating: n }))}>
-                            <Star className={`w-8 h-8 transition-colors ${n <= reviewForm.rating ? 'text-[#F5A623] fill-[#F5A623]' : 'text-border'}`} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Class type */}
-                    <div>
-                      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Which class?</label>
-                      <select
-                        value={reviewForm.classType}
-                        onChange={e => setReviewForm(f => ({ ...f, classType: e.target.value }))}
-                        className="w-full border border-border rounded-xl px-3 py-3 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-[#006D77]/30"
-                      >
-                        <option value="">Select a class you attended...</option>
-                        {reviewableClasses.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-xs text-muted-foreground bg-[#E0EEF0]/50 rounded-xl px-3 py-2.5">
-                    {reviewForm.type === 'suggestion'
-                      ? '💡 Ideas for classes, schedules, or packages — goes to Enjy privately.'
-                      : '💬 Anything on your mind — goes to Enjy privately, not published.'}
-                  </p>
-                )}
-
-                {/* Comment */}
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                    {reviewForm.type === 'review' ? 'Your review' : 'Your message'}
-                  </label>
-                  <textarea
-                    value={reviewForm.comment}
-                    onChange={e => setReviewForm(f => ({ ...f, comment: e.target.value }))}
-                    placeholder={reviewForm.type === 'review' ? 'How was your experience?' : 'Tell Enjy what you think...'}
-                    rows={4}
-                    className="w-full border border-border rounded-xl px-3 py-3 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 resize-none"
-                  />
-                </div>
-
-                {reviewStatus === 'error' && (
-                  <p className="text-xs text-red-500">Something went wrong. Please try again.</p>
-                )}
-
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={reviewStatus === 'loading' || !reviewForm.comment.trim() || (reviewForm.type === 'review' && (!reviewForm.classType || reviewableClasses.length === 0))}
-                  className="w-full py-3.5 bg-[#006D77] text-white rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
-                >
-                  {reviewStatus === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Send
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       <BottomNav />
     </main>
