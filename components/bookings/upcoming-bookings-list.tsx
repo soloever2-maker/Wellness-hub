@@ -16,6 +16,7 @@ import { checkStudioProximity, CHECK_IN_GRACE_MINUTES } from '@/lib/geo'
 type Booking = {
   id: string
   status: string
+  client_package_id: string | null
   session: {
     id: string
     start_time: string
@@ -32,15 +33,23 @@ export function UpcomingBookingsList() {
   const [confirmCancel, setConfirmCancel] = useState<Booking | null>(null)
   const [checkingInId, setCheckingInId] = useState<string | null>(null)
   const [checkInError, setCheckInError] = useState<{ id: string; msg: string } | null>(null)
+  const [cancelWindowHours, setCancelWindowHours] = useState(12)
 
   useEffect(() => {
     const fetchBookings = async () => {
       const user = await getCurrentUser()
       if (!user) { setLoading(false); return }
 
+      // Cancellation window is admin-configurable (Settings) — fallback 12h
+      supabase.from('settings').select('value').eq('key', 'cancellation_window_hours').maybeSingle()
+        .then(({ data: setting }) => {
+          const h = parseFloat(setting?.value)
+          if (!isNaN(h) && h > 0) setCancelWindowHours(h)
+        })
+
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, status, session:class_sessions(id, start_time, end_time, instructor_name, class_type:class_types(name))')
+        .select('id, status, client_package_id, session:class_sessions(id, start_time, end_time, instructor_name, class_type:class_types(name))')
         .eq('client_id', user.id)
         .in('status', ['confirmed', 'pending'])
         .order('booked_at', { ascending: false })
@@ -75,10 +84,13 @@ export function UpcomingBookingsList() {
     fetchBookings()
   }, [])
 
-  const handleCancel = async (bookingId: string, sessionId: string, sessionTime: string) => {
-    const hoursUntil = (new Date(sessionTime).getTime() - Date.now()) / (1000 * 60 * 60)
-    if (hoursUntil < 12) {
-      alert('Cannot cancel within 12 hours of the class.')
+  const handleCancel = async (booking: Booking) => {
+    const bookingId = booking.id
+    const sessionId = booking.session.id
+    const hoursUntil = (new Date(booking.session.start_time).getTime() - Date.now()) / (1000 * 60 * 60)
+    if (hoursUntil < cancelWindowHours) {
+      alert(`Cannot cancel within ${cancelWindowHours} hours of the class.`)
+      setConfirmCancel(null)
       return
     }
     setCancellingId(bookingId)
@@ -88,6 +100,20 @@ export function UpcomingBookingsList() {
       .eq('id', bookingId)
 
     if (!error) {
+      // Refund the session credit back to the package it was booked with
+      if (booking.client_package_id) {
+        const { data: pkg } = await supabase
+          .from('client_packages')
+          .select('sessions_remaining')
+          .eq('id', booking.client_package_id)
+          .single()
+        if (pkg) {
+          await supabase.from('client_packages')
+            .update({ sessions_remaining: pkg.sessions_remaining + 1 })
+            .eq('id', booking.client_package_id)
+        }
+      }
+
       // Decrement booked_count
       const { data: session } = await supabase
         .from('class_sessions').select('booked_count').eq('id', sessionId).single()
@@ -164,7 +190,9 @@ export function UpcomingBookingsList() {
         const startTime = new Date(booking.session.start_time)
         const endTime = new Date(booking.session.end_time)
         const hoursUntil = (startTime.getTime() - Date.now()) / (1000 * 60 * 60)
-        const canCancel = hoursUntil > 12
+        const canCancel = hoursUntil > cancelWindowHours
+        const cancelDeadline = new Date(startTime.getTime() - cancelWindowHours * 3_600_000)
+        const cancelDeadlineStr = `${cancelDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${cancelDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
         const timeStr = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
         const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
         const name = (booking.session.class_type as any)?.name || 'Class'
@@ -204,8 +232,14 @@ export function UpcomingBookingsList() {
               )}
             </div>
 
+            {canCancel && !isAttended && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Free cancellation until <span className="font-medium text-[#006D77]">{cancelDeadlineStr}</span>
+              </p>
+            )}
+
             {!canCancel && !isCheckInWindow && hoursUntil > 0 && (
-              <p className="text-xs text-[#B8612A] mt-2">⏰ Less than 12h — cannot cancel</p>
+              <p className="text-xs text-[#B8612A] mt-2">⏰ Less than {cancelWindowHours}h — cannot cancel</p>
             )}
 
             {/* Check-in button */}
@@ -260,11 +294,16 @@ export function UpcomingBookingsList() {
             <p className="text-sm text-muted-foreground text-center mb-1">
               {(confirmCancel.session.class_type as any)?.name || 'Class'}
             </p>
-            <p className="text-sm text-muted-foreground text-center mb-6">
+            <p className="text-sm text-muted-foreground text-center mb-3">
               {new Date(confirmCancel.session.start_time).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               {' · '}
               {new Date(confirmCancel.session.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
             </p>
+            {confirmCancel.client_package_id && (
+              <p className="text-xs text-center text-[#006D77] bg-[#E0EEF0]/60 rounded-xl px-3 py-2 mb-6">
+                Your session credit will be returned to your package ✓
+              </p>
+            )}
 
             <div className="flex gap-3">
               <button
@@ -274,7 +313,7 @@ export function UpcomingBookingsList() {
                 Keep Booking
               </button>
               <button
-                onClick={() => handleCancel(confirmCancel.id, confirmCancel.session.id, confirmCancel.session.start_time)}
+                onClick={() => handleCancel(confirmCancel)}
                 disabled={cancellingId === confirmCancel.id}
                 className="flex-1 py-3.5 bg-red-500 text-white rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.97] transition-all"
               >
