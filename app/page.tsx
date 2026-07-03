@@ -1,5 +1,6 @@
 import { TopBar } from '@/components/top-bar'
 import { PrepareBanner } from '@/components/prepare-banner'
+import { ReviewPromptBanner } from '@/components/review-prompt-banner'
 import { NextBookingCard } from '@/components/next-booking-card'
 import { PackageCard } from '@/components/package-card'
 import { TodaysClasses } from '@/components/todays-classes'
@@ -15,6 +16,7 @@ export default function Page() {
       <TopBar />
       <div className="px-4 pt-4 pb-8 space-y-5 flex-1">
         <PrepareBanner />
+        <ReviewPromptBanner />
         <NextBookingCard />
         <PackageCard />
         <QuickActions />
