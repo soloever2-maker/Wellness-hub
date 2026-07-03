@@ -34,33 +34,41 @@ export function ThisWeekSection() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const fetchSessions = async () => {
     const start = days[0]
     const end = new Date(days[6])
     end.setHours(23, 59, 59, 999)
 
-    supabase
+    const { data } = await supabase
       .from('class_sessions')
       .select('id, start_time, max_capacity, booked_count, class_type:class_types(name)')
       .eq('is_cancelled', false)
       .gte('start_time', start.toISOString())
       .lte('start_time', end.toISOString())
       .order('start_time')
-      .then(async ({ data }) => {
-        if (data) {
-          // Compute live counts from actual bookings — stored booked_count can drift
-          const ids = data.map(s => s.id)
-          const { data: liveBookings } = await supabase
-            .from('bookings').select('session_id')
-            .in('session_id', ids).eq('status', 'confirmed')
 
-          const counts: Record<string, number> = {}
-          liveBookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+    if (data) {
+      // Compute live counts from actual bookings — stored booked_count can drift
+      const ids = data.map(s => s.id)
+      const { data: liveBookings } = await supabase
+        .from('bookings').select('session_id')
+        .in('session_id', ids).eq('status', 'confirmed')
 
-          setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
-        }
-        setLoading(false)
-      })
+      const counts: Record<string, number> = {}
+      liveBookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+
+      setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchSessions()
+
+    // Re-fetch when bookings change (cancellation from another page)
+    const handleBookingChanged = () => fetchSessions()
+    window.addEventListener('booking-changed', handleBookingChanged)
+    return () => window.removeEventListener('booking-changed', handleBookingChanged)
   }, [])
 
   // Filter sessions for selected day by matching date string
