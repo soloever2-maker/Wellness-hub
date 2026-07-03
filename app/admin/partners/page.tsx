@@ -240,7 +240,7 @@ export default function AdminPartnersPage() {
         <div className="flex items-center gap-3">
           {/* Back button */}
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/admin/more')}
             className="w-9 h-9 rounded-full bg-white border border-border flex items-center justify-center shrink-0"
           >
             <ChevronLeft className="w-4 h-4" />
