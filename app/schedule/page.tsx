@@ -206,6 +206,7 @@ export default function SchedulePage() {
           daySessions.map(s => {
             const spotsLeft = s.max_capacity - s.booked_count
             const isFull = spotsLeft <= 0
+            const isPast = new Date(s.start_time).getTime() < Date.now()
             const time = new Date(s.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
             const name = (s.class_type as any)?.name || 'Class'
             const colorKey = (s.class_type as any)?.name?.includes('Pilates') ? 'orange' : (s.class_type as any)?.name?.includes('Dancing') ? 'peach' : (s.class_type as any)?.name?.includes('Gentle') ? 'green' : 'teal'
@@ -228,8 +229,15 @@ export default function SchedulePage() {
             })()
 
             return (
-              <Link key={s.id} href={`/class?id=${s.id}`}>
-                <div className="bg-white border border-border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+              <Link
+                key={s.id}
+                href={`/class?id=${s.id}`}
+                aria-disabled={isPast}
+                tabIndex={isPast ? -1 : 0}
+                onClick={e => { if (isPast) e.preventDefault() }}
+                className={isPast ? 'pointer-events-none' : ''}
+              >
+                <div className={`bg-white border border-border rounded-2xl p-4 shadow-sm transition-shadow ${isPast ? 'opacity-55' : 'hover:shadow-md'}`}>
                   {/* Main row — icon + info + spots */}
                   <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0 ${colorMap[colorKey] || colorMap.teal}`}>
@@ -242,13 +250,15 @@ export default function SchedulePage() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                        isFull
+                        isPast
+                          ? 'bg-muted text-muted-foreground'
+                          : isFull
                           ? 'bg-red-50 text-red-500'
                           : spotsLeft <= 3
                           ? 'bg-[#EDD7C9]/40 text-[#B8612A]'
                           : 'bg-[#E0EEF0] text-[#006D77]'
                       }`}>
-                        {isFull ? 'Full' : `${spotsLeft} spots`}
+                        {isPast ? 'Ended' : isFull ? 'Full' : `${spotsLeft} spots`}
                       </span>
                     </div>
                   </div>
