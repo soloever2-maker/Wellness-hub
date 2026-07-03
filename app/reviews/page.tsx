@@ -17,7 +17,7 @@ type Review = {
   class_type: string | null
   comment: string
   created_at: string
-  client: { full_name: string } | null
+  first_name: string | null
 }
 
 export default function ClientsReviewsPage() {
@@ -25,13 +25,10 @@ export default function ClientsReviewsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // RPC (security definer) — returns approved reviews with the
+    // author's first name only, bypassing users-table RLS safely
     supabase
-      .from('reviews')
-      .select('id, rating, class_type, comment, created_at, client:users(full_name)')
-      .eq('type', 'review')
-      .eq('is_approved', true)
-      .order('created_at', { ascending: false })
-      .limit(50)
+      .rpc('get_approved_reviews')
       .then(({ data }) => {
         if (data) setReviews(data as unknown as Review[])
         setLoading(false)
@@ -106,12 +103,12 @@ export default function ClientsReviewsPage() {
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-full bg-[#E0EEF0] flex items-center justify-center flex-shrink-0">
                     <span className="text-xs font-bold text-[#006D77]">
-                      {(r.client?.full_name || 'A').slice(0, 1).toUpperCase()}
+                      {(r.first_name || 'A').slice(0, 1).toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
-                      {r.client?.full_name?.split(' ')[0] || 'A member'}
+                      {r.first_name || 'A member'}
                     </p>
                     <p className="text-[10px] text-muted-foreground">
                       {new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
