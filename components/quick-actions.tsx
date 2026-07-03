@@ -1,8 +1,3 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   components/quick-actions.tsx
-// (أضفت زرار Packages واضح في الصفحة الرئيسية للعميل)
-// ============================================================
 
 import Link from 'next/link'
 import { Calendar, Package, MessageCircle, Tag, Sparkles } from 'lucide-react'
@@ -35,7 +30,7 @@ export function QuickActions() {
           Packages
         </Link>
         <Link href="/prepare"
-          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#7C4DFF]/25 text-[#7C4DFF] rounded-2xl font-semibold text-xs hover:bg-[#7C4DFF]/5 active:scale-[0.97] transition-all shadow-sm">
+          className="flex flex-col items-center justify-center gap-1.5 py-3.5 bg-white border border-[#006D77]/20 text-[#006D77] rounded-2xl font-semibold text-xs hover:bg-[#E0EEF0] active:scale-[0.97] transition-all shadow-sm">
           <Sparkles className="w-4 h-4" />
           Enjy&apos;s Tips
         </Link>
