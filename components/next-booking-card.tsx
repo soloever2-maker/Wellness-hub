@@ -40,41 +40,58 @@ export function NextBookingCard() {
   const [hasPkg,       setHasPkg]       = useState(false)
   const [loading,      setLoading]      = useState(true)
 
+  const fetchData = async () => {
+    const user = await getCurrentUser()
+    if (!user) { setLoading(false); return }
+
+    const now = new Date().toISOString()
+
+    // Check active package
+    const { data: pkg } = await supabase
+      .from('client_packages')
+      .select('id')
+      .eq('client_id', user.id)
+      .eq('status', 'active')
+      .gt('sessions_remaining', 0)
+      .limit(1)
+      .maybeSingle()
+
+    setHasPkg(!!pkg)
+
+    // Check upcoming booking
+    const { data } = await supabase
+      .from('bookings')
+      .select('id, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
+      .eq('client_id', user.id)
+      .eq('status', 'confirmed')
+      .order('booked_at', { ascending: true })
+
+    const upcoming = (data ?? [])
+      .filter((b: any) => b.session?.start_time > now)
+      .sort((a: any, b: any) => a.session.start_time.localeCompare(b.session.start_time))
+
+    if (upcoming.length > 0) setBooking(upcoming[0] as unknown as NextBooking)
+    else setBooking(null)
+    setLoading(false)
+  }
+
   useEffect(() => {
-    const run = async () => {
-      const user = await getCurrentUser()
-      if (!user) { setLoading(false); return }
+    fetchData()
 
-      const now = new Date().toISOString()
+    // Re-fetch when a booking is cancelled/changed from another page
+    const handleBookingChanged = () => fetchData()
+    window.addEventListener('booking-changed', handleBookingChanged)
 
-      // Check active package
-      const { data: pkg } = await supabase
-        .from('client_packages')
-        .select('id')
-        .eq('client_id', user.id)
-        .eq('status', 'active')
-        .gt('sessions_remaining', 0)
-        .limit(1)
-        .maybeSingle()
-
-      setHasPkg(!!pkg)
-
-      // Check upcoming booking
-      const { data } = await supabase
-        .from('bookings')
-        .select('id, session:class_sessions(id, start_time, end_time, class_type:class_types(name))')
-        .eq('client_id', user.id)
-        .eq('status', 'confirmed')
-        .order('booked_at', { ascending: true })
-
-      const upcoming = (data ?? [])
-        .filter((b: any) => b.session?.start_time > now)
-        .sort((a: any, b: any) => a.session.start_time.localeCompare(b.session.start_time))
-
-      if (upcoming.length > 0) setBooking(upcoming[0] as unknown as NextBooking)
-      setLoading(false)
+    // Re-fetch when navigating back to this page (visibility change)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData()
     }
-    run()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      window.removeEventListener('booking-changed', handleBookingChanged)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   if (loading) return <div className="h-20 bg-white border border-border rounded-2xl animate-pulse" />
