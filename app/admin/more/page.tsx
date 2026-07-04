@@ -77,11 +77,27 @@ export default function AdminMorePage() {
   const saveSetting = async () => {
     if (!editSetting) return
     setSaving(true)
-    await supabase.from('settings')
-      .upsert({ key: editSetting, value: editValue }, { onConflict: 'key' })
-    setSettings(prev => ({ ...prev, [editSetting]: editValue }))
+    try {
+      // Server-side save (service role) — reliable + errors surface
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ key: editSetting, value: editValue }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Save failed')
+
+      // Only update the UI after the DB confirms the save
+      setSettings(prev => ({ ...prev, [editSetting]: editValue }))
+      setEditSetting(null)
+    } catch (err: any) {
+      alert('Could not save setting: ' + (err?.message || 'unknown error'))
+    }
     setSaving(false)
-    setEditSetting(null)
   }
 
   const handleLogout = async () => {
