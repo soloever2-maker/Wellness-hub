@@ -70,6 +70,23 @@ export async function registerUser(
   // linkError is non-fatal (e.g. no pre-existing row) — user stays pending
   if (linkError) console.warn('auth_id link skipped:', linkError.message)
 
+  // Notify Enjy about the new access request (best-effort)
+  try {
+    const token = authData.session?.access_token
+    if (token) {
+      await fetch('/api/push/notify-admins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ kind: 'signup' }),
+      })
+    }
+  } catch { /* never block registration on this */ }
+
+  // ⛔ CRITICAL: supabase.auth.signUp() auto-creates a session, which
+  // would let the user straight into the app before Enjy approves.
+  // Kill the session — the account stays locked until approval.
+  await supabase.auth.signOut()
+
   return { success: true }
 }
 
