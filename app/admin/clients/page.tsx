@@ -392,10 +392,15 @@ function AdminClientsPageInner() {
     if (!clientPkg || !selectedClient) return
     setSaving(true)
     if (clientPkg.status === 'frozen') {
-      // Unfreeze
-      const frozenDays = clientPkg.freeze_start
+      // Unfreeze — extension capped by the Max Freeze Duration setting
+      const { data: setting } = await supabase
+        .from('settings').select('value').eq('key', 'max_freeze_days').maybeSingle()
+      const maxDays = parseInt(setting?.value)
+
+      let frozenDays = clientPkg.freeze_start
         ? Math.ceil((Date.now() - new Date(clientPkg.freeze_start).getTime()) / 86400000)
         : 0
+      if (!isNaN(maxDays) && maxDays > 0) frozenDays = Math.min(frozenDays, maxDays)
       const { data: cp } = await supabase.from('client_packages').select('expiry_date').eq('id', clientPkg.id).single()
       const newExpiry = cp ? new Date(cp.expiry_date) : new Date()
       newExpiry.setDate(newExpiry.getDate() + frozenDays)
