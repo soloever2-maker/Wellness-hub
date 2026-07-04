@@ -49,9 +49,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Approved + on login page → go home
+    // Approved + on login page → admins pick a view, clients go home
     if (PUBLIC_ROUTES.includes(pathname)) {
-      router.replace('/')
+      router.replace(user.role === 'admin' ? '/select-role' : '/')
       return
     }
 
@@ -83,7 +83,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
             router.replace('/login')
           }
         } else if (event === 'SIGNED_IN' && session) {
-          // Full check (profile + approval) — never blind-authorize
+          // On the login page, the page itself handles the redirect
+          // (splash screen → select-role for admins). Don't race it.
+          if (PUBLIC_ROUTES.includes(pathname)) return
+          // Elsewhere: full check (profile + approval) — never blind-authorize
           checkSession()
         } else if (event === 'TOKEN_REFRESHED') {
           setAuthorized(true)
