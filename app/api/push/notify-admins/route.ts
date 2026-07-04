@@ -98,6 +98,16 @@ export async function POST(request: Request) {
         data: { type: 'admin_feedback', url },
       })
       if (ok) sent++
+
+      // Also log it so it appears in the admin's Notifications page
+      await supabase.from('notification_log').insert({
+        client_id: admin.id,
+        type: kind === 'signup' ? 'access_request' : 'feedback',
+        channel: 'push',
+        message: `${title} — ${body}`,
+        status: 'sent',
+        sent_at: new Date().toISOString(),
+      })
     }
 
     return NextResponse.json({ ok: true, sent })
