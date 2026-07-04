@@ -43,12 +43,17 @@ export async function POST(request: Request) {
     const { kind, rating, class_type } = await request.json()
     let title = '💬 New feedback'
     let body = `${firstName} shared feedback with you`
+    let url = '/admin/feedback'
     if (kind === 'review') {
       title = '⭐ New review'
       body = `${firstName} left ${rating || '?'}★ on ${class_type || 'a class'} — tap to approve`
     } else if (kind === 'suggestion') {
       title = '💡 New suggestion'
       body = `${firstName} sent you an idea`
+    } else if (kind === 'signup') {
+      title = '🔔 New access request'
+      body = `${firstName} requested to join — tap to review`
+      url = '/admin/approvals'
     }
 
     // 3) Find all approved admins
@@ -76,7 +81,7 @@ export async function POST(request: Request) {
               title, body,
               icon: '/icon-192x192.png', badge: '/icon-96x96.png',
               tag: `feedback_${Date.now()}`,
-              data: { type: 'admin_feedback', url: '/admin/feedback' },
+              data: { type: 'admin_feedback', url },
             })
           )
           sent++
@@ -90,7 +95,7 @@ export async function POST(request: Request) {
       // Native iOS (no-op until APNS_* env vars exist)
       const ok = await sendApnsToClient(supabase, admin.id, {
         title, body,
-        data: { type: 'admin_feedback', url: '/admin/feedback' },
+        data: { type: 'admin_feedback', url },
       })
       if (ok) sent++
     }
