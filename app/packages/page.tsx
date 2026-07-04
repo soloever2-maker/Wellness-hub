@@ -1,3 +1,10 @@
+// ============================================================
+// انسخ الملف ده فوق القديم في المسار ده:
+//   app/packages/page.tsx
+// (العميل يشوف كل الباكدجات بأسعارها، بس ميقدرش يطلب جديدة
+//  لحد ما يخلّص حصص الباكدج الحالية)
+// ============================================================
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -34,6 +41,7 @@ export default function PackagesPage() {
   const [methodModal, setMethodModal] = useState<Package | null>(null)
   const [chosenMethod, setChosenMethod] = useState<'instapay' | 'cash' | null>(null)
   const [copied, setCopied] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
   const [activePackageId, setActivePackageId] = useState<string | null>(null)
   const [hasActiveBalance, setHasActiveBalance] = useState(false)
 
@@ -119,6 +127,7 @@ export default function PackagesPage() {
       // All guards passed → let the client choose how to pay
       setChosenMethod(null)
       setCopied(false)
+      setPayError(null)
       setMethodModal(pkg)
       setBuying(null)
     } catch {
@@ -141,9 +150,14 @@ export default function PackagesPage() {
         gateway: method,
         status: 'pending',
       }).select('id, package_id, package:packages(name)').single()
-      if (paymentError) console.error('Pending payment insert failed:', paymentError)
-      if (inserted) setPendingRequest(inserted as unknown as PendingRequest)
 
+      if (paymentError || !inserted) {
+        console.error('Pending payment insert failed:', paymentError)
+        setPayError('Could not send your request. Please try again or contact Enjy on WhatsApp.')
+        return // keep the modal open — don't pretend it worked
+      }
+
+      setPendingRequest(inserted as unknown as PendingRequest)
       setMethodModal(null)
 
       // Open WhatsApp to Enjy with package + payment method details
@@ -329,6 +343,10 @@ export default function PackagesPage() {
               <p className="text-xs text-muted-foreground bg-[#2E7D32]/5 border border-[#2E7D32]/15 rounded-2xl px-4 py-3">
                 💵 Pay in cash at your next visit. Enjy will activate your package once received.
               </p>
+            )}
+
+            {payError && (
+              <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2.5">{payError}</p>
             )}
 
             <button
