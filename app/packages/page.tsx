@@ -1,10 +1,3 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/packages/page.tsx
-// (العميل يشوف كل الباكدجات بأسعارها، بس ميقدرش يطلب جديدة
-//  لحد ما يخلّص حصص الباكدج الحالية)
-// ============================================================
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -16,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 
 // ⚠️ حط هنا عنوان إنستاباي الحقيقي بتاع إنجي (اللي العملاء هيحولوا عليه)
-const INSTAPAY_ADDRESS = 'enjy@instapay'
+const INSTAPAY_ADDRESS = 'enjygebril@instapay'
 
 type Package = {
   id: string
