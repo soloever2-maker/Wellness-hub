@@ -35,7 +35,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Has session + on login page → go home
+    // ⛔ APPROVAL GATE: a session alone is NOT enough.
+    // The profile must exist and be approved — otherwise the session
+    // (e.g. auto-created by signUp) gets terminated on the spot.
+    const user = await getCurrentUser()
+    if (!user || user.status !== 'approved') {
+      await supabase.auth.signOut()
+      if (!PUBLIC_ROUTES.includes(pathname)) {
+        router.replace('/login?pending=1')
+      } else {
+        setAuthorized(true)
+      }
+      return
+    }
+
+    // Approved + on login page → go home
     if (PUBLIC_ROUTES.includes(pathname)) {
       router.replace('/')
       return
@@ -43,8 +57,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Admin-only routes → verify role
     if (ADMIN_ONLY_ROUTES.some(r => pathname.startsWith(r))) {
-      const user = await getCurrentUser()
-      if (!user || user.role !== 'admin') {
+      if (user.role !== 'admin') {
         router.replace('/')
         return
       }
@@ -62,14 +75,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       (event, session) => {
         if (event === 'SIGNED_OUT') {
           if (OPEN_ROUTES.includes(pathname)) return
-          setAuthorized(false)
-          if (!PUBLIC_ROUTES.includes(pathname)) {
+          if (PUBLIC_ROUTES.includes(pathname)) {
+            // Stay on login page and keep it visible
+            setAuthorized(true)
+          } else {
+            setAuthorized(false)
             router.replace('/login')
           }
         } else if (event === 'SIGNED_IN' && session) {
-          if (!PUBLIC_ROUTES.includes(pathname)) {
-            setAuthorized(true)
-          }
+          // Full check (profile + approval) — never blind-authorize
+          checkSession()
         } else if (event === 'TOKEN_REFRESHED') {
           setAuthorized(true)
         }
