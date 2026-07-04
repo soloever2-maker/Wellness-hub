@@ -129,6 +129,27 @@ export async function loginUser(phoneOrEmail: string, password: string) {
 
   if (typeof window !== 'undefined') {
     localStorage.setItem('saved_role', profile.role)
+
+    // "The browser belongs to its last resident": if this browser already
+    // has push notifications enabled, transfer the subscription to the
+    // account that just signed in (fire-and-forget — never blocks login).
+    try {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        navigator.serviceWorker.ready
+          .then(reg => reg.pushManager.getSubscription())
+          .then(sub => {
+            if (!sub) return
+            const { endpoint, keys } = sub.toJSON() as { endpoint?: string; keys?: { p256dh: string; auth: string } }
+            if (!endpoint || !keys) return
+            return fetch('/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint, p256dh: keys.p256dh, auth: keys.auth, client_id: profile.id }),
+            })
+          })
+          .catch(() => { /* silent */ })
+      }
+    } catch { /* silent */ }
   }
 
   return { user: profile, session: data.session }
