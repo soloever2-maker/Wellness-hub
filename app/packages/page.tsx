@@ -8,12 +8,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Calendar, Star, MessageCircle } from 'lucide-react'
+import { ArrowLeft, Calendar, Star, MessageCircle, X, Copy, Check, Banknote, Smartphone } from 'lucide-react'
 import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
 import { TopBar } from '@/components/top-bar'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
+
+// ⚠️ حط هنا عنوان إنستاباي الحقيقي بتاع إنجي (اللي العملاء هيحولوا عليه)
+const INSTAPAY_ADDRESS = 'enjy@instapay'
 
 type Package = {
   id: string
@@ -35,6 +38,9 @@ export default function PackagesPage() {
   const [loading, setLoading] = useState(true)
   const [buying, setBuying] = useState<string | null>(null)
   const [pendingRequest, setPendingRequest] = useState<PendingRequest | null>(null)
+  const [methodModal, setMethodModal] = useState<Package | null>(null)
+  const [chosenMethod, setChosenMethod] = useState<'instapay' | 'cash' | null>(null)
+  const [copied, setCopied] = useState(false)
   const [activePackageId, setActivePackageId] = useState<string | null>(null)
   const [hasActiveBalance, setHasActiveBalance] = useState(false)
 
@@ -117,27 +123,54 @@ export default function PackagesPage() {
         return
       }
 
-      // Create a pending payment record
+      // All guards passed → let the client choose how to pay
+      setChosenMethod(null)
+      setCopied(false)
+      setMethodModal(pkg)
+      setBuying(null)
+    } catch {
+      setBuying(null)
+    }
+  }
+
+  // Called after the client picks InstaPay or Cash
+  const confirmPurchase = async (pkg: Package, method: 'instapay' | 'cash') => {
+    setBuying(pkg.id)
+    try {
+      const user = await getCurrentUser()
+      if (!user) return
+
+      // Create the pending payment record with the chosen method
       const { data: inserted, error: paymentError } = await supabase.from('payments').insert({
         client_id: user.id,
         package_id: pkg.id,
         amount: pkg.price,
-        gateway: 'cash',
+        gateway: method,
         status: 'pending',
       }).select('id, package_id, package:packages(name)').single()
       if (paymentError) console.error('Pending payment insert failed:', paymentError)
       if (inserted) setPendingRequest(inserted as unknown as PendingRequest)
 
-      setBuying(null)
+      setMethodModal(null)
 
-      // Open WhatsApp to Enjy with package details
+      // Open WhatsApp to Enjy with package + payment method details
       const msg = encodeURIComponent(
-        `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nPlease let me know how to pay!`
+        method === 'instapay'
+          ? `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay via InstaPay 💳 to ${INSTAPAY_ADDRESS} — will send it now!`
+          : `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay in cash at the studio 💵.`
       )
       window.open(`https://wa.me/201063751653?text=${msg}`, '_blank')
-    } catch {
+    } finally {
       setBuying(null)
     }
+  }
+
+  const copyInstapay = async () => {
+    try {
+      await navigator.clipboard.writeText(INSTAPAY_ADDRESS)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch { /* ignore */ }
   }
 
   const popular = packages.find(p => p.session_count === 8)
@@ -242,6 +275,80 @@ export default function PackagesPage() {
           </p>
         </div>
       </div>
+
+      {/* ─── Payment method bottom-sheet ─── */}
+      {methodModal && (
+        <div className="fixed inset-0 bg-black/40 z-[150] flex items-end" onClick={() => setMethodModal(null)}>
+          <div className="bg-white w-full rounded-t-3xl px-6 pt-6 pb-10 space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">How would you like to pay?</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {methodModal.name} · {methodModal.price.toLocaleString()} EGP
+                </p>
+              </div>
+              <button onClick={() => setMethodModal(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setChosenMethod('instapay')}
+                className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-colors ${
+                  chosenMethod === 'instapay' ? 'border-[#5B2D8E] bg-[#5B2D8E]/5' : 'border-border bg-white'
+                }`}>
+                <Smartphone className={`w-6 h-6 ${chosenMethod === 'instapay' ? 'text-[#5B2D8E]' : 'text-muted-foreground'}`} />
+                <span className="text-sm font-semibold text-foreground">InstaPay 💳</span>
+                <span className="text-[10px] text-muted-foreground">Transfer now</span>
+              </button>
+              <button
+                onClick={() => setChosenMethod('cash')}
+                className={`flex flex-col items-center gap-2 py-4 rounded-2xl border-2 transition-colors ${
+                  chosenMethod === 'cash' ? 'border-[#2E7D32] bg-[#2E7D32]/5' : 'border-border bg-white'
+                }`}>
+                <Banknote className={`w-6 h-6 ${chosenMethod === 'cash' ? 'text-[#2E7D32]' : 'text-muted-foreground'}`} />
+                <span className="text-sm font-semibold text-foreground">Cash 💵</span>
+                <span className="text-[10px] text-muted-foreground">Pay at the studio</span>
+              </button>
+            </div>
+
+            {/* InstaPay details */}
+            {chosenMethod === 'instapay' && (
+              <div className="bg-[#5B2D8E]/5 border border-[#5B2D8E]/15 rounded-2xl p-4">
+                <p className="text-xs font-semibold text-[#5B2D8E] uppercase tracking-wide mb-2">Send to</p>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-sm font-bold text-foreground break-all">{INSTAPAY_ADDRESS}</span>
+                  <button onClick={copyInstapay}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#5B2D8E] bg-white border border-[#5B2D8E]/25 px-2.5 py-1.5 rounded-full shrink-0">
+                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-2">
+                  Transfer {methodModal.price.toLocaleString()} EGP, then confirm on WhatsApp. Enjy activates your package once received.
+                </p>
+              </div>
+            )}
+
+            {chosenMethod === 'cash' && (
+              <p className="text-xs text-muted-foreground bg-[#2E7D32]/5 border border-[#2E7D32]/15 rounded-2xl px-4 py-3">
+                💵 Pay in cash at your next visit. Enjy will activate your package once received.
+              </p>
+            )}
+
+            <button
+              onClick={() => chosenMethod && confirmPurchase(methodModal, chosenMethod)}
+              disabled={!chosenMethod || buying === methodModal.id}
+              className="w-full py-3.5 bg-[#006D77] text-white rounded-xl font-semibold flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-all"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Confirm & Message Enjy
+            </button>
+          </div>
+        </div>
+      )}
 
       <BottomNav activePage="packages" />
     </main>
