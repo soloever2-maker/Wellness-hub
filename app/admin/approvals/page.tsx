@@ -49,15 +49,24 @@ export default function AdminApprovalsPage() {
 
   const handleReject = async (userId: string, name: string) => {
     setActionLoading(userId + '_reject')
-    const { error } = await supabase.rpc('reject_user', {
-      user_id: userId,
-      reason: 'Request declined by admin',
-    })
-    if (error) {
-      showToast('Failed to reject. Try again.', 'error')
-    } else {
+    try {
+      // Full removal via server (deletes the auth account too, so the
+      // phone number is freed and they can register again later)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch('/api/admin/reject-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({ user_id: userId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed')
       setUsers(prev => prev.filter(u => u.id !== userId))
       showToast(`${name} request rejected.`)
+    } catch {
+      showToast('Failed to reject. Try again.', 'error')
     }
     setActionLoading(null)
   }
