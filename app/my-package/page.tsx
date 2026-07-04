@@ -38,6 +38,16 @@ export default function MyPackagePage() {
   const [pkg, setPkg] = useState<ClientPackage | null>(null)
   const [history, setHistory] = useState<BookingHistory[]>([])
   const [freezing, setFreezing] = useState(false)
+  const [maxFreezeDays, setMaxFreezeDays] = useState<number | null>(null)
+
+  useEffect(() => {
+    // Enjy's freeze cap (admin setting). null = no cap configured.
+    supabase.from('settings').select('value').eq('key', 'max_freeze_days').maybeSingle()
+      .then(({ data }) => {
+        const d = parseInt(data?.value)
+        if (!isNaN(d) && d > 0) setMaxFreezeDays(d)
+      })
+  }, [])
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelling, setCancelling] = useState(false)
 
@@ -78,10 +88,11 @@ export default function MyPackagePage() {
     setFreezing(true)
     try {
       if (pkg.status === 'frozen') {
-        // Unfreeze — extend expiry by frozen days
-        const frozenDays = pkg.freeze_start
+        // Unfreeze — extend expiry by frozen days (capped by Enjy's max)
+        let frozenDays = pkg.freeze_start
           ? Math.ceil((Date.now() - new Date(pkg.freeze_start).getTime()) / (1000 * 60 * 60 * 24))
           : 0
+        if (maxFreezeDays !== null) frozenDays = Math.min(frozenDays, maxFreezeDays)
         const newExpiry = new Date(pkg.expiry_date)
         newExpiry.setDate(newExpiry.getDate() + frozenDays)
 
@@ -219,6 +230,13 @@ export default function MyPackagePage() {
                   <p className="text-white/70 text-xs mt-0.5">Tap to book your first class →</p>
                 </div>
               </a>
+            )}
+
+            {/* Freeze policy note */}
+            {maxFreezeDays !== null && (
+              <p className="text-[11px] text-muted-foreground mb-2">
+                ❄️ Freeze pauses your package expiry — up to {maxFreezeDays} days per freeze.
+              </p>
             )}
 
             {/* Action Buttons */}
