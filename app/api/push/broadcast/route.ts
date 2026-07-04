@@ -65,10 +65,23 @@ export async function POST(request: Request) {
     sent += apns.sent
     errors.push(...apns.errors)
 
+    // Log the announcement for EVERY selected client — this is what the
+    // in-app Notifications page reads. Clients without push enabled still
+    // see the message there.
+    const nowIso = new Date().toISOString()
+    const { error: logError } = await supabase.from('notification_log').insert(
+      clientIds.map((cid: string) => ({
+        client_id: cid,
+        type: 'broadcast',
+        channel: 'push',
+        message: title ? `${finalTitle} — ${body}` : body,
+        status: 'sent',
+        sent_at: nowIso,
+      }))
+    )
+    if (logError) errors.push(`log:${logError.message}`)
+
     const total = (subs?.length || 0) + apns.total
-    if (total === 0) {
-      return NextResponse.json({ sent: 0, reason: 'No push subscriptions or devices found for these clients' })
-    }
 
     return NextResponse.json({ sent, total, errors })
   } catch (err: any) {
