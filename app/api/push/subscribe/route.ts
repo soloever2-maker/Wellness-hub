@@ -12,6 +12,18 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { endpoint, p256dh, auth, client_id } = body
 
+    if (!endpoint || !client_id) {
+      return NextResponse.json({ error: 'Missing endpoint or client_id' }, { status: 400 })
+    }
+
+    // "The browser belongs to its last resident": a browser endpoint can
+    // only be owned by ONE account. Detach it from anyone else first, so
+    // shared devices never receive another account's notifications.
+    await supabase.from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint)
+      .neq('client_id', client_id)
+
     await supabase.from('push_subscriptions').upsert({
       client_id,
       endpoint,
