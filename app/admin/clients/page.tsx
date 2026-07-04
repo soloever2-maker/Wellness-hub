@@ -52,6 +52,7 @@ function AdminClientsPageInner() {
   const [clients, setClients] = useState<Client[]>([])
   const [pkgByClient, setPkgByClient] = useState<Record<string, ClientPackageInfo>>({})
   const [partnerByClient, setPartnerByClient] = useState<Record<string, string>>({})
+  const [payMethodByClient, setPayMethodByClient] = useState<Record<string, string>>({})
   const [packages, setPackages] = useState<PackageOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -82,7 +83,7 @@ function AdminClientsPageInner() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [clientsRes, pkgsRes, clientPkgsRes, partnerLeadsRes] = await Promise.all([
+      const [clientsRes, pkgsRes, clientPkgsRes, partnerLeadsRes, paymentsRes] = await Promise.all([
         supabase.from('users').select('*').order('created_at', { ascending: false }),
         supabase.from('packages').select('*').eq('is_active', true).order('display_order'),
         supabase.from('client_packages')
@@ -91,6 +92,10 @@ function AdminClientsPageInner() {
         supabase.from('partner_leads')
           .select('client_id, partners!inner(name)')
           .not('client_id', 'is', null),
+        supabase.from('payments')
+          .select('client_id, gateway, created_at')
+          .in('status', ['paid', 'pending'])
+          .order('created_at', { ascending: false }),
       ])
       const loadedClients = (clientsRes.data as Client[]) || []
       if (clientsRes.data) setClients(loadedClients)
@@ -104,6 +109,16 @@ function AdminClientsPageInner() {
           }
         }
         setPartnerByClient(pmap)
+      }
+
+      if (paymentsRes.data) {
+        const paymap: Record<string, string> = {}
+        for (const row of paymentsRes.data as any[]) {
+          if (row.client_id && row.gateway && !paymap[row.client_id]) {
+            paymap[row.client_id] = row.gateway
+          }
+        }
+        setPayMethodByClient(paymap)
       }
 
       if (clientPkgsRes.data) {
@@ -155,7 +170,7 @@ function AdminClientsPageInner() {
         .limit(1)
         .maybeSingle(),
       supabase.from('payments')
-        .select('id, amount, status, paid_at, created_at, package:packages!package_id(name)')
+        .select('id, amount, status, gateway, paid_at, created_at, package:packages!package_id(name)')
         .eq('client_id', client.id)
         .order('created_at', { ascending: false })
         .limit(10),
@@ -268,9 +283,10 @@ function AdminClientsPageInner() {
 
     let paymentError: { message: string } | null = null
     if (pendingPayment) {
+      // Confirm the client's own request — KEEP the payment method they
+      // chose in the app (instapay/cash). Never overwrite it here.
       const { error } = await supabase.from('payments').update({
         status: 'paid',
-        gateway: 'cash',
         paid_at: new Date().toISOString(),
       }).eq('id', pendingPayment.id)
       paymentError = error
@@ -501,6 +517,15 @@ function AdminClientsPageInner() {
                 ) : (
                   <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">
                     <Package className="w-2.5 h-2.5" /> No package
+                  </span>
+                )}
+                {payMethodByClient[client.id] && (
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    payMethodByClient[client.id] === 'instapay'
+                      ? 'bg-[#5B2D8E]/10 text-[#5B2D8E]'
+                      : 'bg-[#2E7D32]/10 text-[#2E7D32]'
+                  }`}>
+                    {payMethodByClient[client.id] === 'instapay' ? '💳 InstaPay' : payMethodByClient[client.id] === 'cash' ? '💵 Cash' : payMethodByClient[client.id]}
                   </span>
                 )}
               </div>
@@ -747,6 +772,15 @@ function AdminClientsPageInner() {
                             <p className="text-xs text-muted-foreground">
                               {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </p>
+                            {(p as any).gateway && (
+                              <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ${
+                                (p as any).gateway === 'instapay'
+                                  ? 'bg-[#5B2D8E]/10 text-[#5B2D8E]'
+                                  : 'bg-[#2E7D32]/10 text-[#2E7D32]'
+                              }`}>
+                                {(p as any).gateway === 'instapay' ? '💳 InstaPay' : (p as any).gateway === 'cash' ? '💵 Cash' : (p as any).gateway}
+                              </span>
+                            )}
                           </div>
                           <span className="text-sm font-bold text-foreground shrink-0">
                             {Number(p.amount).toLocaleString()} EGP
