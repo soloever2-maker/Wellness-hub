@@ -96,18 +96,32 @@ export default function MyPackagePage() {
         const newExpiry = new Date(pkg.expiry_date)
         newExpiry.setDate(newExpiry.getDate() + frozenDays)
 
-        await supabase
+        const { data: updated, error } = await supabase
           .from('client_packages')
           .update({ status: 'active', freeze_start: null, freeze_end: new Date().toISOString(), expiry_date: newExpiry.toISOString() })
           .eq('id', pkg.id)
+          .select('id')
+
+        if (error || !updated?.length) {
+          alert('Could not unfreeze your package. Please try again or contact Enjy.')
+          setFreezing(false)
+          return
+        }
 
         setPkg({ ...pkg, status: 'active', freeze_start: null, expiry_date: newExpiry.toISOString() })
       } else {
         // Freeze
-        await supabase
+        const { data: updated, error } = await supabase
           .from('client_packages')
           .update({ status: 'frozen', freeze_start: new Date().toISOString() })
           .eq('id', pkg.id)
+          .select('id')
+
+        if (error || !updated?.length) {
+          alert('Could not freeze your package. Please try again or contact Enjy.')
+          setFreezing(false)
+          return
+        }
 
         setPkg({ ...pkg, status: 'frozen', freeze_start: new Date().toISOString() })
       }
