@@ -108,6 +108,18 @@ function FloatingParticles() {
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
+
+  // Redirected here by AuthGuard with an unapproved session? Show the
+  // pending screen instead of the sign-in form.
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('pending') === '1') {
+        setMode('pending')
+        window.history.replaceState(null, '', '/login')
+      }
+    } catch { /* ignore */ }
+  }, [])
   const [showSplash, setShowSplash] = useState(false)
   const [splashRedirect, setSplashRedirect] = useState('')
   const [splashName, setSplashName] = useState('')
