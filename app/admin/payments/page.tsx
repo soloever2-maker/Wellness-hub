@@ -109,8 +109,16 @@ export default function AdminPaymentsPage() {
                   <p className="text-xs text-muted-foreground">{(p.package as any)?.name || '—'}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    {p.gateway && ` · ${p.gateway}`}
                   </p>
+                  {p.gateway && (
+                    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 ${
+                      p.gateway === 'instapay'
+                        ? 'bg-[#5B2D8E]/10 text-[#5B2D8E]'
+                        : 'bg-[#2E7D32]/10 text-[#2E7D32]'
+                    }`}>
+                      {p.gateway === 'instapay' ? '💳 InstaPay' : p.gateway === 'cash' ? '💵 Cash' : p.gateway}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <p className="font-bold text-foreground">{(p.amount || 0).toLocaleString()} EGP</p>
