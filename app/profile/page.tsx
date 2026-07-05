@@ -16,6 +16,7 @@ import {
   disableBiometric,
   getSavedEmail,
 } from '@/lib/biometric'
+import { ChangePasswordRow } from '@/components/change-password-row'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -505,10 +506,11 @@ export default function ProfilePage() {
         )}
 
         {/* Security */}
-        {biometricSupported && (
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Security</p>
-            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Security</p>
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm divide-y divide-border">
+            <ChangePasswordRow />
+            {biometricSupported && (
               <div className="flex items-center justify-between px-4 py-3.5">
                 <div className="flex items-center gap-3">
                   <Fingerprint className="w-5 h-5 text-[#006D77]" />
@@ -533,9 +535,9 @@ export default function ProfilePage() {
                   <div className={`w-5 h-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${biometricEnabled ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
                 </button>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Biometric Setup Modal */}
         {showBiometricSetup && (
@@ -611,7 +613,7 @@ export default function ProfilePage() {
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">Support</p>
           <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm">
-            <a href="https://enjy-flow-wa.vercel.app" target="_blank" rel="noopener noreferrer" className="flex items-center w-full px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors">
+            <a href="https://soloever2-maker.github.io/Enjy-FlowWA/" target="_blank" rel="noopener noreferrer" className="flex items-center w-full px-4 py-3.5 border-b border-border hover:bg-muted/30 transition-colors">
               <Camera className="w-5 h-5 text-[#006D77] mr-3" />
               <span className="text-sm text-foreground flex-1 text-left">Enjy&apos;s Website</span>
               <span className="text-xs text-muted-foreground mr-2">alignwithenjy.app</span>
