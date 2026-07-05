@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { updateStoredBiometricPassword } from './biometric'
 
 // ── Phone → fake email (internal only) ───────────────────────
 function phoneToEmail(phone: string): string {
@@ -153,6 +154,38 @@ export async function loginUser(phoneOrEmail: string, password: string) {
   }
 
   return { user: profile, session: data.session }
+}
+
+// ── CHANGE PASSWORD ──────────────────────────────────────────
+export async function changePassword(currentPassword: string, newPassword: string) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user?.email) throw new Error('Not signed in. Please log in again.')
+
+  const email = session.user.email
+
+  // 1. Verify current password (re-authenticate)
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  })
+  if (verifyError) throw new Error('Current password is incorrect.')
+
+  // 2. Update to the new password
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+  if (updateError) {
+    if (updateError.message.toLowerCase().includes('different')) {
+      throw new Error('New password must be different from the current one.')
+    }
+    if (updateError.message.toLowerCase().includes('at least')) {
+      throw new Error('Password is too short.')
+    }
+    throw new Error(updateError.message)
+  }
+
+  // 3. Keep biometric login in sync on this device (non-fatal)
+  try { updateStoredBiometricPassword(newPassword) } catch { /* ignore */ }
+
+  return { success: true }
 }
 
 // ── LOGOUT ────────────────────────────────────────────────────
