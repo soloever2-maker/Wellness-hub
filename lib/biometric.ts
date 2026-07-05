@@ -179,6 +179,20 @@ export async function authenticateWithBiometric(): Promise<boolean> {
   return result.ok
 }
 
+// ── SYNC PASSWORD — called after a password change ─────────────
+// The biometric gate stores the password locally; if the user
+// changes it, the stored copy must be refreshed or Face ID breaks.
+export function updateStoredBiometricPassword(newPassword: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = localStorage.getItem(BIOMETRIC_KEY)
+    if (!raw) return
+    const creds: StoredCreds = JSON.parse(raw)
+    creds.pwd = btoa(newPassword)
+    localStorage.setItem(BIOMETRIC_KEY, JSON.stringify(creds))
+  } catch { /* ignore */ }
+}
+
 // ── DISABLE ────────────────────────────────────────────────────
 export function disableBiometric(): void {
   if (typeof window !== 'undefined') {
