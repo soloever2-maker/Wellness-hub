@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { CheckCircle, Calendar, Clock, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
-import { checkInWindowEnd } from '@/lib/geo'
+import { checkInWindowStart, checkInWindowEnd } from '@/lib/geo'
 
 type Result =
   | { state: 'loading' }
@@ -40,8 +40,8 @@ export default function CheckinPage() {
           .map(b => ({ ...b, session: Array.isArray(b.session) ? b.session[0] : b.session }))
           .filter(b => b.session?.start_time)
 
-        // A booking is check-in-able from 2h before start until the
-        // end of the class day — same window as My Bookings.
+        // A booking is check-in-able for the WHOLE class day —
+        // midnight to midnight, same window as My Bookings.
         // With day-long windows, multiple bookings can qualify (e.g. a
         // morning class that wasn't checked in + an evening class), so:
         //   1. prefer un-attended bookings over already-attended ones
@@ -50,7 +50,7 @@ export default function CheckinPage() {
           .filter(b => {
             const start = new Date(b.session.start_time).getTime()
             const end = new Date(b.session.end_time).getTime()
-            return now >= start - 2 * 60 * 60 * 1000 &&
+            return now >= checkInWindowStart(start) &&
                    now <= checkInWindowEnd(end)
           })
           .sort((a, b) => b.session.start_time.localeCompare(a.session.start_time))

@@ -4,6 +4,15 @@ export const STUDIO_LNG = 30.988026
 export const CHECK_IN_RADIUS_METERS = 200
 export const CHECK_IN_GRACE_MINUTES = 60 // minimum grace after class ends
 
+// Check-in opens at the START of the class day (midnight) — clients
+// can check in any time during the day, even hours before class.
+export function checkInWindowStart(startTime: string | number | Date): number {
+  const start = new Date(startTime)
+  const startOfDay = new Date(start)
+  startOfDay.setHours(0, 0, 0, 0)
+  return startOfDay.getTime()
+}
+
 // Check-in stays open until the END OF THE DAY the class ends
 // (or CHECK_IN_GRACE_MINUTES after end if that's later — covers
 // late-night classes that finish close to midnight).
