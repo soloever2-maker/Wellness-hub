@@ -41,8 +41,16 @@ async function sendPushToClient(clientId: string, payload: object) {
 }
 
 export async function GET(request: Request) {
+  // Two accepted auth methods:
+  //  1) Vercel Cron: sends "Authorization: Bearer <CRON_SECRET>" automatically
+  //     when the CRON_SECRET env var exists (env vars are NOT interpolated
+  //     inside vercel.json, so the query-param approach never worked there)
+  //  2) Manual/external trigger: ?secret=<CRON_SECRET> in the URL
   const { searchParams } = new URL(request.url)
-  if (searchParams.get('secret') !== process.env.CRON_SECRET) {
+  const authHeader = request.headers.get('authorization') || ''
+  const bearerOk = authHeader === `Bearer ${process.env.CRON_SECRET}`
+  const queryOk = searchParams.get('secret') === process.env.CRON_SECRET
+  if (!process.env.CRON_SECRET || (!bearerOk && !queryOk)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
