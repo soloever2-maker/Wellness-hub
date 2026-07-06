@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
 import { checkStudioProximity, checkInWindowEnd } from '@/lib/geo'
+import { NoticeModal } from '@/components/notice-modal'
 
 type Booking = {
   id: string
@@ -34,6 +35,7 @@ export function UpcomingBookingsList() {
   const [checkingInId, setCheckingInId] = useState<string | null>(null)
   const [checkInError, setCheckInError] = useState<{ id: string; msg: string } | null>(null)
   const [cancelWindowHours, setCancelWindowHours] = useState(12)
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -89,7 +91,10 @@ export function UpcomingBookingsList() {
     const sessionId = booking.session.id
     const hoursUntil = (new Date(booking.session.start_time).getTime() - Date.now()) / (1000 * 60 * 60)
     if (hoursUntil < cancelWindowHours) {
-      alert(`Cannot cancel within ${cancelWindowHours} hours of the class.`)
+      setNotice({
+        title: 'Too Late to Cancel',
+        message: `Bookings cannot be cancelled within ${cancelWindowHours} hours of the class.`,
+      })
       setConfirmCancel(null)
       return
     }
@@ -339,6 +344,13 @@ export function UpcomingBookingsList() {
           </div>
         </div>
       )}
+
+      <NoticeModal
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        onClose={() => setNotice(null)}
+      />
     </div>
   )
 }

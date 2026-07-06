@@ -1,10 +1,10 @@
 'use client'
 
-import { ArrowLeft, Share2 } from 'lucide-react'
+import { ArrowLeft, Share2, Check } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 /** Map class‑type names → local photos */
@@ -36,6 +36,8 @@ export function ClassHeader() {
 
   const imgSrc = CLASS_IMAGES[className] || FALLBACK_IMG
 
+  const [copied, setCopied] = useState(false)
+
   const handleShare = async () => {
     const shareData = {
       title: `${className || 'Class'} — Align with Enjy`,
@@ -48,11 +50,10 @@ export function ClassHeader() {
         await navigator.share(shareData)
       } else {
         await navigator.clipboard.writeText(window.location.href)
-        alert('Link copied!')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
       }
-    } catch (err) {
-      console.log('Share cancelled')
-    }
+    } catch { /* share cancelled */ }
   }
 
   return (
@@ -81,8 +82,11 @@ export function ClassHeader() {
       )}
 
       {/* Share */}
-      <button onClick={handleShare} className="absolute top-6 right-4 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full p-2 transition-all z-10">
-        <Share2 className="w-5 h-5 text-white" />
+      <button onClick={handleShare} className="absolute top-6 right-4 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full p-2 transition-all z-10 flex items-center gap-1.5">
+        {copied
+          ? <><Check className="w-5 h-5 text-white" /><span className="text-white text-xs font-medium pr-1">Copied</span></>
+          : <Share2 className="w-5 h-5 text-white" />
+        }
       </button>
     </div>
   )

@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { Globe, ArrowUpRight } from 'lucide-react'
 
 const ENJY_IMG = '/images/trainer/enjy-class-aswan.jpg'
-const ENJY_SITE = 'https://enjy-flow-wa.vercel.app'
+const ENJY_SITE = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
 
 const certs = ['RYT-500 Yoga Alliance', 'YACEP Continuing Education', 'Therapeutic Yoga 860h', 'Yin Yoga 100h']
 

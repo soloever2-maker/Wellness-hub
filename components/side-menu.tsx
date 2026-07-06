@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { Menu, X, MapPin, Star, PenLine, Globe, ChevronRight } from 'lucide-react'
 
-const ENJY_WEBSITE_URL = 'https://enjy-flow-wa.vercel.app'
+const ENJY_WEBSITE_URL = 'https://soloever2-maker.github.io/Enjy-FlowWA/'
 
 export function SideMenu() {
   const [open, setOpen] = useState(false)
