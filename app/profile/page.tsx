@@ -580,11 +580,26 @@ export default function ProfilePage() {
                   setBiometricLoading(true)
                   setBiometricError('')
                   try {
+                    // Use the REAL auth email from the current session —
+                    // the users-table email can drift out of sync with it,
+                    // which made correct passwords fail as "wrong".
+                    const { data: { session } } = await supabase.auth.getSession()
+                    const authEmail = session?.user?.email
+                    if (!authEmail) {
+                      setBiometricError('Session expired. Please log out and log in again.')
+                      return
+                    }
                     // Verify password first
-                    const { loginUser } = await import('@/lib/auth')
-                    await loginUser(profile.email, biometricPassword)
+                    const { error: verifyError } = await supabase.auth.signInWithPassword({
+                      email: authEmail,
+                      password: biometricPassword,
+                    })
+                    if (verifyError) {
+                      setBiometricError('Wrong password. Please try again.')
+                      return
+                    }
                     // Then register biometric — store password behind biometric gate
-                    const success = await registerBiometric(profile.email, biometricPassword)
+                    const success = await registerBiometric(authEmail, biometricPassword)
                     if (success) {
                       setBiometricEnabled(true)
                       setShowBiometricSetup(false)
@@ -593,7 +608,7 @@ export default function ProfilePage() {
                       setBiometricError('Biometric setup failed. Make sure your device supports it.')
                     }
                   } catch {
-                    setBiometricError('Wrong password. Please try again.')
+                    setBiometricError('Something went wrong. Please try again.')
                   } finally {
                     setBiometricLoading(false)
                   }
