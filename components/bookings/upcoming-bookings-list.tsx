@@ -11,7 +11,7 @@ import { Calendar, X, Loader2, MapPin, CheckCircle2, AlertTriangle } from 'lucid
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
-import { checkStudioProximity, CHECK_IN_GRACE_MINUTES } from '@/lib/geo'
+import { checkStudioProximity, checkInWindowEnd } from '@/lib/geo'
 
 type Booking = {
   id: string
@@ -56,8 +56,8 @@ export function UpcomingBookingsList() {
 
       if (error) console.error('[UpcomingBookings] query error:', error)
 
-      // Keep sessions visible until grace period after end_time passes
-      // (so the client can still self check-in shortly after class ends)
+      // Keep sessions visible until the check-in window closes
+      // (end of the class day — so clients can still check in later)
       const now = Date.now()
       if (data) setBookings(
         (data
@@ -70,7 +70,7 @@ export function UpcomingBookingsList() {
               console.warn('[UpcomingBookings] bad end_time for booking', b.id, session)
               return false
             }
-            return endMs + CHECK_IN_GRACE_MINUTES * 60 * 1000 >= now
+            return checkInWindowEnd(endMs) >= now
           })
           .map(b => ({
             ...b,
@@ -138,22 +138,29 @@ export function UpcomingBookingsList() {
     setConfirmCancel(null)
   }
 
-  const handleCheckIn = async (bookingId: string) => {
+  const handleCheckIn = async (booking: Booking) => {
+    const bookingId = booking.id
     setCheckInError(null)
     setCheckingInId(bookingId)
 
-    const result = await checkStudioProximity()
+    // Location is only enforced while the class hasn't ended yet.
+    // After end_time, clients who forgot can still check in from anywhere.
+    const classEnded = Date.now() > new Date(booking.session.end_time).getTime()
 
-    if (!result.ok) {
-      const messages: Record<string, string> = {
-        denied:      'Please allow location access to check in.',
-        unavailable: 'Location is not available on this device.',
-        timeout:     'Could not get your location. Try again.',
-        too_far:     `You're too far from the studio (${Math.round(result.distance || 0)}m away). Get within 200m to check in.`,
+    if (!classEnded) {
+      const result = await checkStudioProximity()
+
+      if (!result.ok) {
+        const messages: Record<string, string> = {
+          denied:      'Please allow location access to check in.',
+          unavailable: 'Location is not available on this device.',
+          timeout:     'Could not get your location. Try again.',
+          too_far:     `You're too far from the studio (${Math.round(result.distance || 0)}m away). Get within 200m to check in.`,
+        }
+        setCheckInError({ id: bookingId, msg: messages[result.reason] })
+        setCheckingInId(null)
+        return
       }
-      setCheckInError({ id: bookingId, msg: messages[result.reason] })
-      setCheckingInId(null)
-      return
     }
 
     const { error } = await supabase
@@ -200,11 +207,12 @@ export function UpcomingBookingsList() {
         const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
         const name = (booking.session.class_type as any)?.name || 'Class'
 
-        // Check-in window: opens 2 hours before start, stays open until grace period after end
+        // Check-in window: opens 2 hours before start, stays open until the end of the class day
         const now = Date.now()
         const windowStart = startTime.getTime() - 2 * 60 * 60 * 1000
-        const windowEnd = endTime.getTime() + CHECK_IN_GRACE_MINUTES * 60 * 1000
+        const windowEnd = checkInWindowEnd(endTime)
         const isCheckInWindow = now >= windowStart && now <= windowEnd
+        const classEnded = now > endTime.getTime()
         const isAttended = booking.status === 'attended'
         const showCheckIn = isCheckInWindow && !isAttended
         const isCheckingIn = checkingInId === booking.id
@@ -249,13 +257,15 @@ export function UpcomingBookingsList() {
             {showCheckIn && (
               <div className="mt-3 pt-3 border-t border-border">
                 <button
-                  onClick={() => handleCheckIn(booking.id)}
+                  onClick={() => handleCheckIn(booking)}
                   disabled={isCheckingIn}
                   className="w-full py-3 bg-[#006D77] text-white rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60 active:scale-[0.98] transition-all"
                 >
                   {isCheckingIn
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Checking your location...</>
-                    : <><MapPin className="w-4 h-4" /> Check In — I'm at the studio</>
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> {classEnded ? 'Checking you in...' : 'Checking your location...'}</>
+                    : classEnded
+                      ? <><CheckCircle2 className="w-4 h-4" /> Check In — I attended this class</>
+                      : <><MapPin className="w-4 h-4" /> Check In — I'm at the studio</>
                   }
                 </button>
                 {error && (
