@@ -7,6 +7,7 @@ import { AuthGuard } from '@/components/auth-guard'
 import { PageTransition } from '@/components/page-transition'
 import { BackHandler } from '@/components/back-handler'
 import { FloatingBg } from '@/components/floating-bg'
+import { DobGate } from '@/components/dob-gate'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             {children}
           </PageTransition>
           <BackHandler />
+          <DobGate />
           {process.env.NODE_ENV === 'production' && <Analytics />}
         </AuthGuard>
       </body>

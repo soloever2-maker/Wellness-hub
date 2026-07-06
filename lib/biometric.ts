@@ -13,7 +13,17 @@ type StoredCreds = {
 }
 
 // ── Feature detection ───────────────────────────────────────────
+// WebAuthn is unreliable inside the iOS Capacitor shell (WKWebView),
+// so the whole biometric feature is hidden there — it keeps working
+// in Safari / PWA / Android as before.
+function isNativeShell(): boolean {
+  if (typeof window === 'undefined') return false
+  const cap = (window as any).Capacitor
+  return !!cap?.isNativePlatform?.()
+}
+
 export function isBiometricSupported(): boolean {
+  if (isNativeShell()) return false
   return (
     typeof window !== 'undefined' &&
     typeof window.PublicKeyCredential !== 'undefined' &&

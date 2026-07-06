@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { logoutUser } from '@/lib/auth'
+import { NoticeModal } from '@/components/notice-modal'
 
 type SettingKey = 'cancellation_window_hours' | 'max_freeze_days' | 'reminder_timing'
 
@@ -36,6 +37,7 @@ export default function AdminMorePage() {
   const [editValue, setEditValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -95,7 +97,7 @@ export default function AdminMorePage() {
       setSettings(prev => ({ ...prev, [editSetting]: editValue }))
       setEditSetting(null)
     } catch (err: any) {
-      alert('Could not save setting: ' + (err?.message || 'unknown error'))
+      setNotice({ title: 'Could Not Save Setting', message: err?.message || 'Unknown error. Please try again.' })
     }
     setSaving(false)
   }
@@ -292,6 +294,14 @@ export default function AdminMorePage() {
           </div>
         </div>
       )}
+
+      <NoticeModal
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        variant="error"
+        onClose={() => setNotice(null)}
+      />
 
       <AdminBottomNav activePage="more" />
     </main>

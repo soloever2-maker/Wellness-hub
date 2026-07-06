@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { CreditCard, ArrowLeft, RotateCcw, Loader2 } from 'lucide-react'
 import { ConfirmModal } from '@/components/confirm-modal'
+import { NoticeModal } from '@/components/notice-modal'
 import Link from 'next/link'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { supabase } from '@/lib/supabase'
@@ -25,6 +26,7 @@ export default function AdminPaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState('All')
   const [total, setTotal] = useState(0)
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
   const [refundingId, setRefundingId] = useState<string | null>(null)
   const [confirmRefundId, setConfirmRefundId] = useState<string | null>(null)
 
@@ -50,7 +52,7 @@ export default function AdminPaymentsPage() {
       .update({ status: 'refunded' })
       .eq('id', paymentId)
     if (error) {
-      alert('Refund failed: ' + error.message)
+      setNotice({ title: 'Refund Failed', message: error.message })
     } else {
       setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, status: 'refunded' } : p))
       setTotal(prev => {
@@ -157,6 +159,14 @@ export default function AdminPaymentsPage() {
         loading={!!refundingId}
         onCancel={() => setConfirmRefundId(null)}
         onConfirm={() => confirmRefundId && handleRefund(confirmRefundId)}
+      />
+
+      <NoticeModal
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        variant="error"
+        onClose={() => setNotice(null)}
       />
     </main>
   )

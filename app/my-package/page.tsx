@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { BottomNav } from '@/components/bottom-nav'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
+import { NoticeModal } from '@/components/notice-modal'
 
 type ClientPackage = {
   id: string
@@ -50,6 +51,7 @@ export default function MyPackagePage() {
   }, [])
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,7 +105,7 @@ export default function MyPackagePage() {
           .select('id')
 
         if (error || !updated?.length) {
-          alert('Could not unfreeze your package. Please try again or contact Enjy.')
+          setNotice({ title: 'Could Not Unfreeze', message: 'Something went wrong. Please try again or contact Enjy.' })
           setFreezing(false)
           return
         }
@@ -118,7 +120,7 @@ export default function MyPackagePage() {
           .select('id')
 
         if (error || !updated?.length) {
-          alert('Could not freeze your package. Please try again or contact Enjy.')
+          setNotice({ title: 'Could Not Freeze', message: 'Something went wrong. Please try again or contact Enjy.' })
           setFreezing(false)
           return
         }
@@ -350,6 +352,14 @@ export default function MyPackagePage() {
           </div>
         </div>
       )}
+
+      <NoticeModal
+        open={!!notice}
+        title={notice?.title || ''}
+        message={notice?.message || ''}
+        variant="error"
+        onClose={() => setNotice(null)}
+      />
     </main>
   )
 }

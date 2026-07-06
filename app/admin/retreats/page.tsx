@@ -8,6 +8,7 @@ import {
   Camera, Image as ImageIcon,
 } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
+import { ConfirmModal } from '@/components/confirm-modal'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 
@@ -151,8 +152,10 @@ export default function AdminRetreatsPage() {
     setShowForm(false)
   }
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this retreat?')) return
+    setConfirmDeleteId(null)
     setDeleting(id)
     await supabase.from('retreats').delete().eq('id', id)
     await fetchRetreats()
@@ -258,7 +261,7 @@ export default function AdminRetreatsPage() {
                     <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                   </button>
                   <button
-                    onClick={() => handleDelete(r.id)}
+                    onClick={() => setConfirmDeleteId(r.id)}
                     disabled={deleting === r.id}
                     className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center"
                   >
@@ -470,6 +473,16 @@ export default function AdminRetreatsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={!!confirmDeleteId}
+        title="Delete This Retreat?"
+        message="This will permanently remove the retreat and its image. This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
 
       <AdminBottomNav activePage="more" />
     </main>
