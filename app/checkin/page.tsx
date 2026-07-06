@@ -11,7 +11,7 @@ import Link from 'next/link'
 import { CheckCircle, Calendar, Clock, Loader2, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
-import { CHECK_IN_GRACE_MINUTES } from '@/lib/geo'
+import { checkInWindowEnd } from '@/lib/geo'
 
 type Result =
   | { state: 'loading' }
@@ -41,13 +41,21 @@ export default function CheckinPage() {
           .filter(b => b.session?.start_time)
 
         // A booking is check-in-able from 2h before start until the
-        // grace period after end — same window as My Bookings.
-        const inWindow = rows.find(b => {
-          const start = new Date(b.session.start_time).getTime()
-          const end = new Date(b.session.end_time).getTime()
-          return now >= start - 2 * 60 * 60 * 1000 &&
-                 now <= end + CHECK_IN_GRACE_MINUTES * 60 * 1000
-        })
+        // end of the class day — same window as My Bookings.
+        // With day-long windows, multiple bookings can qualify (e.g. a
+        // morning class that wasn't checked in + an evening class), so:
+        //   1. prefer un-attended bookings over already-attended ones
+        //   2. prefer the most recent class
+        const candidates = rows
+          .filter(b => {
+            const start = new Date(b.session.start_time).getTime()
+            const end = new Date(b.session.end_time).getTime()
+            return now >= start - 2 * 60 * 60 * 1000 &&
+                   now <= checkInWindowEnd(end)
+          })
+          .sort((a, b) => b.session.start_time.localeCompare(a.session.start_time))
+
+        const inWindow = candidates.find(b => b.status !== 'attended') || candidates[0]
 
         if (inWindow) {
           const className = inWindow.session.class_type?.name || 'your class'
