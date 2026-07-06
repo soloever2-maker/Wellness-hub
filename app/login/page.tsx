@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint, CalendarDays } from 'lucide-react'
+import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint, CalendarDays, Check } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
@@ -12,6 +12,7 @@ import {
   isBiometricEnabled,
   getSavedEmail,
   getCredentialsViaBiometric,
+  updateStoredBiometricPassword,
 } from '@/lib/biometric'
 
 type Mode = 'login' | 'register' | 'pending' | 'forgot'
@@ -130,6 +131,71 @@ export default function LoginPage() {
   const [showBiometric, setShowBiometric] = useState(false)
   const [form, setForm] = useState({ fullName: '', phone: '', password: '', dateOfBirth: '' })
 
+  // Forgot password (self-service reset) state
+  const [forgotForm, setForgotForm] = useState({ phone: '', dateOfBirth: '', clientId: '', newPassword: '', confirmPassword: '' })
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotError, setForgotError] = useState('')
+  const [forgotSuccess, setForgotSuccess] = useState(false)
+  const [forgotDobMissing, setForgotDobMissing] = useState(false)
+
+  const handleForgotReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotError('')
+    setForgotDobMissing(false)
+
+    if (forgotForm.newPassword.length < 6) {
+      setForgotError('New password must be at least 6 characters.')
+      return
+    }
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      setForgotError('Passwords do not match.')
+      return
+    }
+
+    setForgotLoading(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        },
+        body: JSON.stringify({
+          phone: forgotForm.phone,
+          date_of_birth: forgotForm.dateOfBirth,
+          client_id: forgotForm.clientId,
+          new_password: forgotForm.newPassword,
+        }),
+      })
+      const data = await res.json()
+
+      if (data.ok) {
+        setForgotSuccess(true)
+        playSingingBowl(0.4)
+        return
+      }
+
+      switch (data.error) {
+        case 'DOB_MISSING':
+          setForgotDobMissing(true)
+          break
+        case 'RATE_LIMITED':
+          setForgotError('Too many attempts. Please try again in an hour.')
+          break
+        case 'PASSWORD_TOO_SHORT':
+          setForgotError('New password must be at least 6 characters.')
+          break
+        default:
+          setForgotError("The details don't match our records. Please double-check and try again.")
+      }
+    } catch {
+      setForgotError('Connection error. Please try again.')
+    } finally {
+      setForgotLoading(false)
+    }
+  }
+
   useEffect(() => {
     setShowBiometric(isBiometricSupported() && isBiometricEnabled())
   }, [])
@@ -166,6 +232,10 @@ export default function LoginPage() {
     e.preventDefault(); setLoading(true); setError('')
     try {
       const { user } = await loginUser(form.phone, form.password)
+      // Self-heal: keep the password stored behind the biometric gate
+      // in sync — covers changes made on other devices or via
+      // forgot-password (where no sync is possible).
+      if (isBiometricEnabled()) updateStoredBiometricPassword(form.password)
       playSingingBowl(0.5)
       setSplashName(user.full_name?.split(' ')[0] || '')
       if (user.role === 'admin') {
@@ -204,7 +274,7 @@ export default function LoginPage() {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'PENDING') setMode('pending')
       else if (msg === 'REJECTED') setError('Your request was not approved.')
-      else setError('Login failed. Try with your password.')
+      else setError('Your password changed recently — sign in with your new password once, and biometric login will work again.')
     } finally { setBiometricLoading(false) }
   }
 
@@ -329,37 +399,113 @@ export default function LoginPage() {
 
               {mode === 'forgot' && (<>
                 <h2 className="text-xl font-bold text-foreground text-center mb-1">Reset Password</h2>
-                <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
-                  Enter your phone number and we&apos;ll send Enjy a request to reset it for you.
-                </p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input type="tel" required value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                        placeholder="01XXXXXXXXX"
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                {forgotSuccess ? (
+                  <div className="py-6 flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-[#4CAF50]/10 flex items-center justify-center">
+                      <Check className="w-7 h-7 text-[#4CAF50]" />
                     </div>
+                    <p className="text-sm font-medium text-foreground text-center">Password updated!</p>
+                    <p className="text-xs text-muted-foreground text-center">You can now sign in with your new password.</p>
+                    <button
+                      onClick={() => {
+                        setMode('login'); setError('')
+                        setForgotSuccess(false)
+                        setForgotForm({ phone: '', dateOfBirth: '', clientId: '', newPassword: '', confirmPassword: '' })
+                      }}
+                      className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-md mt-2">
+                      Back to Sign In
+                    </button>
                   </div>
-                  <a
-                    href={form.phone.trim() ? `https://wa.me/201063751653?text=${encodeURIComponent(`Hi Enjy, I forgot my password.\n\nMy phone number: ${form.phone.trim()}\n\nCould you please reset it for me?`)}` : undefined}
-                    target="_blank" rel="noopener noreferrer"
-                    onClick={e => { if (!form.phone.trim()) e.preventDefault() }}
-                    aria-disabled={!form.phone.trim()}
-                    className={`w-full py-3.5 font-semibold rounded-xl shadow-md flex items-center justify-center gap-2 mt-1 transition-colors ${
-                      form.phone.trim() ? 'bg-[#4CAF50] text-white hover:bg-[#3d8b40]' : 'bg-muted text-muted-foreground cursor-not-allowed'
-                    }`}>
-                    Send Request via WhatsApp
-                  </a>
-                  <p className="text-xs text-center text-muted-foreground leading-relaxed">
-                    Enjy will reply with a new password as soon as possible.
+                ) : forgotDobMissing ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground text-center mb-2 leading-relaxed">
+                      Your birth date isn&apos;t on file, so we can&apos;t verify your identity automatically. Please contact the studio to reset your password.
+                    </p>
+                    <a
+                      href={`https://wa.me/201063751653?text=${encodeURIComponent(`Hi Enjy, I forgot my password and my birth date isn't registered.\n\nMy phone number: ${forgotForm.phone.trim()}\n\nCould you please reset it for me?`)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="w-full py-3.5 bg-[#4CAF50] text-white font-semibold rounded-xl shadow-md flex items-center justify-center gap-2 hover:bg-[#3d8b40] transition-colors">
+                      Contact via WhatsApp
+                    </a>
+                    <button onClick={() => setForgotDobMissing(false)}
+                      className="w-full py-3 text-sm text-[#006D77] font-medium">
+                      Try again
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted-foreground text-center mb-5 leading-relaxed">
+                      Verify your identity to set a new password. Your Client ID is shown on your profile card.
+                    </p>
+                    <form onSubmit={handleForgotReset} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Phone Number</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input type="tel" required value={forgotForm.phone}
+                            onChange={e => { setForgotForm({ ...forgotForm, phone: e.target.value }); setForgotError('') }}
+                            placeholder="01XXXXXXXXX"
+                            className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Date of Birth</label>
+                          <input type="date" required value={forgotForm.dateOfBirth}
+                            onChange={e => { setForgotForm({ ...forgotForm, dateOfBirth: e.target.value }); setForgotError('') }}
+                            className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Client ID</label>
+                          <input type="number" required min={1} value={forgotForm.clientId}
+                            onChange={e => { setForgotForm({ ...forgotForm, clientId: e.target.value }); setForgotError('') }}
+                            placeholder="e.g. 42"
+                            className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">New Password</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete="new-password"
+                            value={forgotForm.newPassword}
+                            onChange={e => { setForgotForm({ ...forgotForm, newPassword: e.target.value }); setForgotError('') }}
+                            placeholder="At least 6 characters"
+                            className="w-full bg-background border border-border rounded-xl pl-10 pr-10 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Confirm New Password</label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <input type={showPassword ? 'text' : 'password'} required minLength={6} autoComplete="new-password"
+                            value={forgotForm.confirmPassword}
+                            onChange={e => { setForgotForm({ ...forgotForm, confirmPassword: e.target.value }); setForgotError('') }}
+                            placeholder="Re-enter new password"
+                            className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                        </div>
+                      </div>
+                      {forgotError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+                          <p className="text-xs text-red-600">{forgotError}</p>
+                        </div>
+                      )}
+                      <button type="submit" disabled={forgotLoading}
+                        className="w-full py-3.5 bg-[#006D77] text-white font-semibold rounded-xl hover:bg-[#004E5C] transition-colors shadow-md disabled:opacity-60 flex items-center justify-center gap-2 mt-1">
+                        {forgotLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : 'Reset Password'}
+                      </button>
+                    </form>
+                  </>
+                )}
+                {!forgotSuccess && (
+                  <p className="text-sm text-muted-foreground text-center mt-4">
+                    Remembered it?{' '}
+                    <button onClick={() => { setMode('login'); setError(''); setForgotError(''); setForgotDobMissing(false) }} className="text-[#B8612A] font-semibold">Back to Sign In</button>
                   </p>
-                </div>
-                <p className="text-sm text-muted-foreground text-center mt-4">
-                  Remembered it?{' '}
-                  <button onClick={() => { setMode('login'); setError('') }} className="text-[#B8612A] font-semibold">Back to Sign In</button>
-                </p>
+                )}
               </>)}
 
               {mode === 'register' && (<>
