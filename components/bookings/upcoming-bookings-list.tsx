@@ -11,7 +11,7 @@ import { Calendar, X, Loader2, MapPin, CheckCircle2, AlertTriangle } from 'lucid
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
-import { checkStudioProximity, checkInWindowEnd } from '@/lib/geo'
+import { checkStudioProximity, checkInWindowStart, checkInWindowEnd } from '@/lib/geo'
 import { NoticeModal } from '@/components/notice-modal'
 
 type Booking = {
@@ -212,9 +212,9 @@ export function UpcomingBookingsList() {
         const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
         const name = (booking.session.class_type as any)?.name || 'Class'
 
-        // Check-in window: opens 2 hours before start, stays open until the end of the class day
+        // Check-in window: the whole class day — from midnight to midnight
         const now = Date.now()
-        const windowStart = startTime.getTime() - 2 * 60 * 60 * 1000
+        const windowStart = checkInWindowStart(startTime)
         const windowEnd = checkInWindowEnd(endTime)
         const isCheckInWindow = now >= windowStart && now <= windowEnd
         const classEnded = now > endTime.getTime()
