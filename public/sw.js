@@ -1,4 +1,4 @@
-const CACHE_NAME = 'align-enjy-v5'
+const CACHE_NAME = 'align-enjy-v6'
 const STATIC_ASSETS = ['/manifest.json', '/icon.png', '/icon-192x192.png', '/icon-512x512.png']
 
 // ── Skip waiting when told to ──────────────────────────────────
