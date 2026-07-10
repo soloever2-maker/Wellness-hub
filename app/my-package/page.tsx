@@ -156,7 +156,9 @@ export default function MyPackagePage() {
     setShowCancelConfirm(false)
   }
 
-  const daysLeft = pkg ? Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : 0
+  const rawDaysLeft = pkg ? Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0
+  const daysLeft = Math.max(0, rawDaysLeft)
+  const isExpired = pkg ? rawDaysLeft <= 0 && pkg.sessions_remaining > 0 : false
   const sessionsUsed = pkg ? pkg.sessions_total - pkg.sessions_remaining : 0
   const progress = pkg ? (pkg.sessions_remaining / pkg.sessions_total) * 100 : 0
   const circumference = 45 * 2 * Math.PI
@@ -183,16 +185,18 @@ export default function MyPackagePage() {
           <>
             {/* Hero Card */}
             <div className={`rounded-2xl p-6 text-white shadow-lg ${
-              pkg.status === 'frozen' 
+              isExpired
+                ? 'bg-gradient-to-r from-[#9E9E9E] to-[#757575]'
+                : pkg.status === 'frozen' 
                 ? 'bg-gradient-to-r from-[#5C6B6E] to-[#5C6B6E]/80' 
                 : 'bg-gradient-to-r from-[#006D77] to-[#B8612A]'
             }`}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-lg font-bold">{pkg.package?.name || `${pkg.sessions_total} Classes`}</p>
                 <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-                  pkg.status === 'frozen' ? 'bg-white/30' : 'bg-white/20'
+                  isExpired ? 'bg-[#E53935]/30' : pkg.status === 'frozen' ? 'bg-white/30' : 'bg-white/20'
                 }`}>
-                  {pkg.status === 'frozen' ? '❄️ Frozen' : 'Active'}
+                  {isExpired ? '⏰ Expired' : pkg.status === 'frozen' ? '❄️ Frozen' : 'Active'}
                 </span>
               </div>
 
@@ -212,7 +216,10 @@ export default function MyPackagePage() {
               </div>
 
               <p className="text-center text-sm text-white/80">
-                Expires {new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                {isExpired
+                  ? `Expired on ${new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : `Expires ${new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                }
               </p>
             </div>
 
@@ -221,7 +228,7 @@ export default function MyPackagePage() {
               {[
                 { icon: CheckCircle, label: 'Used', value: sessionsUsed, color: 'text-[#006D77]' },
                 { icon: Package, label: 'Remaining', value: pkg.sessions_remaining, color: 'text-[#B8612A]' },
-                { icon: Calendar, label: 'Days Left', value: daysLeft, color: 'text-[#006D77]' },
+                { icon: Calendar, label: isExpired ? 'Status' : 'Days Left', value: isExpired ? '⏰' : daysLeft, color: isExpired ? 'text-[#E53935]' : 'text-[#006D77]' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-white border border-border rounded-xl p-4 text-center shadow-sm">
                   <stat.icon className={`w-5 h-5 mx-auto mb-2 ${stat.color}`} />
@@ -231,8 +238,24 @@ export default function MyPackagePage() {
               ))}
             </div>
 
-            {/* Book Now CTA */}
-            {pkg.status === 'active' && pkg.sessions_remaining > 0 && (
+            {/* Expired → renew CTA */}
+            {isExpired && (
+              <Link href="/packages"
+                className="flex items-center gap-3 p-4 rounded-2xl mb-1 active:scale-[0.97] transition-all bg-[#E53935]/10 border border-[#E53935]/20">
+                <div className="w-10 h-10 rounded-xl bg-[#E53935]/15 flex items-center justify-center shrink-0">
+                  <span className="text-xl">⏰</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-[#E53935] font-bold text-sm leading-tight">
+                    Your package expired with {pkg.sessions_remaining} unused session{pkg.sessions_remaining > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-0.5">Tap to get a new package →</p>
+                </div>
+              </Link>
+            )}
+
+            {/* Book Now CTA — only for active, non-expired */}
+            {!isExpired && pkg.status === 'active' && pkg.sessions_remaining > 0 && (
               <a href="/schedule"
                 className="flex items-center gap-3 p-4 rounded-2xl mb-1 active:scale-[0.97] transition-all"
                 style={{ background: 'linear-gradient(135deg, #006D77, #004E5C)' }}>
@@ -248,39 +271,41 @@ export default function MyPackagePage() {
               </a>
             )}
 
-            {/* Freeze policy note */}
-            {maxFreezeDays !== null && (
+            {/* Freeze policy note — only relevant for active packages */}
+            {!isExpired && maxFreezeDays !== null && (
               <p className="text-[11px] text-muted-foreground mb-2">
                 ❄️ Freeze pauses your package expiry — up to {maxFreezeDays} days per freeze.
               </p>
             )}
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={handleFreeze}
-                disabled={freezing}
-                className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-60 ${
-                  pkg.status === 'frozen'
-                    ? 'bg-[#006D77] text-white hover:bg-[#004E5C]'
-                    : 'border-2 border-[#006D77] text-[#006D77] hover:bg-[#006D77]/5'
-                }`}
-              >
-                {freezing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Snowflake className="w-4 h-4" />}
-                {pkg.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-              </button>
-              <Link href="/packages"
-                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
-                <RefreshCw className="w-4 h-4" />
-                View Packages
-              </Link>
-              <button
-                onClick={() => setShowCancelConfirm(true)}
-                className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-[#E53935]/40 text-[#E53935] font-medium text-sm hover:bg-[#E53935]/5 transition-colors">
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-            </div>
+            {/* Action Buttons — hidden when expired (freeze/cancel meaningless) */}
+            {!isExpired && (
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={handleFreeze}
+                  disabled={freezing}
+                  className={`flex items-center justify-center gap-2 py-3 px-3 rounded-xl font-medium text-sm transition-colors disabled:opacity-60 ${
+                    pkg.status === 'frozen'
+                      ? 'bg-[#006D77] text-white hover:bg-[#004E5C]'
+                      : 'border-2 border-[#006D77] text-[#006D77] hover:bg-[#006D77]/5'
+                  }`}
+                >
+                  {freezing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Snowflake className="w-4 h-4" />}
+                  {pkg.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                </button>
+                <Link href="/packages"
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-[#006D77] text-white font-medium text-sm hover:bg-[#004E5C] transition-colors">
+                  <RefreshCw className="w-4 h-4" />
+                  View Packages
+                </Link>
+                <button
+                  onClick={() => setShowCancelConfirm(true)}
+                  className="flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-[#E53935]/40 text-[#E53935] font-medium text-sm hover:bg-[#E53935]/5 transition-colors">
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              </div>
+            )}
 
             {/* Session History */}
             {history.length > 0 && (
