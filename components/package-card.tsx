@@ -65,23 +65,26 @@ export function PackageCard() {
   const progress = (sessionsUsed / pkg.sessions_total) * 100
 
   // Warning states
-  const daysToExpiry = Math.max(0, Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / 86_400_000))
-  const isLowBalance = pkg.sessions_remaining <= 2 && pkg.sessions_remaining > 0
-  const isExpiringSoon = daysToExpiry <= 7 && daysToExpiry > 0
-  const showWarning = (isLowBalance || isExpiringSoon) && pkg.status !== 'frozen'
+  const daysToExpiry = Math.ceil((new Date(pkg.expiry_date).getTime() - Date.now()) / 86_400_000)
+  const isExpired = daysToExpiry <= 0 && pkg.sessions_remaining > 0
+  const isLowBalance = pkg.sessions_remaining <= 2 && pkg.sessions_remaining > 0 && !isExpired
+  const isExpiringSoon = daysToExpiry <= 7 && daysToExpiry > 0 && !isExpired
+  const showWarning = (isLowBalance || isExpiringSoon || isExpired) && pkg.status !== 'frozen'
 
   return (
     <div className="space-y-2">
     <Link href="/my-package" className="block">
       <div className={`rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-shadow ${
-        pkg.status === 'frozen'
+        isExpired
+          ? 'bg-gradient-to-r from-[#9E9E9E] to-[#757575]'
+          : pkg.status === 'frozen'
           ? 'bg-gradient-to-r from-[#5C6B6E] to-[#5C6B6E]/80'
           : 'bg-gradient-to-r from-[#006D77] to-[#B8612A]'
       }`}>
         <div className="flex items-start justify-between mb-6">
           <div>
             <p className="text-sm font-medium text-white/80">
-              {pkg.status === 'frozen' ? '❄️ Frozen' : 'Your Package'}
+              {isExpired ? '⏰ Package Expired' : pkg.status === 'frozen' ? '❄️ Frozen' : 'Your Package'}
             </p>
             <h2 className="text-2xl font-bold mt-1">{pkg.package?.name || `${pkg.sessions_total} Classes`}</h2>
           </div>
@@ -103,7 +106,10 @@ export function PackageCard() {
             <span className="text-white/80">{pkg.sessions_remaining} remaining</span>
           </div>
           <p className="text-sm font-medium text-white/80">
-            Expires {new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            {isExpired
+              ? `Expired on ${new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+              : `Expires ${new Date(pkg.expiry_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+            }
           </p>
         </div>
       </div>
@@ -112,23 +118,29 @@ export function PackageCard() {
     {showWarning && (
       <Link href="/packages" className="block">
         <div className={`rounded-2xl p-3 flex items-center gap-3 ${
-          isLowBalance && pkg.sessions_remaining <= 1
+          isExpired
+            ? 'bg-[#E53935]/10 border border-[#E53935]/20'
+            : isLowBalance && pkg.sessions_remaining <= 1
             ? 'bg-[#E53935]/10 border border-[#E53935]/20'
             : 'bg-[#FF9800]/10 border border-[#FF9800]/20'
         }`}>
           <AlertCircle className={`w-5 h-5 shrink-0 ${
-            isLowBalance && pkg.sessions_remaining <= 1 ? 'text-[#E53935]' : 'text-[#FF9800]'
+            isExpired || (isLowBalance && pkg.sessions_remaining <= 1) ? 'text-[#E53935]' : 'text-[#FF9800]'
           }`} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">
-              {isLowBalance
+              {isExpired
+                ? `Package expired — ${pkg.sessions_remaining} unused session${pkg.sessions_remaining > 1 ? 's' : ''}`
+                : isLowBalance
                 ? pkg.sessions_remaining === 1
                   ? 'Last session!'
                   : `Only ${pkg.sessions_remaining} sessions left`
                 : `Package expires in ${daysToExpiry} day${daysToExpiry > 1 ? 's' : ''}`
               }
             </p>
-            <p className="text-xs text-muted-foreground">Tap to renew your package</p>
+            <p className="text-xs text-muted-foreground">
+              {isExpired ? 'Tap to get a new package' : 'Tap to renew your package'}
+            </p>
           </div>
           <RefreshCw className="w-4 h-4 text-[#006D77] shrink-0" />
         </div>
