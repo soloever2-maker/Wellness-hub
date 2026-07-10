@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2, Info, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, Clock, Users, Calendar, CheckCircle, Package, AlertCircle, Loader2, Info, Volume2, VolumeX, Share2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -230,6 +230,24 @@ function ClassPageInner() {
   const instructorName = session.instructor_name || 'Enjy Gebril'
   const imageSrc = (session.class_type as any)?.image_url || CLASS_IMAGES[className] || FALLBACK_IMG
   const isFull = spotsLeft <= 0
+  // Share class with friends
+  const handleShare = async () => {
+    const shareText = `Join me for ${className} with ${instructorName}! 🧘‍♀️\n📅 ${dateStr}\n🕐 ${timeStr}\n\nBook your spot:`
+    const shareUrl = `${window.location.origin}/class?id=${session.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${className} — Align with Enjy`, text: shareText, url: shareUrl })
+      } catch { /* user cancelled — silent */ }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
+        alert('Link copied! Share it with your friends 🤍')
+      } catch { /* silent */ }
+    }
+  }
+
   const cancelDeadline = new Date(startTime.getTime() - cancelWindowHours * 3_600_000)
   const cancelDeadlineStr = `${cancelDeadline.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${cancelDeadline.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
 
@@ -251,16 +269,24 @@ function ClassPageInner() {
           className="absolute top-12 left-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        {/* Ambient sound toggle */}
-        <button onClick={toggleAmbient}
-          className="absolute top-12 right-4 w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
-          aria-label={ambientOn ? 'Mute ambient sound' : 'Play ambient sound'}
-        >
-          {ambientOn
-            ? <Volume2 className="w-5 h-5 text-white" />
-            : <VolumeX className="w-5 h-5 text-white/60" />
-          }
-        </button>
+        {/* Top-right action buttons */}
+        <div className="absolute top-12 right-4 flex items-center gap-2">
+          <button onClick={handleShare}
+            className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
+            aria-label="Share this class"
+          >
+            <Share2 className="w-5 h-5 text-white" />
+          </button>
+          <button onClick={toggleAmbient}
+            className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
+            aria-label={ambientOn ? 'Mute ambient sound' : 'Play ambient sound'}
+          >
+            {ambientOn
+              ? <Volume2 className="w-5 h-5 text-white" />
+              : <VolumeX className="w-5 h-5 text-white/60" />
+            }
+          </button>
+        </div>
         <div className="absolute bottom-4 left-4">
           <h1 className="text-2xl font-bold text-white drop-shadow-lg">{className}</h1>
           <p className="text-white/80 text-sm mt-0.5">with {instructorName}</p>
