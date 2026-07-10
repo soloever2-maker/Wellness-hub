@@ -69,6 +69,7 @@ export default function PackagesPage() {
             .eq('client_id', userRes.id)
             .in('status', ['active', 'frozen'])
             .gt('sessions_remaining', 0)
+            .gte('expiry_date', new Date().toISOString())
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle(),
