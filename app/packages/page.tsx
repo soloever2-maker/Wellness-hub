@@ -113,14 +113,17 @@ export default function PackagesPage() {
 
       const { data: stillActive } = await supabase
         .from('client_packages')
-        .select('package_id')
+        .select('package_id, sessions_remaining, expiry_date')
         .eq('client_id', user.id)
         .in('status', ['active', 'frozen'])
+        .gt('sessions_remaining', 0)
+        .gte('expiry_date', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
       if (stillActive?.package_id === pkg.id) {
         setActivePackageId(stillActive.package_id)
+        setHasActiveBalance(true)
         setBuying(null)
         return
       }
