@@ -1,9 +1,3 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   app/my-package/page.tsx
-// (زرار Renew بقى اسمه View Packages (أوضح))
-// ============================================================
-
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -88,6 +82,21 @@ export default function MyPackagePage() {
   const handleFreeze = async () => {
     if (!pkg) return
     setFreezing(true)
+
+    // Best-effort push to Enjy — never blocks the client
+    const notifyAdmins = (kind: 'freeze' | 'unfreeze') => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        fetch('/api/push/notify-admins', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ kind, package_name: pkg.package?.name || null }),
+        }).catch(() => {})
+      }).catch(() => {})
+    }
+
     try {
       if (pkg.status === 'frozen') {
         // Unfreeze — extend expiry by frozen days (capped by Enjy's max)
@@ -111,6 +120,7 @@ export default function MyPackagePage() {
         }
 
         setPkg({ ...pkg, status: 'active', freeze_start: null, expiry_date: newExpiry.toISOString() })
+        notifyAdmins('unfreeze')
       } else {
         // Freeze
         const { data: updated, error } = await supabase
@@ -126,6 +136,7 @@ export default function MyPackagePage() {
         }
 
         setPkg({ ...pkg, status: 'frozen', freeze_start: new Date().toISOString() })
+        notifyAdmins('freeze')
       }
     } catch { /* silent */ }
     setFreezing(false)
