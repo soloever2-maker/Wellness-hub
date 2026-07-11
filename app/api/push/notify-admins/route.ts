@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const firstName = sender?.full_name?.split(' ')[0] || 'A client'
 
     // 2) Build the message
-    const { kind, rating, class_type } = await request.json()
+    const { kind, rating, class_type, package_name } = await request.json()
     let title = '💬 New feedback'
     let body = `${firstName} shared feedback with you`
     let url = '/admin/feedback'
@@ -54,6 +54,14 @@ export async function POST(request: Request) {
       title = '🔔 New access request'
       body = `${firstName} requested to join — tap to review`
       url = '/admin/approvals'
+    } else if (kind === 'freeze') {
+      title = '❄️ Package frozen'
+      body = `${firstName} froze their ${package_name ? `"${package_name}" ` : ''}package`
+      url = '/admin/clients?filter=Frozen'
+    } else if (kind === 'unfreeze') {
+      title = '🔥 Package unfrozen'
+      body = `${firstName} unfroze their ${package_name ? `"${package_name}" ` : ''}package`
+      url = '/admin/clients'
     }
 
     // 3) Find all approved admins
@@ -102,7 +110,7 @@ export async function POST(request: Request) {
       // Also log it so it appears in the admin's Notifications page
       await supabase.from('notification_log').insert({
         client_id: admin.id,
-        type: kind === 'signup' ? 'access_request' : 'feedback',
+        type: kind === 'signup' ? 'access_request' : (kind === 'freeze' || kind === 'unfreeze') ? 'package_freeze' : 'feedback',
         channel: 'push',
         message: `${title} — ${body}`,
         status: 'sent',
