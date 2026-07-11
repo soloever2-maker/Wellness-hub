@@ -44,7 +44,7 @@ type PaymentRecord = {
   package: { name: string }
 }
 
-const filters = ['All', 'Approved', 'Pending']
+const filters = ['All', 'Approved', 'Pending', 'Frozen']
 
 function AdminClientsPageInner() {
   const router = useRouter()
@@ -56,7 +56,9 @@ function AdminClientsPageInner() {
   const [packages, setPackages] = useState<PackageOption[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [activeFilter, setActiveFilter] = useState('All')
+  const [activeFilter, setActiveFilter] = useState(
+    searchParams.get('filter') === 'Frozen' ? 'Frozen' : 'All'
+  )
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [clientPkg, setClientPkg] = useState<ClientPackageInfo | null>(null)
   const [clientPayments, setClientPayments] = useState<PaymentRecord[]>([])
@@ -433,7 +435,11 @@ function AdminClientsPageInner() {
       || (c.full_name || '').toLowerCase().includes(q)
       || (c.phone || '').includes(q)
       || (c.client_id != null && String(c.client_id).includes(q))
-    const matchesFilter = activeFilter === 'All' ? true : activeFilter === 'Approved' ? c.status === 'approved' : c.status === 'pending'
+    const matchesFilter =
+      activeFilter === 'All' ? true
+      : activeFilter === 'Approved' ? c.status === 'approved'
+      : activeFilter === 'Frozen' ? pkgByClient[c.id]?.status === 'frozen'
+      : c.status === 'pending'
     return matchesSearch && matchesFilter
   })
 
