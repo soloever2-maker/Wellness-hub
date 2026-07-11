@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import {
   Calendar, CheckCircle, DollarSign, Users, AlertTriangle, Clock,
   UserCheck, TrendingUp, Package, ChevronLeft, ChevronRight,
-  BarChart2, CreditCard, Zap, AlertCircle, RefreshCw
+  BarChart2, CreditCard, Zap, AlertCircle, RefreshCw, Snowflake
 } from 'lucide-react'
 import { AdminBottomNav }  from '@/components/admin-bottom-nav'
 import { UserMenu }        from '@/components/user-menu'
@@ -123,6 +123,7 @@ export default function AdminDashboardPage() {
   const [recentBooks, setRecentBooks]     = useState<RecentBooking[]>([])
   const [expiring, setExpiring]           = useState<ExpiringPkg[]>([])
   const [todaySessions, setTodaySessions] = useState<TodaySession[]>([])
+  const [frozenCount, setFrozenCount]     = useState(0)
 
   // ── Bookings tab state ──────────────────────────────────────
   const [bMonth, setBMonth]               = useState(new Date())
@@ -211,6 +212,14 @@ export default function AdminDashboardPage() {
           .gt('expiry_date', new Date().toISOString())
           .order('expiry_date')
         if (data) setExpiring(data as unknown as ExpiringPkg[])
+      } catch {}
+
+      // 5b. Frozen packages count
+      try {
+        const { count } = await supabase.from('client_packages')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'frozen')
+        setFrozenCount(count ?? 0)
       } catch {}
 
       // 6. Today's sessions (agenda)
@@ -442,6 +451,26 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-muted-foreground">Attendance Rate</p>
             </div>
           </div>
+
+          {/* Frozen packages card — tap to view frozen clients */}
+          {!statsLoading && frozenCount > 0 && (
+            <Link href="/admin/clients?filter=Frozen">
+              <div className="bg-white border border-[#5C9EAD]/30 border-l-4 border-l-[#5C9EAD] rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#5C9EAD]/10 flex items-center justify-center">
+                    <Snowflake className="w-5 h-5 text-[#5C9EAD]" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground">
+                      {frozenCount} Frozen Package{frozenCount > 1 ? 's' : ''} ❄️
+                    </p>
+                    <p className="text-xs text-muted-foreground">Tap to see who&apos;s on freeze</p>
+                  </div>
+                </div>
+                <span className="text-[#5C9EAD] text-lg">→</span>
+              </div>
+            </Link>
+          )}
 
           {/* Classes today / Bookings this week */}
           <div className="grid grid-cols-2 gap-3">
