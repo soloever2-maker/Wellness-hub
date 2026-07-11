@@ -1,4 +1,4 @@
-const CACHE_NAME = 'align-enjy-v6'
+const CACHE_NAME = 'align-enjy-v7'
 const STATIC_ASSETS = ['/manifest.json', '/icon.png', '/icon-192x192.png', '/icon-512x512.png']
 
 // ── Skip waiting when told to ──────────────────────────────────
@@ -36,7 +36,9 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() =>
-        caches.match(event.request).then(cached => cached || caches.match('/'))
+        caches.match(event.request)
+          .then(cached => cached || caches.match('/'))
+          .then(fallback => fallback || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
       )
     )
     return
@@ -54,7 +56,10 @@ self.addEventListener('fetch', (event) => {
             caches.open(CACHE_NAME).then(c => c.put(event.request, clone))
           }
           return response
-        }).catch(() => caches.match(event.request))
+        }).catch(() =>
+          caches.match(event.request)
+            .then(c => c || new Response('', { status: 504 }))
+        )
       })
     )
     return
@@ -68,7 +73,10 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then(c => c.put(event.request, clone))
       }
       return response
-    }).catch(() => caches.match(event.request))
+    }).catch(() =>
+      caches.match(event.request)
+        .then(c => c || new Response('', { status: 504 }))
+    )
   )
 })
 
