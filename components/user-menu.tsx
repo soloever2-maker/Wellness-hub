@@ -65,7 +65,7 @@ export function UserMenu({ variant = 'client', showNotifications = true }: UserM
 
   return (
     <div className="flex items-center gap-2">
-      {showNotifications && variant !== 'admin' && (
+      {showNotifications && (
         <Link
           href="/notifications"
           className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center hover:bg-muted transition-colors relative"
