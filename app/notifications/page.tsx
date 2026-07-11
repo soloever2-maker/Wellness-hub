@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Bell, CheckCircle, Clock, Calendar, Package } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle, Clock, Calendar, Package, Star, UserCheck, Snowflake } from 'lucide-react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCurrentUser } from '@/lib/auth'
@@ -23,6 +23,10 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string;
   package:           { icon: Package,  color: 'text-[#B8612A]', bg: 'bg-[#EDD7C9]/40', label: 'Package' },
   package_activated: { icon: Package,  color: 'text-[#B8612A]', bg: 'bg-[#EDD7C9]/40', label: '🎉 Package Activated' },
   class_reminder:    { icon: Calendar, color: 'text-[#006D77]', bg: 'bg-[#E0EEF0]',    label: 'Class Reminder' },
+  // ── Admin-side notification types ──
+  feedback:       { icon: Star,      color: 'text-[#B8612A]', bg: 'bg-[#EDD7C9]/40', label: 'Client Feedback' },
+  access_request: { icon: UserCheck, color: 'text-[#006D77]', bg: 'bg-[#E0EEF0]',    label: 'Access Request' },
+  package_freeze: { icon: Snowflake, color: 'text-[#5C9EAD]', bg: 'bg-[#5C9EAD]/10', label: 'Package Freeze' },
 }
 
 function timeAgo(dateStr: string) {
@@ -39,11 +43,13 @@ function timeAgo(dateStr: string) {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const fetchNotifs = async () => {
       const user = await getCurrentUser()
       if (!user) { setLoading(false); return }
+      setIsAdmin(user.role === 'admin')
 
       const { data } = await supabase
         .from('notification_log')
@@ -66,7 +72,7 @@ export default function NotificationsPage() {
     <main className="bg-background min-h-screen pb-8">
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4">
         <div className="flex items-center gap-3">
-          <Link href="/" className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
+          <Link href={isAdmin ? '/admin' : '/'} className="w-10 h-10 rounded-full bg-white border border-border flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </Link>
           <h1 className="text-lg font-bold text-foreground">Notifications</h1>
@@ -87,7 +93,9 @@ export default function NotificationsPage() {
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-1">No notifications yet</h3>
             <p className="text-sm text-muted-foreground text-center max-w-xs">
-              Class reminders and messages from Enjy will appear here
+              {isAdmin
+                ? 'Client requests, feedback, and freeze alerts will appear here'
+                : 'Class reminders and messages from Enjy will appear here'}
             </p>
           </div>
         ) : (
