@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
-import { sendApnsToClient } from '@/lib/apns'
+import { sendToToken } from '@/lib/apns'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,13 +39,31 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 2. Native APNs (iOS app) — no-op until APNS_* env vars exist ──
-    const apnsSent = await sendApnsToClient(supabase, client_id, {
-      title,
-      body,
-      data: { type, url: url || '/notifications' },
-    })
-    sent = sent || apnsSent
+    // ── 2. Native APNs (iOS app) — sends directly and reports Apple's
+    // literal response per device so failures are never silent.
+    const { data: tokens } = await supabase
+      .from('device_tokens')
+      .select('token')
+      .eq('client_id', client_id)
+
+    const apnsResults: { token_start: string; status: number; reason?: string }[] = []
+    for (const row of tokens || []) {
+      const result = await sendToToken(row.token, {
+        title,
+        body,
+        data: { type, url: url || '/notifications' },
+      })
+      apnsResults.push({ token_start: row.token.slice(0, 10), status: result.status, reason: result.reason })
+      if (result.ok) sent = true
+      else if (
+        result.status === 410 ||
+        result.reason === 'BadDeviceToken' ||
+        result.reason === 'Unregistered' ||
+        result.reason === 'DeviceTokenNotForTopic'
+      ) {
+        await supabase.from('device_tokens').delete().eq('token', row.token)
+      }
+    }
 
     // Log notification
     await supabase.from('notification_log').insert({
@@ -53,7 +71,7 @@ export async function POST(request: Request) {
       status: sent ? 'sent' : 'pending', sent_at: new Date().toISOString(),
     })
 
-    return NextResponse.json({ ok: true, sent })
+    return NextResponse.json({ ok: true, sent, apns: apnsResults })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
