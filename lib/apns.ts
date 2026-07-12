@@ -1,23 +1,5 @@
-// ── Server-side APNs sender (iOS native push) ─────────────────
-// Zero extra npm dependencies: uses Node's built-in http2 + crypto.
-// Works on Vercel's Node.js runtime (default for route handlers).
-//
-// Required env vars (add in Vercel → Project → Settings → Environment Variables):
-//   APNS_TEAM_ID      → Apple Developer Team ID (10 chars, from developer.apple.com → Membership)
-//   APNS_KEY_ID       → Key ID of the APNs Auth Key (.p8) you create in the portal
-//   APNS_PRIVATE_KEY  → full contents of the .p8 file (BEGIN/END PRIVATE KEY included).
-//                       If pasted as a single line, use \n for line breaks — handled below.
-// Optional:
-//   APNS_BUNDLE_ID    → defaults to com.alignwithenjy.app
-//   APNS_SANDBOX      → 'true' only for local Xcode dev builds. TestFlight & App Store
-//                       use the production APNs server (the default here).
-//
-// Until these vars are set, every function here safely no-ops (returns false / 0),
-// so deploying this code BEFORE the Apple Developer account is ready is harmless —
-// Web Push keeps working exactly as before.
-
-import http2 from 'node:http2'
 import crypto from 'node:crypto'
+import http2 from 'node:http2'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const TEAM_ID = process.env.APNS_TEAM_ID
@@ -63,9 +45,9 @@ export interface ApnsMessage {
   sound?: string             // iOS notification sound, default 'default'
 }
 
-interface ApnsResult { ok: boolean; status: number; reason?: string }
+export interface ApnsResult { ok: boolean; status: number; reason?: string }
 
-function sendToToken(deviceToken: string, msg: ApnsMessage): Promise<ApnsResult> {
+export function sendToToken(deviceToken: string, msg: ApnsMessage): Promise<ApnsResult> {
   return new Promise(resolve => {
     const client = http2.connect(APNS_HOST)
     const done = (r: ApnsResult) => { try { client.close() } catch {} ; resolve(r) }
