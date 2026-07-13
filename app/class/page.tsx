@@ -192,6 +192,30 @@ function ClassPageInner() {
 
       playSingingBowl(0.5)
       setStatus('success')
+
+      // Notify Enjy about the new booking (best-effort)
+      supabase.auth.getSession().then(({ data: { session: authSession } }) => {
+        if (authSession?.access_token) {
+          fetch("/api/push/notify-admins", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authSession.access_token}`,
+            },
+            body: JSON.stringify({
+              kind: "booking",
+              class_name: (session!.class_type as any)?.name || null,
+              class_date:
+                new Date(session!.start_time).toLocaleDateString("en-US", {
+                  weekday: "short", month: "short", day: "numeric",
+                }) + " at " +
+                new Date(session!.start_time).toLocaleTimeString("en-US", {
+                  hour: "numeric", minute: "2-digit", hour12: true,
+                }),
+            }),
+          }).catch(() => {})
+        }
+      }).catch(() => {})
     } catch {
       setStatus('error')
     }
