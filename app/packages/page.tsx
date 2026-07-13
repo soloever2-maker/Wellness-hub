@@ -171,6 +171,20 @@ export default function PackagesPage() {
           : `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay in cash at the studio 💵.`
       )
       window.open(`https://wa.me/201063751653?text=${msg}`, '_blank')
+
+      // Notify Enjy about the purchase request (best-effort)
+      supabase.auth.getSession().then(({ data: { session: authSession } }) => {
+        if (authSession?.access_token) {
+          fetch('/api/push/notify-admins', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${authSession.access_token}`,
+            },
+            body: JSON.stringify({ kind: 'package_purchase', package_name: pkg.name }),
+          }).catch(() => {})
+        }
+      }).catch(() => {})
     } finally {
       setBuying(null)
     }
