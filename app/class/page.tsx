@@ -198,6 +198,7 @@ function ClassPageInner() {
         if (authSession?.access_token) {
           fetch("/api/push/notify-admins", {
             method: "POST",
+            keepalive: true,
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${authSession.access_token}`,
