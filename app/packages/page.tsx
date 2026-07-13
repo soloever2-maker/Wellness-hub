@@ -164,19 +164,15 @@ export default function PackagesPage() {
       setPendingRequest(inserted as unknown as PendingRequest)
       setMethodModal(null)
 
-      // Open WhatsApp to Enjy with package + payment method details
-      const msg = encodeURIComponent(
-        method === 'instapay'
-          ? `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay via InstaPay 💳 to ${INSTAPAY_ADDRESS} — will send it now!`
-          : `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay in cash at the studio 💵.`
-      )
-      window.open(`https://wa.me/201063751653?text=${msg}`, '_blank')
-
-      // Notify Enjy about the purchase request (best-effort)
-      supabase.auth.getSession().then(({ data: { session: authSession } }) => {
+      // Notify Enjy about the purchase request — MUST fire BEFORE opening
+      // WhatsApp (window.open backgrounds the app on iOS and kills pending
+      // fetches). keepalive lets the request survive page/tab transitions.
+      try {
+        const { data: { session: authSession } } = await supabase.auth.getSession()
         if (authSession?.access_token) {
           fetch('/api/push/notify-admins', {
             method: 'POST',
+            keepalive: true,
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${authSession.access_token}`,
@@ -184,7 +180,15 @@ export default function PackagesPage() {
             body: JSON.stringify({ kind: 'package_purchase', package_name: pkg.name }),
           }).catch(() => {})
         }
-      }).catch(() => {})
+      } catch { /* never block the purchase flow */ }
+
+      // Open WhatsApp to Enjy with package + payment method details
+      const msg = encodeURIComponent(
+        method === 'instapay'
+          ? `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay via InstaPay 💳 to ${INSTAPAY_ADDRESS} — will send it now!`
+          : `Hi Enjy! 🧘‍♀️\nI'd like to purchase the "${pkg.name}" package (${pkg.price} EGP).\nI'll pay in cash at the studio 💵.`
+      )
+      window.open(`https://wa.me/201063751653?text=${msg}`, '_blank')
     } finally {
       setBuying(null)
     }
