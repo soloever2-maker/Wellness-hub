@@ -4,9 +4,7 @@ import webPush from 'web-push'
 import { sendApnsToClient } from '@/lib/apns'
 
 // ── Notify admins (push) when a client submits a review,
-//    suggestion, or feedback ─────────────────────────────────────
-// Caller must be a logged-in user; the sender's name is derived
-// from their token (can't be spoofed from the client).
+//    suggestion, feedback, signup, freeze, package purchase, or booking ──────
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,10 +38,11 @@ export async function POST(request: Request) {
     const firstName = sender?.full_name?.split(' ')[0] || 'A client'
 
     // 2) Build the message
-    const { kind, rating, class_type, package_name } = await request.json()
+    const { kind, rating, class_type, package_name, class_name, class_date } = await request.json()
     let title = '💬 New feedback'
     let body = `${firstName} shared feedback with you`
     let url = '/admin/feedback'
+
     if (kind === 'review') {
       title = '⭐ New review'
       body = `${firstName} left ${rating || '?'}★ on ${class_type || 'a class'} — tap to approve`
@@ -62,6 +61,14 @@ export async function POST(request: Request) {
       title = '🔥 Package unfrozen'
       body = `${firstName} unfroze their ${package_name ? `"${package_name}" ` : ''}package`
       url = '/admin/clients'
+    } else if (kind === 'package_purchase') {
+      title = '💰 New Purchase Request'
+      body = `${firstName} wants to buy "${package_name || 'a package'}" — check pending payments`
+      url = '/admin/clients'
+    } else if (kind === 'booking') {
+      title = '📅 New Booking'
+      body = `${firstName} booked a spot in ${class_name || 'a class'}${class_date ? ` — ${class_date}` : ''}`
+      url = '/admin/attendance'
     }
 
     // 3) Find all approved admins
@@ -72,6 +79,15 @@ export async function POST(request: Request) {
       .eq('status', 'approved')
 
     if (!admins?.length) return NextResponse.json({ ok: true, sent: 0 })
+
+    // 4) Map kind → notification_log type
+    const logType =
+      kind === 'signup'            ? 'access_request'  :
+      kind === 'freeze' ||
+      kind === 'unfreeze'          ? 'package_freeze'  :
+      kind === 'package_purchase'  ? 'purchase_request':
+      kind === 'booking'           ? 'booking'         :
+      'feedback'
 
     let sent = 0
     for (const admin of admins) {
@@ -88,7 +104,7 @@ export async function POST(request: Request) {
             JSON.stringify({
               title, body,
               icon: '/icon-192x192.png', badge: '/icon-96x96.png',
-              tag: `feedback_${Date.now()}`,
+              tag: `${kind}_${Date.now()}`,
               data: { type: 'admin_feedback', url },
             })
           )
@@ -100,17 +116,17 @@ export async function POST(request: Request) {
         }
       }
 
-      // Native iOS (no-op until APNS_* env vars exist)
+      // Native iOS (APNs)
       const ok = await sendApnsToClient(supabase, admin.id, {
         title, body,
         data: { type: 'admin_feedback', url },
       })
       if (ok) sent++
 
-      // Also log it so it appears in the admin's Notifications page
+      // Log in admin's Notifications page
       await supabase.from('notification_log').insert({
         client_id: admin.id,
-        type: kind === 'signup' ? 'access_request' : (kind === 'freeze' || kind === 'unfreeze') ? 'package_freeze' : 'feedback',
+        type: logType,
         channel: 'push',
         message: `${title} — ${body}`,
         status: 'sent',
