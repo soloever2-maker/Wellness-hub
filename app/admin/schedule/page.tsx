@@ -1,8 +1,7 @@
-
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, X, Loader2, Calendar, Pencil, CopyPlus } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { UserMenu } from '@/components/user-menu'
 import { supabase } from '@/lib/supabase'
@@ -53,6 +52,10 @@ export default function AdminSchedulePage() {
   const [newSession, setNewSession] = useState({ class_type_id: '', time: '', capacity: 12, instructor_name: 'Enjy Gebril' })
   const [saving, setSaving] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [copying, setCopying] = useState(false)
+  const [showCopyConfirm, setShowCopyConfirm] = useState(false)
+  const [copyMsg, setCopyMsg] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const weekDates = getWeekDates(weekOffset)
   const weekLabel = `${weekDates[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekDates[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
@@ -94,7 +97,102 @@ export default function AdminSchedulePage() {
       setLoading(false)
     }
     fetchWeek()
-  }, [weekOffset])
+  }, [weekOffset, refreshKey])
+
+  // نسخ آخر أسبوع فيه حصص (بآخر تعديلات اتعملت عليه) إلى الأسبوع المعروض حاليًا
+  const handleCopyLastWeek = async () => {
+    setCopying(true)
+    setCopyMsg(null)
+
+    const weekStart = new Date(weekDates[0]); weekStart.setHours(0, 0, 0, 0)
+
+    // 1) هات آخر حصة (غير ملغية) قبل بداية الأسبوع الحالي — دى بتحدد "آخر أسبوع معدَّل"
+    const { data: lastSession } = await supabase
+      .from('class_sessions')
+      .select('start_time')
+      .lt('start_time', weekStart.toISOString())
+      .eq('is_cancelled', false)
+      .order('start_time', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!lastSession) {
+      setCopyMsg('لا يوجد أسبوع سابق به حصص لنسخه')
+      setCopying(false)
+      setShowCopyConfirm(false)
+      return
+    }
+
+    // 2) حدد حدود أسبوع المصدر (سبت → جمعة) اللى فيه آخر حصة
+    const src = new Date(lastSession.start_time)
+    const srcDay = src.getDay()
+    const srcDiff = srcDay === 6 ? 0 : -(srcDay + 1)
+    const srcSat = new Date(src)
+    srcSat.setDate(src.getDate() + srcDiff)
+    srcSat.setHours(0, 0, 0, 0)
+    const srcEnd = new Date(srcSat)
+    srcEnd.setDate(srcSat.getDate() + 7)
+
+    // 3) هات كل حصص أسبوع المصدر (الغير ملغية) — دى نسخة بآخر تعديلات
+    const { data: srcSessions } = await supabase
+      .from('class_sessions')
+      .select('class_type_id, start_time, end_time, max_capacity, instructor_name')
+      .gte('start_time', srcSat.toISOString())
+      .lt('start_time', srcEnd.toISOString())
+      .eq('is_cancelled', false)
+
+    if (!srcSessions || srcSessions.length === 0) {
+      setCopyMsg('لا يوجد أسبوع سابق به حصص لنسخه')
+      setCopying(false)
+      setShowCopyConfirm(false)
+      return
+    }
+
+    // 4) ابنى الحصص الجديدة بنفس اليوم والساعة المحلية (آمن ضد التوقيت الصيفى)
+    const rows = srcSessions.map(s => {
+      const sStart = new Date(s.start_time)
+      const sEnd = new Date(s.end_time)
+      const dayIndex = Math.floor((sStart.getTime() - srcSat.getTime()) / 86400000)
+
+      const nStart = new Date(weekDates[dayIndex])
+      nStart.setHours(sStart.getHours(), sStart.getMinutes(), 0, 0)
+      const nEnd = new Date(weekDates[dayIndex])
+      nEnd.setHours(sEnd.getHours(), sEnd.getMinutes(), 0, 0)
+      if (nEnd <= nStart) nEnd.setDate(nEnd.getDate() + 1)
+
+      return {
+        class_type_id: s.class_type_id,
+        start_time: nStart.toISOString(),
+        end_time: nEnd.toISOString(),
+        max_capacity: s.max_capacity,
+        booked_count: 0,
+        is_cancelled: false,
+        instructor_name: s.instructor_name || 'Enjy Gebril',
+      }
+    })
+
+    // 5) تجنّب التكرار: استبعد أى حصة موجودة فعلًا بنفس الكلاس ونفس الوقت فى الأسبوع الحالى
+    const existingKeys = new Set(
+      sessions.map(s => `${(s.class_type as any)?.id}|${new Date(s.start_time).getTime()}`)
+    )
+    const toInsert = rows.filter(
+      r => !existingKeys.has(`${r.class_type_id}|${new Date(r.start_time).getTime()}`)
+    )
+
+    if (toInsert.length === 0) {
+      setCopyMsg('كل حصص الأسبوع السابق موجودة بالفعل فى هذا الأسبوع')
+    } else {
+      const { error } = await supabase.from('class_sessions').insert(toInsert)
+      setCopyMsg(error
+        ? 'حدث خطأ أثناء النسخ، حاول مرة أخرى'
+        : `تم نسخ ${toInsert.length} حصة من آخر أسبوع معدَّل ✅`)
+      if (!error) setRefreshKey(k => k + 1)
+    }
+
+    setCopying(false)
+    setShowCopyConfirm(false)
+    setTimeout(() => setCopyMsg(null), 4000)
+  }
 
   const handleAddSession = async () => {
     if (!addDay || !newSession.class_type_id || !newSession.time) return
@@ -204,7 +302,18 @@ export default function AdminSchedulePage() {
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+          <button onClick={() => setShowCopyConfirm(true)}
+            disabled={copying}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-[#006D77] text-white text-xs font-semibold hover:bg-[#004E5C] transition-colors disabled:opacity-60">
+            {copying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
+            Copy Last Week
+          </button>
         </div>
+        {copyMsg && (
+          <div className="text-xs font-medium text-[#006D77] bg-[#006D77]/10 rounded-lg px-3 py-2" dir="auto">
+            {copyMsg}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -345,6 +454,29 @@ export default function AdminSchedulePage() {
                   : <><Plus className="w-5 h-5" /> Add to Schedule</>
               }
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Copy Last Week Confirmation */}
+      {showCopyConfirm && (
+        <div className="fixed inset-0 bg-black/40 z-[160] flex items-center justify-center px-6" onClick={() => !copying && setShowCopyConfirm(false)}>
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-foreground">Copy Last Week?</h3>
+            <p className="text-sm text-muted-foreground">
+              This will copy all classes from the most recent week (with your latest edits) into <span className="font-semibold text-foreground">{weekLabel}</span>. Existing classes won't be duplicated.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCopyConfirm(false)} disabled={copying}
+                className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted/40 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleCopyLastWeek} disabled={copying}
+                className="flex-1 py-3 rounded-xl bg-[#006D77] text-white text-sm font-semibold hover:bg-[#004E5C] transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+                {copying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CopyPlus className="w-4 h-4" />}
+                Copy
+              </button>
+            </div>
           </div>
         </div>
       )}
