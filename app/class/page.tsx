@@ -75,18 +75,12 @@ function ClassPageInner() {
 
       if (!s) { router.replace('/schedule'); return }
 
-      // Compute live count from actual bookings — the stored booked_count
-      // column drifts (client-side updates to class_sessions are blocked by RLS),
-      // same approach as schedule page / home widgets.
-      const { count: liveCount } = await supabase
-        .from('bookings')
-        .select('id', { count: 'exact', head: true })
-        .eq('session_id', id)
-        .eq('status', 'confirmed')
-
-      const bookedNow = liveCount ?? s.booked_count
-      setSession({ ...s, booked_count: bookedNow } as unknown as Session)
-      setSpotsLeft(s.max_capacity - bookedNow)
+      // booked_count is kept accurate by a DB trigger on bookings
+      // (see supabase/migrations/20260720_booked_count_trigger.sql).
+      // We read it directly because clients' RLS hides other people's
+      // booking rows — counting client-side would always show 1.
+      setSession(s as unknown as Session)
+      setSpotsLeft(s.max_capacity - s.booked_count)
 
       // Load cancellation window (admin-configurable, fallback 12h)
       supabase.from('settings').select('value').eq('key', 'cancellation_window_hours').maybeSingle()
