@@ -97,27 +97,39 @@ export default function SchedulePage() {
 
       if (data) {
         const ids = data.map(s => s.id)
-        const { data: bookings } = await supabase
-          .from('bookings').select('session_id, client_id')
-          .in('session_id', ids).eq('status', 'confirmed')
 
-        const counts: Record<string, number> = {}
-        bookings?.forEach(b => { counts[b.session_id] = (counts[b.session_id] || 0) + 1 })
+        // Booker names/avatars: clients' RLS hides other people's booking
+        // rows, so we go through a SECURITY DEFINER function that exposes
+        // only confirmed bookers' names for these sessions.
+        let bookings: Array<{ session_id: string; client_id: string; full_name?: string }> = []
+        const { data: rpcBookers, error: rpcError } = await supabase
+          .rpc('get_session_bookers', { p_session_ids: ids })
 
-        // Fetch names for all booked client_ids
-        const clientIds = [...new Set(bookings?.map(b => b.client_id).filter(Boolean) || [])]
-        let nameMap: Record<string, string> = {}
-        if (clientIds.length) {
-          const { data: users } = await supabase
-            .from('users').select('id, full_name').in('id', clientIds)
-          users?.forEach(u => { nameMap[u.id] = u.full_name || '?' })
+        if (!rpcError && rpcBookers) {
+          bookings = rpcBookers as typeof bookings
+        } else {
+          // Fallback (function not deployed yet): direct query — admins see
+          // everyone, clients will only see their own booking.
+          const { data: raw } = await supabase
+            .from('bookings').select('session_id, client_id')
+            .in('session_id', ids).eq('status', 'confirmed')
+          bookings = (raw || []) as typeof bookings
+
+          const clientIds = [...new Set(bookings.map(b => b.client_id).filter(Boolean))]
+          if (clientIds.length) {
+            const { data: users } = await supabase
+              .from('users').select('id, full_name').in('id', clientIds)
+            const nm: Record<string, string> = {}
+            users?.forEach(u => { nm[u.id] = u.full_name || '?' })
+            bookings = bookings.map(b => ({ ...b, full_name: nm[b.client_id] }))
+          }
         }
 
         // Build bookers per session
         const bmap: Record<string, Array<{ id: string; initials: string; firstName: string }>> = {}
-        bookings?.forEach(b => {
+        bookings.forEach(b => {
           if (!bmap[b.session_id]) bmap[b.session_id] = []
-          const name   = nameMap[b.client_id] || '?'
+          const name   = b.full_name || '?'
           const parts  = name.trim().split(' ')
           const initials = parts.length >= 2
             ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
@@ -126,7 +138,10 @@ export default function SchedulePage() {
         })
         setBookersBySession(bmap)
 
-        setSessions(data.map(s => ({ ...s, booked_count: counts[s.id] || 0 })) as unknown as Session[])
+        // Spots: booked_count is kept accurate by a DB trigger on bookings,
+        // and class_sessions is readable by everyone — so all users see the
+        // same number regardless of RLS on bookings.
+        setSessions(data as unknown as Session[])
       }
       setLoading(false)
     }
