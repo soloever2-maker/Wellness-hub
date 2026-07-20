@@ -1,8 +1,3 @@
-// ============================================================
-// انسخ الملف ده فوق القديم في المسار ده:
-//   components/bookings/upcoming-bookings-list.tsx
-// (امسح السطور التعليق دي بعد ما تنسخه لو حابب — مش لازم)
-// ============================================================
 
 'use client'
 
@@ -99,34 +94,61 @@ export function UpcomingBookingsList() {
       return
     }
     setCancellingId(bookingId)
-    const { error } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingId)
 
-    if (!error) {
-      // Refund the session credit back to the package it was booked with
-      if (booking.client_package_id) {
-        const { data: pkg } = await supabase
-          .from('client_packages')
-          .select('sessions_remaining')
-          .eq('id', booking.client_package_id)
-          .single()
-        if (pkg) {
-          await supabase.from('client_packages')
-            .update({ sessions_remaining: pkg.sessions_remaining + 1 })
+    // ⚛️ Atomic cancel: status change + package refund + counter re-sync
+    // happen inside the database in one transaction.
+    // See supabase/migrations/20260720_atomic_booking.sql
+    const { data: rpcData, error: rpcError } = await supabase
+      .rpc('cancel_booking', { p_booking_id: bookingId })
+
+    let ok = false
+    if (!rpcError) {
+      const result = (rpcData ?? {}) as { status?: string; window_hours?: number }
+      if (result.status === 'success') {
+        ok = true
+      } else if (result.status === 'too_late') {
+        setNotice({
+          title: 'Too Late to Cancel',
+          message: `Bookings cannot be cancelled within ${result.window_hours ?? cancelWindowHours} hours of the class.`,
+        })
+        setCancellingId(null)
+        setConfirmCancel(null)
+        return
+      }
+    } else if ((rpcError as any).code === 'PGRST202') {
+      // Function not deployed yet → legacy client-side flow
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', bookingId)
+
+      if (!error) {
+        ok = true
+        // Refund the session credit back to the package it was booked with
+        if (booking.client_package_id) {
+          const { data: pkg } = await supabase
+            .from('client_packages')
+            .select('sessions_remaining')
             .eq('id', booking.client_package_id)
+            .single()
+          if (pkg) {
+            await supabase.from('client_packages')
+              .update({ sessions_remaining: pkg.sessions_remaining + 1 })
+              .eq('id', booking.client_package_id)
+          }
+        }
+
+        // Decrement booked_count (best-effort)
+        const { data: session } = await supabase
+          .from('class_sessions').select('booked_count').eq('id', sessionId).single()
+        if (session && session.booked_count > 0) {
+          await supabase.from('class_sessions')
+            .update({ booked_count: session.booked_count - 1 }).eq('id', sessionId)
         }
       }
+    }
 
-      // Decrement booked_count
-      const { data: session } = await supabase
-        .from('class_sessions').select('booked_count').eq('id', sessionId).single()
-      if (session && session.booked_count > 0) {
-        await supabase.from('class_sessions')
-          .update({ booked_count: session.booked_count - 1 }).eq('id', sessionId)
-      }
-
+    if (ok) {
       // Waitlist cascade
       fetch('/api/waitlist/promote', {
         method: 'POST',
