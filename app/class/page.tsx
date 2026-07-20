@@ -74,8 +74,19 @@ function ClassPageInner() {
         .single()
 
       if (!s) { router.replace('/schedule'); return }
-      setSession(s as unknown as Session)
-      setSpotsLeft(s.max_capacity - s.booked_count)
+
+      // Compute live count from actual bookings — the stored booked_count
+      // column drifts (client-side updates to class_sessions are blocked by RLS),
+      // same approach as schedule page / home widgets.
+      const { count: liveCount } = await supabase
+        .from('bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', id)
+        .eq('status', 'confirmed')
+
+      const bookedNow = liveCount ?? s.booked_count
+      setSession({ ...s, booked_count: bookedNow } as unknown as Session)
+      setSpotsLeft(s.max_capacity - bookedNow)
 
       // Load cancellation window (admin-configurable, fallback 12h)
       supabase.from('settings').select('value').eq('key', 'cancellation_window_hours').maybeSingle()
@@ -149,74 +160,153 @@ function ClassPageInner() {
     }
   }
 
+  // ── Shared success side-effects (sound, on-screen count, admin push) ──
+  const finishBookingSuccess = (newBookedCount: number | null, newRemaining: number | null) => {
+    // Low balance notification — last session remaining
+    if (newRemaining === 1) {
+      fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: userId,
+          title: '⚠️ Last Session!',
+          body: 'You have 1 session left in your package. Tap to renew before it runs out!',
+          type: 'low_balance',
+        }),
+      }).catch(() => {})
+    }
+
+    playSingingBowl(0.5)
+    // Reflect the new booking immediately in the on-screen count
+    setSession(prev => prev ? { ...prev, booked_count: newBookedCount ?? prev.booked_count + 1 } : prev)
+    setSpotsLeft(prev => session ? Math.max(0, session.max_capacity - (newBookedCount ?? (session.booked_count + 1))) : Math.max(0, prev - 1))
+    setStatus('success')
+
+    // Notify Enjy about the new booking (best-effort)
+    supabase.auth.getSession().then(({ data: { session: authSession } }) => {
+      if (authSession?.access_token) {
+        fetch("/api/push/notify-admins", {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authSession.access_token}`,
+          },
+          body: JSON.stringify({
+            kind: "booking",
+            class_name: (session!.class_type as any)?.name || null,
+            class_date:
+              new Date(session!.start_time).toLocaleDateString("en-US", {
+                weekday: "short", month: "short", day: "numeric",
+              }) + " at " +
+              new Date(session!.start_time).toLocaleTimeString("en-US", {
+                hour: "numeric", minute: "2-digit", hour12: true,
+              }),
+          }),
+        }).catch(() => {})
+      }
+    }).catch(() => {})
+  }
+
+  // ── Legacy client-side flow — used ONLY if the book_class DB function
+  //    hasn't been created yet (migration not applied). Not atomic, but
+  //    keeps the app working during the transition.
+  const legacyBook = async () => {
+    if (!session || !selectedPackageId || !userId) return
+    // Best-effort capacity check (not race-proof — that's why the RPC exists)
+    const { count: liveCount } = await supabase
+      .from('bookings')
+      .select('id', { count: 'exact', head: true })
+      .eq('session_id', session.id)
+      .eq('status', 'confirmed')
+
+    if (liveCount !== null && liveCount >= session.max_capacity) {
+      setSession({ ...session, booked_count: liveCount })
+      setSpotsLeft(0) // isFull becomes true → the Join Waitlist UI takes over
+      setStatus('idle')
+      return
+    }
+
+    const { error } = await supabase.from('bookings').insert({
+      session_id: session.id,
+      client_id: userId,
+      client_package_id: selectedPackageId,
+      status: 'confirmed',
+    })
+    if (error) throw error
+
+    // Best-effort counter update (may be blocked by RLS — harmless)
+    await supabase.from('class_sessions')
+      .update({ booked_count: (liveCount ?? session.booked_count) + 1 })
+      .eq('id', session.id)
+
+    const pkg = myPackages.find(p => p.id === selectedPackageId)
+    let newRemaining: number | null = null
+    if (pkg) {
+      newRemaining = pkg.sessions_remaining - 1
+      await supabase.from('client_packages')
+        .update({ sessions_remaining: newRemaining })
+        .eq('id', selectedPackageId)
+    }
+
+    finishBookingSuccess((liveCount ?? session.booked_count) + 1, newRemaining)
+  }
+
   const handleBook = async () => {
     if (!session || !selectedPackageId || !userId) return
     // Revalidate at click time — the user may have left the page open
     if (new Date(session.start_time).getTime() <= Date.now()) { setIsPast(true); return }
     setStatus('loading')
     try {
-      const { error } = await supabase.from('bookings').insert({
-        session_id: session.id,
-        client_id: userId,
-        client_package_id: selectedPackageId,
-        status: 'confirmed',
+      // ⚛️ Atomic booking: all checks + writes (capacity, duplicate,
+      // package validity, insert, counter, decrement) happen inside the
+      // database in ONE locked transaction — overbooking is impossible.
+      // See supabase/migrations/20260720_atomic_booking.sql
+      const { data, error } = await supabase.rpc('book_class', {
+        p_session_id: session.id,
+        p_package_id: selectedPackageId,
       })
-      if (error) throw error
 
-      // Update booked_count + decrement sessions_remaining
-      await supabase.from('class_sessions')
-        .update({ booked_count: session.booked_count + 1 })
-        .eq('id', session.id)
-
-      const pkg = myPackages.find(p => p.id === selectedPackageId)
-      if (pkg) {
-        const newRemaining = pkg.sessions_remaining - 1
-        await supabase.from('client_packages')
-          .update({ sessions_remaining: newRemaining })
-          .eq('id', selectedPackageId)
-
-        // Low balance notification — last session remaining
-        if (newRemaining === 1) {
-          fetch('/api/push/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              client_id: userId,
-              title: '⚠️ Last Session!',
-              body: 'You have 1 session left in your package. Tap to renew before it runs out!',
-              type: 'low_balance',
-            }),
-          }).catch(() => {})
-        }
+      if (error) {
+        // Function not deployed yet → keep the app working with the old flow
+        if ((error as any).code === 'PGRST202') { await legacyBook(); return }
+        throw error
       }
 
-      playSingingBowl(0.5)
-      setStatus('success')
+      const result = (data ?? {}) as {
+        status?: string
+        booked_count?: number
+        spots_left?: number
+        sessions_remaining?: number
+      }
 
-      // Notify Enjy about the new booking (best-effort)
-      supabase.auth.getSession().then(({ data: { session: authSession } }) => {
-        if (authSession?.access_token) {
-          fetch("/api/push/notify-admins", {
-            method: "POST",
-            keepalive: true,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authSession.access_token}`,
-            },
-            body: JSON.stringify({
-              kind: "booking",
-              class_name: (session!.class_type as any)?.name || null,
-              class_date:
-                new Date(session!.start_time).toLocaleDateString("en-US", {
-                  weekday: "short", month: "short", day: "numeric",
-                }) + " at " +
-                new Date(session!.start_time).toLocaleTimeString("en-US", {
-                  hour: "numeric", minute: "2-digit", hour12: true,
-                }),
-            }),
-          }).catch(() => {})
-        }
-      }).catch(() => {})
+      switch (result.status) {
+        case 'success':
+          finishBookingSuccess(result.booked_count ?? null, result.sessions_remaining ?? null)
+          return
+        case 'full':
+          // Filled up while the page was open → show the Join Waitlist UI
+          setSession({ ...session, booked_count: result.booked_count ?? session.max_capacity })
+          setSpotsLeft(0)
+          setStatus('idle')
+          return
+        case 'already_booked':
+          setStatus('already_booked')
+          return
+        case 'past':
+        case 'not_found':
+          setIsPast(true)
+          setStatus('idle')
+          return
+        case 'no_package':
+          // Package expired/emptied since page load → show the package prompt
+          setMyPackages([])
+          setStatus('idle')
+          return
+        default:
+          setStatus('error')
+          return
+      }
     } catch {
       setStatus('error')
     }
