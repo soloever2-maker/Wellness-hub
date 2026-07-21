@@ -817,7 +817,18 @@ export default function ProfilePage() {
                 )}
 
                 <button
-                  onClick={() => setWelcomeStep(biometricSupported ? 'biometric' : 'intro')}
+                  onClick={() => {
+                    if (biometricSupported) {
+                      setWelcomeStep('biometric')
+                    } else {
+                      // Finish: close the welcome flow and go home
+                      // (previously returned to 'intro', causing an infinite
+                      //  "Let's Set Up" loop on devices without biometrics)
+                      setShowWelcome(false)
+                      playSingingBowl(0.3)
+                      router.replace('/')
+                    }
+                  }}
                   className="w-full py-3 border border-border rounded-2xl text-sm font-medium text-foreground hover:bg-muted/30 transition-colors"
                 >
                   {biometricSupported ? 'Next →' : 'Finish'}
