@@ -58,6 +58,8 @@ export default function ProfilePage() {
 
     // Show welcome modal on first login
     if (searchParams.get('welcome') === 'true') {
+      // Clean the query-param so a revisit never re-triggers the modal
+      window.history.replaceState(null, '', '/profile')
       setTimeout(() => setShowWelcome(true), 600)
     }
 
@@ -770,7 +772,7 @@ export default function ProfilePage() {
                 >
                   Let&apos;s Set Up →
                 </button>
-                <button onClick={() => { setShowWelcome(false); router.replace('/') }}
+                <button onClick={() => setShowWelcome(false)}
                   className="w-full py-2 text-sm text-muted-foreground mt-2">
                   Skip for now
                 </button>
@@ -821,24 +823,15 @@ export default function ProfilePage() {
                     if (biometricSupported) {
                       setWelcomeStep('biometric')
                     } else {
-                      // Finish: close the welcome flow and go home
-                      // (previously returned to 'intro', causing an infinite
-                      //  "Let's Set Up" loop on devices without biometrics)
+                      // Finish: close the welcome flow, stay on Profile
                       setShowWelcome(false)
                       playSingingBowl(0.3)
-                      router.replace('/')
                     }
                   }}
                   className="w-full py-3 border border-border rounded-2xl text-sm font-medium text-foreground hover:bg-muted/30 transition-colors"
                 >
                   {biometricSupported ? 'Next →' : 'Finish'}
                 </button>
-                {!biometricSupported && (
-                  <button onClick={() => { setShowWelcome(false); router.replace('/') }}
-                    className="w-full py-2 text-sm text-muted-foreground mt-1">
-                    Go to Home
-                  </button>
-                )}
               </div>
             )}
 
@@ -870,10 +863,10 @@ export default function ProfilePage() {
                 )}
 
                 <button
-                  onClick={() => { setShowWelcome(false); playSingingBowl(0.3); router.replace('/') }}
+                  onClick={() => { setShowWelcome(false); playSingingBowl(0.3) }}
                   className="w-full py-3 bg-[#006D77] text-white font-bold rounded-2xl hover:bg-[#004E5C] transition-colors"
                 >
-                  🧘‍♀️ Start Booking Classes
+                  ✨ All Set!
                 </button>
               </div>
             )}
