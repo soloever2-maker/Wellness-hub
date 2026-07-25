@@ -71,6 +71,20 @@ export async function registerUser(
   // linkError is non-fatal (e.g. no pre-existing row) — user stays pending
   if (linkError) console.warn('auth_id link skipped:', linkError.message)
 
+  // Normal signup path: the DB trigger creates the users row with
+  // auth_id ALREADY set, so the pre-created-row update above skips it —
+  // and the trigger doesn't copy date_of_birth from the metadata.
+  // Write it explicitly (must run BEFORE signOut, while a session exists)
+  // so new members are never asked for their birth date a second time.
+  if (dateOfBirth) {
+    const { error: dobError } = await supabase
+      .from('users')
+      .update({ date_of_birth: dateOfBirth })
+      .eq('auth_id', authData.user.id)
+      .is('date_of_birth', null)
+    if (dobError) console.warn('dob write skipped:', dobError.message)
+  }
+
   // Notify Enjy about the new access request (best-effort)
   try {
     const token = authData.session?.access_token
