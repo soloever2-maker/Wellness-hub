@@ -5,6 +5,7 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle2, Clock, Fingerprint,
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { loginUser, registerUser } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 import { LoginSplash } from '@/components/login-splash'
 import { playSingingBowl } from '@/lib/sounds'
 import {
@@ -241,9 +242,20 @@ export default function LoginPage() {
       if (user.role === 'admin') {
         setSplashRedirect('/select-role')
       } else {
-        const welcomed = localStorage.getItem(`welcomed_${user.id}`)
-        if (!welcomed) { localStorage.setItem(`welcomed_${user.id}`, 'true'); setSplashRedirect('/profile?welcome=true') }
-        else setSplashRedirect('/')
+        // DB-backed welcome flag: survives app reinstalls (localStorage is
+        // wiped when the app is deleted, which made the welcome modal
+        // reappear for App Review). localStorage kept as a fast local cache.
+        const welcomedLocal = localStorage.getItem(`welcomed_${user.id}`)
+        const welcomedDb = ((user as any).preferences as Record<string, boolean> | null)?.welcomed === true
+        if (!welcomedLocal && !welcomedDb) {
+          localStorage.setItem(`welcomed_${user.id}`, 'true')
+          const prefs = { ...(((user as any).preferences as Record<string, unknown>) || {}), welcomed: true }
+          supabase.from('users').update({ preferences: prefs }).eq('id', user.id).then(() => {}, () => {})
+          setSplashRedirect('/profile?welcome=true')
+        } else {
+          if (!welcomedLocal) localStorage.setItem(`welcomed_${user.id}`, 'true')
+          setSplashRedirect('/')
+        }
       }
       setShowSplash(true)
     } catch (err: unknown) {
@@ -265,9 +277,20 @@ export default function LoginPage() {
       if (user.role === 'admin') {
         setSplashRedirect('/select-role')
       } else {
-        const welcomed = localStorage.getItem(`welcomed_${user.id}`)
-        if (!welcomed) { localStorage.setItem(`welcomed_${user.id}`, 'true'); setSplashRedirect('/profile?welcome=true') }
-        else setSplashRedirect('/')
+        // DB-backed welcome flag: survives app reinstalls (localStorage is
+        // wiped when the app is deleted, which made the welcome modal
+        // reappear for App Review). localStorage kept as a fast local cache.
+        const welcomedLocal = localStorage.getItem(`welcomed_${user.id}`)
+        const welcomedDb = ((user as any).preferences as Record<string, boolean> | null)?.welcomed === true
+        if (!welcomedLocal && !welcomedDb) {
+          localStorage.setItem(`welcomed_${user.id}`, 'true')
+          const prefs = { ...(((user as any).preferences as Record<string, unknown>) || {}), welcomed: true }
+          supabase.from('users').update({ preferences: prefs }).eq('id', user.id).then(() => {}, () => {})
+          setSplashRedirect('/profile?welcome=true')
+        } else {
+          if (!welcomedLocal) localStorage.setItem(`welcomed_${user.id}`, 'true')
+          setSplashRedirect('/')
+        }
       }
       setShowSplash(true)
     } catch (err: unknown) {
