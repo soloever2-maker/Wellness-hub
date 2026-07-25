@@ -107,6 +107,57 @@ function FloatingParticles() {
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none z-0" />
 }
 
+// ── iOS-friendly Date-of-Birth picker ──
+// Native <input type="date"> on iOS shows an empty box (no placeholder
+// support) and its wheel starts at today's date, forcing users to scroll
+// back decades. Three dropdowns are unambiguous on every device.
+const DOB_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function DobSelect({ value, onChange, className = '' }: {
+  value: string            // 'YYYY-MM-DD' or ''
+  onChange: (v: string) => void
+  className?: string
+}) {
+  const [y, m, d] = value ? value.split('-') : ['', '', '']
+  const now = new Date().getFullYear()
+  const years = Array.from({ length: 90 }, (_, i) => String(now - 13 - i)) // 13..103 y/o
+  const daysIn = (yy: string, mm: string) =>
+    yy && mm ? new Date(Number(yy), Number(mm), 0).getDate() : 31
+  const days = Array.from({ length: daysIn(y, m) }, (_, i) => String(i + 1).padStart(2, '0'))
+
+  const emit = (yy: string, mm: string, dd: string) => {
+    if (yy && mm && dd) {
+      // Clamp day if month/year change shrinks the month (e.g. 31 → Feb)
+      const maxD = daysIn(yy, mm)
+      const safeD = Math.min(Number(dd), maxD)
+      onChange(`${yy}-${mm}-${String(safeD).padStart(2, '0')}`)
+    } else {
+      onChange('')
+    }
+  }
+
+  const base = 'bg-background border border-border rounded-xl px-2 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77] text-foreground'
+  return (
+    <div className={`grid grid-cols-3 gap-2 ${className}`}>
+      <select required value={d} onChange={e => emit(y, m, e.target.value)} className={base} aria-label="Day">
+        <option value="" disabled>Day</option>
+        {days.map(dd => <option key={dd} value={dd}>{Number(dd)}</option>)}
+      </select>
+      <select required value={m} onChange={e => emit(y, e.target.value, d)} className={base} aria-label="Month">
+        <option value="" disabled>Month</option>
+        {DOB_MONTHS.map((name, i) => {
+          const mm = String(i + 1).padStart(2, '0')
+          return <option key={mm} value={mm}>{name}</option>
+        })}
+      </select>
+      <select required value={y} onChange={e => emit(e.target.value, m, d)} className={base} aria-label="Year">
+        <option value="" disabled>Year</option>
+        {years.map(yy => <option key={yy} value={yy}>{yy}</option>)}
+      </select>
+    </div>
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('login')
@@ -474,9 +525,8 @@ export default function LoginPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Date of Birth</label>
-                          <input type="date" required value={forgotForm.dateOfBirth}
-                            onChange={e => { setForgotForm({ ...forgotForm, dateOfBirth: e.target.value }); setForgotError('') }}
-                            className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]" />
+                          <DobSelect value={forgotForm.dateOfBirth}
+                            onChange={v => { setForgotForm({ ...forgotForm, dateOfBirth: v }); setForgotError('') }} />
                         </div>
                         <div>
                           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Client ID</label>
@@ -552,13 +602,8 @@ export default function LoginPage() {
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                       Date of Birth <span className="text-[#E53935]">*</span>
                     </label>
-                    <div className="relative">
-                      <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input type="date" required value={form.dateOfBirth}
-                        onChange={e => setForm({ ...form, dateOfBirth: e.target.value })}
-                        max={new Date().toISOString().split('T')[0]}
-                        className="w-full bg-background border border-border rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77] text-foreground" />
-                    </div>
+                    <DobSelect value={form.dateOfBirth}
+                      onChange={v => setForm({ ...form, dateOfBirth: v })} />
                   </div>
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
