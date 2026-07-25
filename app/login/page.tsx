@@ -118,7 +118,14 @@ function DobSelect({ value, onChange, className = '' }: {
   onChange: (v: string) => void
   className?: string
 }) {
-  const [y, m, d] = value ? value.split('-') : ['', '', '']
+  // Internal state holds PARTIAL picks (e.g. day chosen, year not yet).
+  // Deriving the three selects only from `value` erased every partial
+  // pick, because onChange('') fired until all three were set at once.
+  const [vy, vm, vd] = value ? value.split('-') : ['', '', '']
+  const [y, setY] = useState(vy)
+  const [m, setM] = useState(vm)
+  const [d, setD] = useState(vd)
+
   const now = new Date().getFullYear()
   const years = Array.from({ length: 90 }, (_, i) => String(now - 13 - i)) // 13..103 y/o
   const daysIn = (yy: string, mm: string) =>
@@ -126,11 +133,13 @@ function DobSelect({ value, onChange, className = '' }: {
   const days = Array.from({ length: daysIn(y, m) }, (_, i) => String(i + 1).padStart(2, '0'))
 
   const emit = (yy: string, mm: string, dd: string) => {
+    setY(yy); setM(mm); setD(dd)
     if (yy && mm && dd) {
       // Clamp day if month/year change shrinks the month (e.g. 31 → Feb)
       const maxD = daysIn(yy, mm)
-      const safeD = Math.min(Number(dd), maxD)
-      onChange(`${yy}-${mm}-${String(safeD).padStart(2, '0')}`)
+      const safeD = String(Math.min(Number(dd), maxD)).padStart(2, '0')
+      if (safeD !== dd) setD(safeD)
+      onChange(`${yy}-${mm}-${safeD}`)
     } else {
       onChange('')
     }
