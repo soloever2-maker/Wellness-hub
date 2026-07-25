@@ -17,6 +17,7 @@ import {
   getSavedEmail,
 } from '@/lib/biometric'
 import { ChangePasswordRow } from '@/components/change-password-row'
+import { DobSelect } from '@/components/dob-select'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -306,12 +307,9 @@ export default function ProfilePage() {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">
                   Date of Birth <span className="text-[#E53935]">*</span>
                 </label>
-                <input
-                  type="date"
+                <DobSelect
                   value={editForm.dateOfBirth}
-                  onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
+                  onChange={(v) => setEditForm({ ...editForm, dateOfBirth: v })}
                 />
               </div>
               <div>
