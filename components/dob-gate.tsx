@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, Loader2, ShieldCheck } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { DobSelect } from '@/components/dob-select'
 
 const SKIP_ROUTES = ['/login', '/privacy']
 
@@ -106,6 +107,10 @@ export function DobGate() {
 
     checkedAuthId.current = session.user.id
     setShow(false)
+    // Reload so any already-mounted page (e.g. Profile with its
+    // "Complete Your Profile" banner) picks up the new date — their
+    // state was fetched before the save and would stay stale.
+    if (typeof window !== 'undefined') window.location.reload()
   }
 
   if (!show) return null
@@ -126,13 +131,7 @@ export function DobGate() {
 
         <div className="mb-4">
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Date of Birth</label>
-          <input
-            type="date"
-            value={dob}
-            max={new Date().toISOString().slice(0, 10)}
-            onChange={e => { setDob(e.target.value); setError('') }}
-            className="w-full bg-background border border-border rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#006D77]/30 focus:border-[#006D77]"
-          />
+          <DobSelect value={dob} onChange={v => { setDob(v); setError('') }} />
         </div>
 
         {dob && !error && (
