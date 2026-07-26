@@ -57,18 +57,6 @@ export default function ProfilePage() {
       if (supported) isPushEnabled().then(setPushEnabled)
     })
 
-    // Show welcome modal on first login.
-    // NOTE: no history.replaceState here — the Next router intercepts
-    // native History API calls and re-renders the page, which unmounted
-    // this component before the 600ms timer fired, so the modal never
-    // appeared. A sessionStorage guard handles repeat visits instead
-    // (the DB-backed `welcomed` flag already stops the login page from
-    // ever redirecting here again).
-    if (searchParams.get('welcome') === 'true' && !sessionStorage.getItem('welcome_modal_shown')) {
-      sessionStorage.setItem('welcome_modal_shown', '1')
-      setTimeout(() => setShowWelcome(true), 600)
-    }
-
     const fetchUser = async () => {
       try {
         const user = await getCurrentUser()
@@ -87,6 +75,23 @@ export default function ProfilePage() {
         setProfile(userData)
         setEditForm(userData)
         if ((user as any).avatar_url) setAvatarUrl((user as any).avatar_url)
+
+        // ── First-visit welcome ──
+        // The DB is the single source of truth: show the modal iff the
+        // client has never seen it, and mark it seen AT THE MOMENT it is
+        // actually shown (not in the login page before it renders — that
+        // burned the flag whenever rendering failed, making the modal
+        // impossible to ever see again for that account).
+        const prefs = ((user as any).preferences as Record<string, unknown> | null) || {}
+        if ((user as any).role === 'client' && user.status === 'approved' && prefs.welcomed !== true) {
+          setTimeout(() => {
+            setShowWelcome(true)
+            supabase.from('users')
+              .update({ preferences: { ...prefs, welcomed: true } })
+              .eq('id', user.id)
+              .then(() => {}, () => {})
+          }, 600)
+        }
 
         // Load saved reminder preferences
         if (user.preferences) {
