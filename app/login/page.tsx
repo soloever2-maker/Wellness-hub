@@ -243,20 +243,11 @@ export default function LoginPage() {
       if (user.role === 'admin') {
         setSplashRedirect('/select-role')
       } else {
-        // DB-backed welcome flag: survives app reinstalls (localStorage is
-        // wiped when the app is deleted, which made the welcome modal
-        // reappear for App Review). localStorage kept as a fast local cache.
-        const welcomedLocal = localStorage.getItem(`welcomed_${user.id}`)
+        // First login → land on Profile (it shows the welcome modal and
+        // marks it seen). Routing only — the Profile page owns the flag,
+        // so a failed render can never burn it.
         const welcomedDb = ((user as any).preferences as Record<string, boolean> | null)?.welcomed === true
-        if (!welcomedLocal && !welcomedDb) {
-          localStorage.setItem(`welcomed_${user.id}`, 'true')
-          const prefs = { ...(((user as any).preferences as Record<string, unknown>) || {}), welcomed: true }
-          supabase.from('users').update({ preferences: prefs }).eq('id', user.id).then(() => {}, () => {})
-          setSplashRedirect('/profile?welcome=true')
-        } else {
-          if (!welcomedLocal) localStorage.setItem(`welcomed_${user.id}`, 'true')
-          setSplashRedirect('/')
-        }
+        setSplashRedirect(welcomedDb ? '/' : '/profile')
       }
       setShowSplash(true)
     } catch (err: unknown) {
@@ -278,20 +269,11 @@ export default function LoginPage() {
       if (user.role === 'admin') {
         setSplashRedirect('/select-role')
       } else {
-        // DB-backed welcome flag: survives app reinstalls (localStorage is
-        // wiped when the app is deleted, which made the welcome modal
-        // reappear for App Review). localStorage kept as a fast local cache.
-        const welcomedLocal = localStorage.getItem(`welcomed_${user.id}`)
+        // First login → land on Profile (it shows the welcome modal and
+        // marks it seen). Routing only — the Profile page owns the flag,
+        // so a failed render can never burn it.
         const welcomedDb = ((user as any).preferences as Record<string, boolean> | null)?.welcomed === true
-        if (!welcomedLocal && !welcomedDb) {
-          localStorage.setItem(`welcomed_${user.id}`, 'true')
-          const prefs = { ...(((user as any).preferences as Record<string, unknown>) || {}), welcomed: true }
-          supabase.from('users').update({ preferences: prefs }).eq('id', user.id).then(() => {}, () => {})
-          setSplashRedirect('/profile?welcome=true')
-        } else {
-          if (!welcomedLocal) localStorage.setItem(`welcomed_${user.id}`, 'true')
-          setSplashRedirect('/')
-        }
+        setSplashRedirect(welcomedDb ? '/' : '/profile')
       }
       setShowSplash(true)
     } catch (err: unknown) {
