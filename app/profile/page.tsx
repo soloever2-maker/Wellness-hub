@@ -57,10 +57,15 @@ export default function ProfilePage() {
       if (supported) isPushEnabled().then(setPushEnabled)
     })
 
-    // Show welcome modal on first login
-    if (searchParams.get('welcome') === 'true') {
-      // Clean the query-param so a revisit never re-triggers the modal
-      window.history.replaceState(null, '', '/profile')
+    // Show welcome modal on first login.
+    // NOTE: no history.replaceState here — the Next router intercepts
+    // native History API calls and re-renders the page, which unmounted
+    // this component before the 600ms timer fired, so the modal never
+    // appeared. A sessionStorage guard handles repeat visits instead
+    // (the DB-backed `welcomed` flag already stops the login page from
+    // ever redirecting here again).
+    if (searchParams.get('welcome') === 'true' && !sessionStorage.getItem('welcome_modal_shown')) {
+      sessionStorage.setItem('welcome_modal_shown', '1')
       setTimeout(() => setShowWelcome(true), 600)
     }
 
