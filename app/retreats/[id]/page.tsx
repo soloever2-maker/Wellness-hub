@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { MapPin, Calendar, Users, ArrowLeft, CheckCircle, Loader2, Share2 } from 'lucide-react'
@@ -45,8 +44,20 @@ export default function RetreatPage() {
         setLoading(false)
       })
 
-    // Optional: check if logged in
-    getCurrentUser().then(u => { if (u) { setUserId(u.id); setUserName((u as any).full_name || '') } })
+    // Optional: check if logged in — and whether they already registered
+    // interest, so the button reflects that instead of letting them re-tap.
+    getCurrentUser().then(async u => {
+      if (!u) return
+      setUserId(u.id)
+      setUserName((u as any).full_name || '')
+      const { data: existing } = await supabase
+        .from('retreat_interests')
+        .select('id')
+        .eq('retreat_id', id)
+        .eq('client_id', u.id)
+        .maybeSingle()
+      if (existing) setInterest('done')
+    })
   }, [id])
 
   const handleInterest = async () => {
@@ -113,14 +124,18 @@ export default function RetreatPage() {
 
   return (
     <main className="bg-background min-h-screen pb-10">
-      {/* Hero */}
-      <div className="relative h-64 w-full overflow-hidden">
+      {/* Hero — full image, no cropping */}
+      <div className="relative w-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #006D77 0%, #004E5C 100%)' }}>
         {retreat.cover_image ? (
-          <Image src={retreat.cover_image} alt={retreat.title} fill className="object-cover" sizes="100vw" priority />
+          <img
+            src={retreat.cover_image}
+            alt={retreat.title}
+            className="w-full max-h-[70vh] object-contain"
+          />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-[#006D77] to-[#004E5C]" />
+          <div className="w-full h-64" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/40 to-transparent pointer-events-none" />
 
         {/* Back */}
         <button
