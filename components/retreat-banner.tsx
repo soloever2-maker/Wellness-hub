@@ -4,7 +4,7 @@
 // Home-page banner that surfaces the latest PUBLISHED retreat.
 // Renders nothing when there is no published retreat, so it is
 // safe to always mount on the home screen.
-//   → components/retreat-banner.tsx  (new file)
+//   → components/retreat-banner.tsx
 // ============================================================
 
 import { useEffect, useState } from 'react'
@@ -44,44 +44,49 @@ export function RetreatBanner() {
   return (
     <Link
       href={`/retreats/${retreat.id}`}
-      className="block relative overflow-hidden rounded-2xl shadow-lg active:scale-[0.98] transition-transform"
+      className="block overflow-hidden rounded-2xl shadow-lg active:scale-[0.98] transition-transform bg-white border border-border"
     >
-      {/* Background */}
-      {retreat.cover_image ? (
-        <img
-          src={retreat.cover_image}
-          alt={retreat.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #006D77 0%, #B8612A 100%)' }} />
-      )}
-      {/* Dark overlay for text legibility */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
+      {/* Full image — shown complete, not cropped */}
+      <div className="w-full bg-gradient-to-br from-[#006D77] to-[#B8612A] flex items-center justify-center">
+        {retreat.cover_image ? (
+          <img
+            src={retreat.cover_image}
+            alt={retreat.title}
+            className="w-full max-h-56 object-contain"
+          />
+        ) : (
+          <div className="w-full h-40 flex items-center justify-center">
+            <Sparkles className="w-10 h-10 text-white/80" />
+          </div>
+        )}
+      </div>
 
-      <div className="relative p-4 min-h-[128px] flex flex-col justify-between">
-        <div className="flex items-center gap-1.5 self-start bg-white/20 backdrop-blur-sm px-2.5 py-1 rounded-full">
-          <Sparkles className="w-3.5 h-3.5 text-white" />
-          <span className="text-[11px] font-bold text-white tracking-wide uppercase">New Retreat</span>
-        </div>
-
-        <div>
-          <h3 className="text-lg font-bold text-white leading-tight mb-1">{retreat.title}</h3>
-          <div className="flex items-center gap-3 text-white/90 text-xs">
-            {retreat.location && (
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5" /> {retreat.location}
-              </span>
-            )}
-            {dateLabel && (
-              <span className="flex items-center gap-1">
-                <CalendarDays className="w-3.5 h-3.5" /> {dateLabel}
-              </span>
-            )}
+      {/* Info bar under the image */}
+      <div className="p-4">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="flex items-center gap-1 bg-[#B8612A]/10 text-[#B8612A] px-2 py-0.5 rounded-full">
+            <Sparkles className="w-3 h-3" />
+            <span className="text-[10px] font-bold tracking-wide uppercase">New Retreat</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 self-end text-white text-sm font-semibold">
+        <h3 className="text-base font-bold text-foreground leading-tight mb-1.5">{retreat.title}</h3>
+
+        <div className="flex items-center gap-3 text-muted-foreground text-xs mb-3">
+          {retreat.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" /> {retreat.location}
+            </span>
+          )}
+          {dateLabel && (
+            <span className="flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5" /> {dateLabel}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-white text-sm font-semibold"
+          style={{ background: 'linear-gradient(135deg, #006D77 0%, #004E5C 100%)' }}>
           View details <ArrowRight className="w-4 h-4" />
         </div>
       </div>
