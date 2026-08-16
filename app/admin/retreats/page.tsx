@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Plus, MapPin, Calendar, Users, Edit2, Trash2,
   Globe, EyeOff, Loader2, Copy, CheckCircle, Bell, ChevronLeft, X, Check,
-  Camera, Image as ImageIcon,
+  Camera, Image as ImageIcon, Heart,
 } from 'lucide-react'
 import { AdminBottomNav } from '@/components/admin-bottom-nav'
 import { ConfirmModal } from '@/components/confirm-modal'
@@ -57,6 +57,10 @@ export default function AdminRetreatsPage() {
   const [copiedId,     setCopiedId]     = useState<string | null>(null)
   const [notifyDone,   setNotifyDone]   = useState<string | null>(null)
   const [uploadingCover, setUploadingCover] = useState(false)
+  // Interested-clients viewer
+  const [interestsFor, setInterestsFor] = useState<string | null>(null)
+  const [interestsList, setInterestsList] = useState<{ name: string; phone: string; when: string }[]>([])
+  const [interestsLoading, setInterestsLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -191,6 +195,24 @@ export default function AdminRetreatsPage() {
     }
   }
 
+  const openInterests = async (retreatId: string) => {
+    setInterestsFor(retreatId)
+    setInterestsLoading(true)
+    setInterestsList([])
+    const { data } = await supabase
+      .from('retreat_interests')
+      .select('created_at, users:client_id ( full_name, phone )')
+      .eq('retreat_id', retreatId)
+      .order('created_at', { ascending: false })
+    const list = (data || []).map((row: any) => ({
+      name: row.users?.full_name || 'Unknown',
+      phone: row.users?.phone || '',
+      when: new Date(row.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    }))
+    setInterestsList(list)
+    setInterestsLoading(false)
+  }
+
   const copyLink = async (id: string) => {
     const url = `${window.location.origin}/retreats/${id}`
     await navigator.clipboard.writeText(url)
@@ -300,12 +322,64 @@ export default function AdminRetreatsPage() {
                       : <><Bell className="w-3.5 h-3.5" /> Notify All</>
                     }
                   </button>
+
+                  {/* Interested clients */}
+                  <button
+                    onClick={() => openInterests(r.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-[#B8612A]/10 border border-[#B8612A]/20 rounded-xl text-xs font-medium text-[#B8612A] active:scale-[0.97] transition-all"
+                  >
+                    <Heart className="w-3.5 h-3.5" /> Interested
+                  </button>
                 </div>
               )}
             </div>
           ))
         )}
       </div>
+
+      {/* Interested Clients Modal */}
+      {interestsFor && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => setInterestsFor(null)}>
+          <div className="bg-background w-full rounded-t-3xl max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-background border-b border-border px-4 py-4 flex items-center justify-between rounded-t-3xl">
+              <div className="flex items-center gap-2">
+                <Heart className="w-5 h-5 text-[#B8612A]" />
+                <h2 className="font-bold text-foreground">Interested ({interestsList.length})</h2>
+              </div>
+              <button onClick={() => setInterestsFor(null)} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4">
+              {interestsLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[#006D77]" /></div>
+              ) : interestsList.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-8">No one has shown interest yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {interestsList.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between bg-white border border-border rounded-xl px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{it.name}</p>
+                        <p className="text-xs text-muted-foreground">{it.phone}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">{it.when}</span>
+                        {it.phone && (
+                          <a href={`https://wa.me/${it.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer"
+                            className="px-2.5 py-1 bg-[#25D366]/10 text-[#128C7E] rounded-lg text-[11px] font-medium">
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Form Sheet */}
       {showForm && (
