@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const firstName = sender?.full_name?.split(' ')[0] || 'A client'
 
     // 2) Build the message
-    const { kind, rating, class_type, package_name, class_name, class_date } = await request.json()
+    const { kind, rating, class_type, package_name, class_name, class_date, retreat_title } = await request.json()
     let title = '💬 New feedback'
     let body = `${firstName} shared feedback with you`
     let url = '/admin/feedback'
@@ -69,6 +69,10 @@ export async function POST(request: Request) {
       title = '📅 New Booking'
       body = `${firstName} booked a spot in ${class_name || 'a class'}${class_date ? ` — ${class_date}` : ''}`
       url = '/admin/attendance'
+    } else if (kind === 'retreat_interest') {
+      title = '🌴 New Retreat Interest'
+      body = `${firstName} is interested in ${retreat_title || 'a retreat'}`
+      url = '/admin/retreats'
     }
 
     // 3) Find all approved admins
@@ -87,6 +91,7 @@ export async function POST(request: Request) {
       kind === 'unfreeze'          ? 'package_freeze'  :
       kind === 'package_purchase'  ? 'purchase_request':
       kind === 'booking'           ? 'booking'         :
+      kind === 'retreat_interest'  ? 'retreat_interest':
       'feedback'
 
     let sent = 0
