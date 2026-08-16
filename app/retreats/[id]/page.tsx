@@ -28,6 +28,7 @@ export default function RetreatPage() {
   const [retreat,   setRetreat]   = useState<Retreat | null>(null)
   const [loading,   setLoading]   = useState(true)
   const [userId,    setUserId]    = useState<string | null>(null)
+  const [userName,  setUserName]  = useState<string>('')
   const [interest,  setInterest]  = useState<'idle' | 'loading' | 'done'>('idle')
   const [copied,    setCopied]    = useState(false)
 
@@ -45,16 +46,37 @@ export default function RetreatPage() {
       })
 
     // Optional: check if logged in
-    getCurrentUser().then(u => { if (u) setUserId(u.id) })
+    getCurrentUser().then(u => { if (u) { setUserId(u.id); setUserName((u as any).full_name || '') } })
   }, [id])
 
   const handleInterest = async () => {
     if (!userId) { router.push('/login?redirect=/retreats/' + id); return }
     setInterest('loading')
-    await supabase.from('retreat_interests').upsert({
+    const { error } = await supabase.from('retreat_interests').upsert({
       retreat_id: id, client_id: userId
     }, { onConflict: 'retreat_id,client_id' })
     setInterest('done')
+
+    // Notify admin — best-effort, never blocks the interest itself
+    if (!error) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+          fetch('/api/push/notify-admins', {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              kind: 'retreat_interest',
+              retreat_title: retreat?.title || 'a retreat',
+            }),
+          }).catch(() => {})
+        }
+      } catch { /* non-blocking */ }
+    }
   }
 
   const handleShare = async () => {
