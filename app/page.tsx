@@ -3,6 +3,7 @@ import { PrepareBanner } from '@/components/prepare-banner'
 import { ReviewPromptBanner } from '@/components/review-prompt-banner'
 import { NextBookingCard } from '@/components/next-booking-card'
 import { PackageCard } from '@/components/package-card'
+import { RetreatBanner } from '@/components/retreat-banner'
 import { TodaysClasses } from '@/components/todays-classes'
 import { ThisWeekSection } from '@/components/this-week-section'
 import { QuickActions } from '@/components/quick-actions'
@@ -19,6 +20,7 @@ export default function Page() {
         <ReviewPromptBanner />
         <NextBookingCard />
         <PackageCard />
+        <RetreatBanner />
         <QuickActions />
         <TodaysClasses />
         <ThisWeekSection />
