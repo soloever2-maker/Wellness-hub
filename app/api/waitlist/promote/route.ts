@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { sendApnsToClient } from '@/lib/apns'
+import { sendFcmToClient } from '@/lib/fcm'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,13 +104,18 @@ export async function POST(request: Request) {
         }
       }
 
-      // ── Native iOS (APNs) ─────────────────────────────────────
+      // ── Native iOS (APNs) + Android (FCM) ─────────────────────
       const okIos = await sendApnsToClient(supabase, waitlisted.client_id, {
         title,
         body,
         data: { type: 'waitlist_promoted', url: '/schedule' },
       })
-      if (okIos) sent = true
+      const okAndroid = await sendFcmToClient(supabase, waitlisted.client_id, {
+        title,
+        body,
+        data: { type: 'waitlist_promoted', url: '/schedule' },
+      })
+      if (okIos || okAndroid) sent = true
 
       // Log — status reflects whether push actually landed
       await supabase.from('notification_log').insert({

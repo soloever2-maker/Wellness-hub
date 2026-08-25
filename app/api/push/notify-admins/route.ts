@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { sendApnsToClient } from '@/lib/apns'
+import { sendFcmToClient } from '@/lib/fcm'
 
 // ── Notify admins (push) when a client submits a review,
 //    suggestion, feedback, signup, freeze, package purchase, or booking ──────
@@ -121,12 +122,16 @@ export async function POST(request: Request) {
         }
       }
 
-      // Native iOS (APNs)
-      const ok = await sendApnsToClient(supabase, admin.id, {
+      // Native iOS (APNs) + Android (FCM)
+      const okIos = await sendApnsToClient(supabase, admin.id, {
         title, body,
         data: { type: 'admin_feedback', url },
       })
-      if (ok) sent++
+      const okAndroid = await sendFcmToClient(supabase, admin.id, {
+        title, body,
+        data: { type: 'admin_feedback', url },
+      })
+      if (okIos || okAndroid) sent++
 
       // Log in admin's Notifications page
       await supabase.from('notification_log').insert({

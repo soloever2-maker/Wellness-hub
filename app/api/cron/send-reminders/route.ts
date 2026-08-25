@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { sendApnsToClient } from '@/lib/apns'
+import { sendFcmToClient } from '@/lib/fcm'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -136,7 +137,14 @@ export async function GET(request: Request) {
         data: payload.data,
       })
 
-      const ok = okWeb || okIos
+      // Also deliver to Android app devices via FCM (no-op until FCM_* env var exists)
+      const okAndroid = await sendFcmToClient(supabase, booking.client_id, {
+        title: payload.title,
+        body: payload.body,
+        data: payload.data,
+      })
+
+      const ok = okWeb || okIos || okAndroid
 
       if (ok) {
         await supabase.from('notification_log').insert({

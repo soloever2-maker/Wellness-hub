@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { sendApnsBroadcast } from '@/lib/apns'
+import { sendFcmBroadcast } from '@/lib/fcm'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,6 +66,15 @@ export async function POST(request: Request) {
     sent += apns.sent
     errors.push(...apns.errors)
 
+    // ── 3. Native FCM (Android app) ────────────────────────────
+    const fcm = await sendFcmBroadcast(supabase, clientIds, {
+      title: finalTitle,
+      body,
+      data: { type: 'broadcast', url: '/notifications' },
+    })
+    sent += fcm.sent
+    errors.push(...fcm.errors)
+
     // Log the announcement for EVERY selected client — this is what the
     // in-app Notifications page reads. Clients without push enabled still
     // see the message there.
@@ -81,7 +91,7 @@ export async function POST(request: Request) {
     )
     if (logError) errors.push(`log:${logError.message}`)
 
-    const total = (subs?.length || 0) + apns.total
+    const total = (subs?.length || 0) + apns.total + fcm.total
 
     return NextResponse.json({ sent, total, errors })
   } catch (err: any) {

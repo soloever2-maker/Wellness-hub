@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webPush from 'web-push'
 import { sendToToken } from '@/lib/apns'
+import { sendToToken as sendFcm } from '@/lib/fcm'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,27 +40,30 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 2. Native APNs (iOS app) — sends directly and reports Apple's
-    // literal response per device so failures are never silent.
+    // ── 2. Native tokens (iOS → APNs, Android → FCM) ───────────
     const { data: tokens } = await supabase
       .from('device_tokens')
-      .select('token')
+      .select('token, platform')
       .eq('client_id', client_id)
 
-    const apnsResults: { token_start: string; status: number; reason?: string }[] = []
+    const apnsResults: { token_start: string; platform: string; status: number; reason?: string }[] = []
     for (const row of tokens || []) {
-      const result = await sendToToken(row.token, {
-        title,
-        body,
-        data: { type, url: url || '/notifications' },
-      })
-      apnsResults.push({ token_start: row.token.slice(0, 10), status: result.status, reason: result.reason })
+      const isAndroid = row.platform === 'android'
+      const result = isAndroid
+        ? await sendFcm(row.token, { title, body, data: { type, url: url || '/notifications' } })
+        : await sendToToken(row.token, { title, body, data: { type, url: url || '/notifications' } })
+
+      apnsResults.push({ token_start: row.token.slice(0, 10), platform: row.platform || 'ios', status: result.status, reason: result.reason })
       if (result.ok) sent = true
       else if (
         result.status === 410 ||
+        result.status === 404 ||
         result.reason === 'BadDeviceToken' ||
         result.reason === 'Unregistered' ||
-        result.reason === 'DeviceTokenNotForTopic'
+        result.reason === 'DeviceTokenNotForTopic' ||
+        result.reason === 'UNREGISTERED' ||
+        result.reason === 'NOT_FOUND' ||
+        result.reason === 'INVALID_ARGUMENT'
       ) {
         await supabase.from('device_tokens').delete().eq('token', row.token)
       }
