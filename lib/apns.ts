@@ -112,6 +112,7 @@ export async function sendApnsToClient(
     .from('device_tokens')
     .select('token')
     .eq('client_id', clientId)
+    .or('platform.eq.ios,platform.is.null')
 
   if (!rows?.length) return false
 
@@ -138,6 +139,7 @@ export async function sendApnsBroadcast(
     .from('device_tokens')
     .select('client_id, token')
     .in('client_id', clientIds)
+    .or('platform.eq.ios,platform.is.null')
 
   if (!rows?.length) return { sent: 0, total: 0, errors: [] }
 

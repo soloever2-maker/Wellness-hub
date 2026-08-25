@@ -23,6 +23,15 @@ export function isNativeApp(): boolean {
   return !!getNativePush()
 }
 
+// Which native platform are we in? 'ios' | 'android' | null (web).
+function getNativePlatform(): 'ios' | 'android' | null {
+  if (typeof window === 'undefined') return null
+  const cap = (window as any).Capacitor
+  if (!cap?.isNativePlatform?.()) return null
+  const p = cap.getPlatform?.()
+  return p === 'android' ? 'android' : 'ios'
+}
+
 // Deep-link when the user taps a notification (native only).
 let tapListenerAdded = false
 function ensureTapListener() {
@@ -127,7 +136,7 @@ async function subscribeNative(Push: any, clientId: string): Promise<{ ok: boole
     if (perm?.receive !== 'granted') {
       return {
         ok: false,
-        error: 'Please allow notifications: Settings → Align with Enjy → Notifications.',
+        error: 'Please allow notifications for Align with Enjy in your device Settings.',
       }
     }
 
@@ -156,7 +165,7 @@ async function subscribeNative(Push: any, clientId: string): Promise<{ ok: boole
     const res = await fetch('/api/push/register-device', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token, client_id: clientId, platform: 'ios' }),
+      body: JSON.stringify({ token, client_id: clientId, platform: getNativePlatform() || 'ios' }),
     })
     if (!res.ok) throw new Error('Failed to save device token')
 
