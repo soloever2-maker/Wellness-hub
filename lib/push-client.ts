@@ -23,6 +23,28 @@ export function isNativeApp(): boolean {
   return !!getNativePush()
 }
 
+// Wait for Capacitor to inject the PushNotifications plugin into the page.
+// On Android + remote server.url, the bridge appears a beat after load, so a
+// single synchronous check can miss it. Polls briefly, then gives up.
+async function waitForNativePush(timeoutMs = 4000): Promise<any | null> {
+  const existing = getNativePush()
+  if (existing) return existing
+  // Only bother waiting if we're actually in the native shell.
+  if (typeof navigator === 'undefined' || !/AlignWithEnjyApp/.test(navigator.userAgent)) {
+    return null
+  }
+  const start = Date.now()
+  return new Promise(resolve => {
+    const timer = setInterval(() => {
+      const push = getNativePush()
+      if (push || Date.now() - start > timeoutMs) {
+        clearInterval(timer)
+        resolve(push)
+      }
+    }, 200)
+  })
+}
+
 // Which native platform are we in? 'ios' | 'android' | null (web).
 function getNativePlatform(): 'ios' | 'android' | null {
   if (typeof window === 'undefined') return null
@@ -60,9 +82,17 @@ function urlBase64ToUint8Array(base64String: string) {
 
 // ── Public API ─────────────────────────────────────────────────
 
+// True when we're inside our native shell's WebView (iOS or Android),
+// detected via the custom user-agent the shell appends.
+function isNativeShellUA(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /AlignWithEnjyApp/.test(navigator.userAgent)
+}
+
 export async function isPushSupported(): Promise<boolean> {
   if (typeof window === 'undefined') return false
-  if (isNativeApp()) return true // iOS shell always supports APNs
+  if (isNativeApp()) return true      // plugin already injected
+  if (isNativeShellUA()) return true  // native shell — plugin injects shortly
   return 'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window
@@ -89,8 +119,13 @@ export async function isPushEnabled(): Promise<boolean> {
 }
 
 export async function subscribeToPush(clientId: string): Promise<{ ok: boolean; error?: string }> {
-  const Push = getNativePush()
+  const Push = await waitForNativePush()
   if (Push) return subscribeNative(Push, clientId)
+  // In the native shell but the plugin never injected — don't fall through to
+  // web push (there's no service worker there), surface a retry message instead.
+  if (isNativeShellUA()) {
+    return { ok: false, error: 'Notifications are still starting up. Please try again in a moment.' }
+  }
   return subscribeWeb(clientId)
 }
 
