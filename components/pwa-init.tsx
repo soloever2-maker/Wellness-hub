@@ -16,6 +16,17 @@ export function PWAInit() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
 
+    // Inside the native Android shell, a service worker blocks Capacitor from
+    // injecting window.Capacitor + its plugins (a known Capacitor+Android bug).
+    // We tag the shell's WebView with a custom UA ('AlignWithEnjyApp'), so when
+    // we detect it we skip SW registration entirely — native push works instead.
+    // iOS and normal browsers are unaffected and keep the service worker.
+    const isAndroidShell =
+      typeof navigator !== 'undefined' &&
+      /AlignWithEnjyApp/.test(navigator.userAgent) &&
+      /Android/i.test(navigator.userAgent)
+    if (isAndroidShell) return
+
     let newWorker: ServiceWorker | null = null
 
     navigator.serviceWorker
