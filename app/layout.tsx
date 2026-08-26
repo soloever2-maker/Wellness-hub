@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { PWAInit } from '@/components/pwa-init'
+import { AppUpdateBanner } from '@/components/app-update-banner'
 import { AuthGuard } from '@/components/auth-guard'
 import { PageTransition } from '@/components/page-transition'
 import { BackHandler } from '@/components/back-handler'
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="font-sans antialiased">
         <FloatingBg />
         <PWAInit />
+        <AppUpdateBanner />
         <AuthGuard>
           <PageTransition>
             {children}
