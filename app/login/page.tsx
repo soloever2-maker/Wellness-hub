@@ -12,6 +12,7 @@ import { playSingingBowl } from '@/lib/sounds'
 import {
   isBiometricSupported,
   isBiometricEnabled,
+  isBiometricReady,
   getSavedEmail,
   getCredentialsViaBiometric,
   updateStoredBiometricPassword,
@@ -199,7 +200,7 @@ export default function LoginPage() {
   }
 
   useEffect(() => {
-    setShowBiometric(isBiometricSupported() && isBiometricEnabled())
+    setShowBiometric(isBiometricSupported() && isBiometricReady())
   }, [])
 
   const contentRef = useRef<HTMLDivElement>(null)
