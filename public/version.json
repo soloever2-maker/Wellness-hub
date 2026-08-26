@@ -1,0 +1,14 @@
+{
+  "latestBuild": {
+    "android": 4,
+    "ios": 6
+  },
+  "message": {
+    "en": "A new version is available with faster, more secure biometric login. Please update to keep using fingerprint / Face login.",
+    "ar": "يتوفر إصدار جديد بتسجيل دخول بالبصمة أسرع وأكثر أماناً. يُرجى التحديث للاستمرار في استخدام الدخول بالبصمة / الوجه."
+  },
+  "storeUrl": {
+    "android": "https://play.google.com/store/apps/details?id=com.alignwithenjy.app",
+    "ios": "https://apps.apple.com/eg/app/align-with-enjy/id6789882055"
+  }
+}
