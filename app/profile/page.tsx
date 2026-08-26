@@ -11,7 +11,7 @@ import { isPushSupported, isPushEnabled, subscribeToPush, unsubscribeFromPush } 
 import { playTing, playSingingBowl } from '@/lib/sounds'
 import {
   isBiometricSupported,
-  isBiometricEnabled,
+  isBiometricReady,
   registerBiometric,
   disableBiometric,
   getSavedEmail,
@@ -49,7 +49,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setBiometricSupported(isBiometricSupported())
-    setBiometricEnabled(isBiometricEnabled())
+    setBiometricEnabled(isBiometricReady())
 
     // Check push notification support + status
     isPushSupported().then(supported => {
