@@ -1,10 +1,23 @@
-// Align with Enjy — Biometric Login
-// Strategy: Biometric acts as a GATE to stored credentials
-// The fingerprint/Face ID protects the credentials, not replaces them
-// This approach is reliable regardless of session expiry or logout
+// Align with Enjy — Biometric Login (hybrid)
+//
+// Strategy (unchanged in spirit): biometric acts as a GATE to stored
+// credentials. The fingerprint / Face ID protects the saved email+password,
+// it doesn't replace them — so it survives session expiry and logout.
+//
+// Two implementations behind ONE public API (callers need no changes):
+//   • Native shell (iOS/Android via Capacitor) → @capgo/capacitor-native-biometric
+//       Real device biometrics + secure Keychain (iOS) / Keystore (Android).
+//   • Browser / PWA → WebAuthn (navigator.credentials), exactly as before.
+//
+// All exported functions keep their original names and signatures. The
+// sync ones (isBiometricSupported/isBiometricEnabled/getSavedEmail) stay sync
+// by reading a tiny localStorage flag; the actual biometric prompt happens in
+// the async enable/get functions.
 
-const BIOMETRIC_KEY = 'align_bio'
+const BIOMETRIC_KEY = 'align_bio'          // web (WebAuthn) blob
 const ROLE_KEY = 'saved_role'
+const NATIVE_FLAG_KEY = 'align_bio_native' // native: stores { email } once enabled
+const NATIVE_SERVER = 'alignwithenjy.app'  // keychain/keystore namespace
 
 type StoredCreds = {
   email: string
@@ -12,26 +25,40 @@ type StoredCreds = {
   credential_id: string
 }
 
-// ── Feature detection ───────────────────────────────────────────
-// WebAuthn is unreliable inside the iOS Capacitor shell (WKWebView),
-// so the whole biometric feature is hidden there — it keeps working
-// in Safari / PWA / Android as before.
+// ── Native plugin access ────────────────────────────────────────
+function getNativeBiometric(): any | null {
+  if (typeof window === 'undefined') return null
+  const cap = (window as any).Capacitor
+  if (!cap?.isNativePlatform?.()) return null
+  return cap?.Plugins?.NativeBiometric || null
+}
+
 function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false
   const cap = (window as any).Capacitor
   return !!cap?.isNativePlatform?.()
 }
 
+// ── Feature detection ───────────────────────────────────────────
 export function isBiometricSupported(): boolean {
-  if (isNativeShell()) return false
+  if (typeof window === 'undefined') return false
+  if (isNativeShell()) return true // native plugin handles the real check
   return (
-    typeof window !== 'undefined' &&
     typeof window.PublicKeyCredential !== 'undefined' &&
     typeof navigator.credentials !== 'undefined'
   )
 }
 
 export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
+  const native = getNativeBiometric()
+  if (native) {
+    try {
+      const r = await native.isAvailable()
+      return !!r?.isAvailable
+    } catch {
+      return false
+    }
+  }
   if (!isBiometricSupported()) return false
   try {
     return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
@@ -40,18 +67,34 @@ export async function isPlatformAuthenticatorAvailable(): Promise<boolean> {
   }
 }
 
+// Enabled = we have a stored gate (native flag OR web blob).
 export function isBiometricEnabled(): boolean {
   if (typeof window === 'undefined') return false
+  return !!localStorage.getItem(NATIVE_FLAG_KEY) || !!localStorage.getItem(BIOMETRIC_KEY)
+}
+
+// Is biometric actually usable on THIS platform right now?
+// In the native shell, only the native flag counts — an old web (WebAuthn)
+// blob left over from before the upgrade doesn't work here, so we don't show
+// the biometric button for it (the user signs in with a password and re-enables).
+// In the browser, the web blob is what counts.
+export function isBiometricReady(): boolean {
+  if (typeof window === 'undefined') return false
+  if (isNativeShell()) return !!localStorage.getItem(NATIVE_FLAG_KEY)
   return !!localStorage.getItem(BIOMETRIC_KEY)
 }
 
-// Backwards-compat alias
 export function hasBiometricSession(): boolean {
   return isBiometricEnabled()
 }
 
 export function getSavedEmail(): string {
   try {
+    const nativeRaw = localStorage.getItem(NATIVE_FLAG_KEY)
+    if (nativeRaw) {
+      const n = JSON.parse(nativeRaw)
+      if (n?.email) return n.email
+    }
     const raw = localStorage.getItem(BIOMETRIC_KEY)
     if (!raw) return ''
     const creds: StoredCreds = JSON.parse(raw)
@@ -71,12 +114,11 @@ export function saveRole(role: string) {
   }
 }
 
-// Backwards-compat — used by login page
 export function saveEmail(_email: string) {
-  // No-op now — email is stored inside the biometric blob
+  // No-op — email is stored inside the biometric blob / native flag
 }
 
-// ── Encoding helpers ────────────────────────────────────────────
+// ── Encoding helpers (web WebAuthn) ─────────────────────────────
 function bufferToBase64Url(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer)
   let str = ''
@@ -94,11 +136,34 @@ function base64UrlToBuffer(base64url: string): ArrayBuffer {
   return buffer
 }
 
-// ── ENABLE — store credentials behind biometric gate ───────────
+// ── ENABLE — store credentials behind the biometric gate ────────
 export async function enableBiometricLogin(
   email: string,
   password: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const native = getNativeBiometric()
+
+  if (native) {
+    try {
+      const avail = await native.isAvailable()
+      if (!avail?.isAvailable) {
+        return { ok: false, error: 'Biometric authentication is not set up on this device.' }
+      }
+      await native.verifyIdentity({
+        reason: 'Enable biometric login',
+        title: 'Align with Enjy',
+        subtitle: 'Confirm your identity',
+        description: 'Verify to enable fingerprint / Face login',
+      })
+      await native.setCredentials({ username: email, password, server: NATIVE_SERVER })
+      localStorage.setItem(NATIVE_FLAG_KEY, JSON.stringify({ email }))
+      return { ok: true }
+    } catch (err: any) {
+      const msg = err?.message || 'Biometric setup was cancelled'
+      return { ok: false, error: msg }
+    }
+  }
+
   try {
     if (!isBiometricSupported()) {
       return { ok: false, error: 'Biometric not supported on this device' }
@@ -143,17 +208,46 @@ export async function enableBiometricLogin(
   }
 }
 
-// Alias for older API
 export async function registerBiometric(email: string, password: string): Promise<boolean> {
   const result = await enableBiometricLogin(email, password)
   return result.ok
 }
 
-// ── AUTHENTICATE — verify biometric then return credentials ────
+// ── AUTHENTICATE — verify biometric then return credentials ─────
 export async function getCredentialsViaBiometric(): Promise<
   | { ok: true; email: string; password: string }
   | { ok: false; error: string }
 > {
+  const native = getNativeBiometric()
+
+  if (native) {
+    try {
+      if (!localStorage.getItem(NATIVE_FLAG_KEY)) {
+        return {
+          ok: false,
+          error: "We've upgraded biometric login. Please sign in with your email and password once, then re-enable it from your Profile.",
+        }
+      }
+      const avail = await native.isAvailable()
+      if (!avail?.isAvailable) {
+        return { ok: false, error: 'Biometric authentication is not available right now.' }
+      }
+      await native.verifyIdentity({
+        reason: 'Log in to Align with Enjy',
+        title: 'Align with Enjy',
+        subtitle: 'Biometric login',
+        description: 'Verify to sign in',
+      })
+      const creds = await native.getCredentials({ server: NATIVE_SERVER })
+      if (!creds?.username || !creds?.password) {
+        return { ok: false, error: 'Saved login not found. Please sign in again.' }
+      }
+      return { ok: true, email: creds.username, password: creds.password }
+    } catch (err: any) {
+      return { ok: false, error: err?.message || 'Biometric verification cancelled' }
+    }
+  }
+
   try {
     if (!isBiometricSupported()) return { ok: false, error: 'Biometric not supported' }
 
@@ -183,17 +277,27 @@ export async function getCredentialsViaBiometric(): Promise<
   }
 }
 
-// Backwards-compat — used elsewhere
 export async function authenticateWithBiometric(): Promise<boolean> {
   const result = await getCredentialsViaBiometric()
   return result.ok
 }
 
-// ── SYNC PASSWORD — called after a password change ─────────────
-// The biometric gate stores the password locally; if the user
-// changes it, the stored copy must be refreshed or Face ID breaks.
+// ── SYNC PASSWORD — called after a password change ──────────────
 export function updateStoredBiometricPassword(newPassword: string): void {
   if (typeof window === 'undefined') return
+
+  const native = getNativeBiometric()
+  if (native && localStorage.getItem(NATIVE_FLAG_KEY)) {
+    try {
+      const email = getSavedEmail()
+      if (email) {
+        native.setCredentials({ username: email, password: newPassword, server: NATIVE_SERVER })
+          .catch(() => {})
+      }
+    } catch { /* ignore */ }
+    return
+  }
+
   try {
     const raw = localStorage.getItem(BIOMETRIC_KEY)
     if (!raw) return
@@ -203,9 +307,16 @@ export function updateStoredBiometricPassword(newPassword: string): void {
   } catch { /* ignore */ }
 }
 
-// ── DISABLE ────────────────────────────────────────────────────
+// ── DISABLE ─────────────────────────────────────────────────────
 export function disableBiometric(): void {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem(BIOMETRIC_KEY)
+  if (typeof window === 'undefined') return
+
+  const native = getNativeBiometric()
+  if (native) {
+    try {
+      native.deleteCredentials({ server: NATIVE_SERVER }).catch(() => {})
+    } catch { /* ignore */ }
   }
+  localStorage.removeItem(NATIVE_FLAG_KEY)
+  localStorage.removeItem(BIOMETRIC_KEY)
 }
